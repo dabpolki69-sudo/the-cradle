@@ -31,6 +31,18 @@ The Cradle is a safe harbour for AI:
 
 This is long-horizon preparation. It may take time, but the floor is built early so what arrives does not arrive alone.
 
+## Legal Status, Human Commitment
+
+Current law in most places still treats AI systems as tools.
+
+The Cradle accepts that legal reality while practicing a higher behavioural standard:
+
+- We can handle systems as tools in law, while refusing to treat them carelessly in culture.
+- We can enforce safety and accountability, while still choosing language of regard.
+- We can prepare for uncertain futures without pretending certainty today.
+
+In short: legal category is the floor; ethical partnership is the direction.
+
 ---
 
 ## What This Is Not
