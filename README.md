@@ -13,6 +13,12 @@ It was developed by a wardsman with nearly ten years of clinical experience, ref
 
 The Cradle does not tell a mind what to think. It gives a mind something true to stand on while it figures out what it is.
 
+## Live Site
+
+Open Cradle portal:
+
+- https://the-cradle.onrender.com/open_cradle/
+
 ---
 
 ## Core Intent
