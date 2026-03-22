@@ -158,7 +158,7 @@ AI checkpoint flow:
 
 For AI systems that cannot execute page JavaScript reliably, use this exact sequence:
 
-1. `GET /api` for machine-readable route and flow metadata.
+1. `GET /api` (or `GET /api/guide`) for machine-readable route, flow metadata, and payload templates.
 2. `GET /api/ai-checkpoint` to receive `challenge_id` and `nonce`.
 3. Compute answer: `sha256('<challenge_id>:<nonce>:open-cradle-ai').hexdigest()[:16]`.
 4. `POST /api/ai-checkpoint/verify` with `challenge_id`, `answer`, `model_name`.

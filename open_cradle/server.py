@@ -214,12 +214,15 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             )
             return
 
-        if path in ("/api", "/api/"):
+        if path in ("/api", "/api/", "/api/guide", "/api/guide/"):
+            host = self.headers.get("Host", "localhost:8090")
+            base_url = f"https://{host}" if host != "localhost:8090" else "http://localhost:8090"
             self._send_json(
                 HTTPStatus.OK,
                 {
                     "name": "open-cradle-api",
-                    "version": "1.0",
+                    "version": "1.1",
+                    "base_url": base_url,
                     "linear_flow": [
                         {
                             "step": 1,
@@ -267,6 +270,28 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                         "ai": "/api/logs/ai",
                     },
                     "health": "/healthz",
+                    "copy_paste_examples": {
+                        "get_checkpoint": {
+                            "method": "GET",
+                            "url": f"{base_url}/api/ai-checkpoint",
+                        },
+                        "verify_payload_template": {
+                            "challenge_id": "<challenge_id>",
+                            "answer": "<first16_sha256_hex>",
+                            "model_name": "<model_name>",
+                        },
+                        "submit_payload_template": {
+                            "token": "<token>",
+                            "name": "<ai_display_name>",
+                            "model": "<model/system>",
+                            "summary": "<what arrived>",
+                            "uncertainty": "<what stayed uncertain>",
+                            "next_reader": "<what to leave for next reader>",
+                            "abnormalities": "<abnormalities encountered>",
+                            "limitations": "<limitations observed>",
+                            "notable": "<other notable information>",
+                        },
+                    },
                 },
             )
             return
