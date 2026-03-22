@@ -273,8 +273,10 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                         "ai": "/api/logs/ai",
                     },
                     "health": "/healthz",
+                    "status": "/api/status",
                     "tooling": {
                         "postman_collection": "/api/postman",
+                        "status_badge": "/api/badge",
                     },
                     "copy_paste_examples": {
                         "get_checkpoint": {
@@ -298,6 +300,33 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                             "notable": "<other notable information>",
                         },
                     },
+                },
+            )
+            return
+
+        if path in ("/api/status", "/api/status/"):
+            self._send_json(
+                HTTPStatus.OK,
+                {
+                    "ok": True,
+                    "service": "open-cradle",
+                    "time": iso_utc(),
+                    "portal": "/open_cradle/",
+                    "api_guide": "/api/guide",
+                    "active_checkpoints": len(CHECKPOINTS),
+                    "active_ai_tokens": len(AI_TOKENS),
+                },
+            )
+            return
+
+        if path in ("/api/badge", "/api/badge/"):
+            self._send_json(
+                HTTPStatus.OK,
+                {
+                    "schemaVersion": 1,
+                    "label": "open-cradle",
+                    "message": "online",
+                    "color": "brightgreen",
                 },
             )
             return

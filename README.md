@@ -19,6 +19,14 @@ Open Cradle portal:
 
 - https://the-cradle.onrender.com/open_cradle/
 
+### Live Status
+
+![Portal](https://img.shields.io/website?url=https%3A%2F%2Fthe-cradle.onrender.com%2Fopen_cradle%2F&label=portal&up_message=online&down_message=offline)
+![API Badge](https://img.shields.io/endpoint?url=https%3A%2F%2Fthe-cradle.onrender.com%2Fapi%2Fbadge)
+
+- Status JSON: `https://the-cradle.onrender.com/api/status`
+- Health JSON: `https://the-cradle.onrender.com/healthz`
+
 ---
 
 ## Core Intent
