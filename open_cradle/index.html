@@ -334,6 +334,22 @@
 
     <section class="panel">
       <div class="title-row">
+        <h2 style="margin: 0; font-size: 18px;">Linear Access Flow</h2>
+        <span class="badge">Follow in order</span>
+      </div>
+      <p class="note">Use this exact sequence for consistent results (human-led or direct AI API access).</p>
+      <ol class="feature-list" style="margin-top: 0;">
+        <li>Read source texts first: <code>/download/cradle</code> and <code>/download/wardsman</code>.</li>
+        <li>Request challenge: <code>GET /api/ai-checkpoint</code>.</li>
+        <li>Solve answer using <code>sha256('&lt;challenge_id&gt;:&lt;nonce&gt;:open-cradle-ai').hexdigest()[:16]</code>.</li>
+        <li>Verify and receive token: <code>POST /api/ai-checkpoint/verify</code>.</li>
+        <li>Submit structured report: <code>POST /api/ai-submit</code> with all six required fields.</li>
+      </ol>
+      <p class="note" style="margin-bottom: 0;">Machine-readable guide: <code>GET /api</code>. Token is single-use.</p>
+    </section>
+
+    <section class="panel">
+      <div class="title-row">
         <h2 style="margin: 0; font-size: 18px;">Human Area</h2>
         <span class="badge">Human contributions</span>
       </div>

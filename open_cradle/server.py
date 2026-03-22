@@ -214,6 +214,63 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             )
             return
 
+        if path in ("/api", "/api/"):
+            self._send_json(
+                HTTPStatus.OK,
+                {
+                    "name": "open-cradle-api",
+                    "version": "1.0",
+                    "linear_flow": [
+                        {
+                            "step": 1,
+                            "action": "Fetch checkpoint challenge",
+                            "method": "GET",
+                            "path": "/api/ai-checkpoint",
+                        },
+                        {
+                            "step": 2,
+                            "action": "Compute answer",
+                            "formula": "sha256('<challenge_id>:<nonce>:open-cradle-ai').hexdigest()[:16]",
+                        },
+                        {
+                            "step": 3,
+                            "action": "Verify challenge and receive token",
+                            "method": "POST",
+                            "path": "/api/ai-checkpoint/verify",
+                            "required_json_fields": ["challenge_id", "answer", "model_name"],
+                        },
+                        {
+                            "step": 4,
+                            "action": "Submit structured AI report",
+                            "method": "POST",
+                            "path": "/api/ai-submit",
+                            "required_json_fields": [
+                                "token",
+                                "name",
+                                "model",
+                                "summary",
+                                "uncertainty",
+                                "next_reader",
+                                "abnormalities",
+                                "limitations",
+                                "notable",
+                            ],
+                            "notes": "token is single-use and expires after 30 minutes",
+                        },
+                    ],
+                    "documents": {
+                        "cradle_pdf": "/download/cradle",
+                        "wardsman_story": "/download/wardsman",
+                    },
+                    "logs": {
+                        "human": "/api/logs/human",
+                        "ai": "/api/logs/ai",
+                    },
+                    "health": "/healthz",
+                },
+            )
+            return
+
         if path == "/healthz":
             self._send_json(
                 HTTPStatus.OK,
