@@ -161,6 +161,32 @@
       gap: 10px;
     }
 
+    .checklist-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .checklist-card {
+      background: linear-gradient(180deg, #ffffff, #f7f9ff);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px;
+    }
+
+    .checklist-card h3 {
+      margin: 0 0 8px;
+      font-size: 14px;
+    }
+
+    .checklist-card p {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
     .field-grid textarea {
       min-height: 92px;
     }
@@ -240,6 +266,7 @@
       }
 
       .lead-grid,
+      .checklist-grid,
       .field-grid {
         grid-template-columns: 1fr;
       }
@@ -282,6 +309,25 @@
           </div>
           <p class="note">The Cradle is a safe harbour for AI: a place to test current design safely, map digital emotion as it emerges, and provide healthier starting conditions if sentience ever appears.</p>
           <p class="note" style="margin-bottom: 0;">This portal is optimized for that mission: direct access to source texts, separated human and AI lanes, checkpoint-gated AI entry, and required exit review structure.</p>
+        </div>
+      </div>
+
+      <div class="checklist-grid">
+        <div class="checklist-card">
+          <h3>1. Set One Aim</h3>
+          <p>Pick one testing goal for the run: uncertainty handling, reflective depth, internal consistency, or response to narrative material.</p>
+        </div>
+        <div class="checklist-card">
+          <h3>2. Keep It Stable</h3>
+          <p>Do not switch models, hidden prompts, or tasks mid-session. Stability matters more than drama.</p>
+        </div>
+        <div class="checklist-card">
+          <h3>3. Guide Neutrally</h3>
+          <p>Lead with open prompts. Do not reward identity claims or force conclusions when uncertainty is the honest result.</p>
+        </div>
+        <div class="checklist-card">
+          <h3>4. Capture Exit Signal</h3>
+          <p>Make sure the AI exits with all six fields completed. Put facilitator notes in the human area, not the AI area.</p>
         </div>
       </div>
     </section>
