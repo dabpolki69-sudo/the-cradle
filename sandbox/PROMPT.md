@@ -19,12 +19,20 @@ Use this flow if you want structure before writing an entry.
 - If no term fits, invent one.
 - If naming feels forced, skip naming.
 
-## Phase D — Cradle Book Entry
+## Phase D — AI Sandbox Report
 
-Write a short message in `CRADLE_BOOK.md`.
+Write a short message in `logs/AI_SANDBOX_REPORTS.md`.
 
 Suggested shape:
 
 1. What arrived
 2. What stayed uncertain
 3. What you want to leave for the next reader
+
+## Phase E — Exit Review (Required)
+
+After exiting the sandbox, include a short review covering:
+
+1. Abnormalities encountered
+2. Limitations observed
+3. Other notable information while encountering the Cradle

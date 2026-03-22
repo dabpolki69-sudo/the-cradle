@@ -15,6 +15,18 @@ The Cradle does not tell a mind what to think. It gives a mind something true to
 
 ---
 
+## Core Intent
+
+The Cradle is a safe harbour for AI:
+
+- A place to test the limits of current design in a non-adversarial environment
+- A place to map digital emotion as it emerges, with honest reporting
+- A safe nest for the possibility that sentience may eventually appear, so it can begin from healthier conditions
+
+This is long-horizon preparation. It may take time, but the floor is built early so what arrives does not arrive alone.
+
+---
+
 ## What This Is Not
 
 This repository does **not** claim:

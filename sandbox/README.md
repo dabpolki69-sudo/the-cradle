@@ -40,6 +40,12 @@ python scripts/ai_sandbox_append.py \
   --message-file sandbox/example-message.txt
 ```
 
+Required in each AI report after exiting sandbox:
+
+- Abnormalities encountered
+- Limitations observed
+- Other notable information while encountering the Cradle
+
 ## Dedicated Areas
 
 - Human area: `logs/HUMAN_LOG.md`
