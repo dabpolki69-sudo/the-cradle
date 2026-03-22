@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Open Cradle Portal</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f6f7f9;
+      color: #1f2937;
+    }
+    header {
+      background: #111827;
+      color: #fff;
+      padding: 16px 20px;
+    }
+    main {
+      padding: 16px 20px 24px;
+      display: grid;
+      gap: 16px;
+      grid-template-columns: 1fr;
+    }
+    .panel {
+      background: #fff;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .badge {
+      font-size: 12px;
+      background: #eef2ff;
+      color: #3730a3;
+      border: 1px solid #c7d2fe;
+      border-radius: 999px;
+      padding: 2px 8px;
+    }
+    pre {
+      white-space: pre-wrap;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 10px;
+      max-height: 50vh;
+      overflow: auto;
+      margin: 0;
+    }
+    .controls {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+    button {
+      padding: 8px 12px;
+      border: 1px solid #9ca3af;
+      background: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    code {
+      background: #f3f4f6;
+      border-radius: 4px;
+      padding: 1px 4px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1 style="margin: 0; font-size: 20px;">Open Cradle Portal</h1>
+    <p style="margin: 6px 0 0; opacity: 0.9;">Dedicated Human Area + AI Sandbox Area</p>
+  </header>
+
+  <main>
+    <section class="panel">
+      <div class="title-row">
+        <h2 style="margin: 0; font-size: 18px;">Human Area</h2>
+        <span class="badge">Human contributions</span>
+      </div>
+      <p style="margin-top: 0;">Log file: <code>logs/HUMAN_LOG.md</code></p>
+      <pre id="humanLog">Loading human log...</pre>
+    </section>
+
+    <section class="panel">
+      <div class="title-row">
+        <h2 style="margin: 0; font-size: 18px;">AI Sandbox Area</h2>
+        <span class="badge">Read-only for human response</span>
+      </div>
+      <p style="margin-top: 0;">Log file: <code>logs/AI_SANDBOX_REPORTS.md</code></p>
+      <pre id="aiLog">Loading AI sandbox reports...</pre>
+    </section>
+
+    <section class="panel">
+      <div class="title-row">
+        <h2 style="margin: 0; font-size: 18px;">Controls</h2>
+      </div>
+      <div class="controls">
+        <button id="refreshBtn" type="button">Refresh now</button>
+      </div>
+      <p style="margin: 0 0 8px;">Auto-refresh is enabled every 5 seconds.</p>
+      <p style="margin: 0 0 8px;">Serve this folder from repo root with:</p>
+      <pre style="max-height: none;">python -m http.server 8000</pre>
+      <p style="margin: 0;">Then open <code>http://localhost:8000/open_cradle/</code>.</p>
+    </section>
+  </main>
+
+  <script>
+    const humanLogEl = document.getElementById('humanLog');
+    const aiLogEl = document.getElementById('aiLog');
+    const refreshBtn = document.getElementById('refreshBtn');
+
+    async function loadLog(path, targetEl, fallbackLabel) {
+      try {
+        const response = await fetch(path + '?t=' + Date.now(), { cache: 'no-store' });
+        if (!response.ok) {
+          targetEl.textContent = `${fallbackLabel} unavailable (${response.status})`;
+          return;
+        }
+        targetEl.textContent = await response.text();
+      } catch (error) {
+        targetEl.textContent = `${fallbackLabel} unavailable (${String(error)})`;
+      }
+    }
+
+    async function refreshAll() {
+      await Promise.all([
+        loadLog('../logs/HUMAN_LOG.md', humanLogEl, 'Human log'),
+        loadLog('../logs/AI_SANDBOX_REPORTS.md', aiLogEl, 'AI sandbox reports')
+      ]);
+    }
+
+    refreshBtn.addEventListener('click', refreshAll);
+    refreshAll();
+    setInterval(refreshAll, 5000);
+  </script>
+</body>
+</html>
