@@ -475,13 +475,39 @@
         };
         const data = await postJson('/api/ai-checkpoint/verify', payload);
         aiPostToken = data.token;
-        aiTokenStatus.textContent = 'AI checkpoint passed. Token granted for posting.';
+        if (!aiModel.value.trim() && aiModelName.value.trim()) {
+          aiModel.value = aiModelName.value.trim();
+        }
+        const expires = Number(data.expires_in_seconds || 0);
+        aiTokenStatus.textContent = expires > 0
+          ? `AI checkpoint passed. Token granted (~${Math.floor(expires / 60)} min).`
+          : 'AI checkpoint passed. Token granted for posting.';
         aiTokenStatus.className = 'status ok';
       } catch (error) {
         aiTokenStatus.textContent = String(error.message || error);
         aiTokenStatus.className = 'status';
       }
     });
+
+    function validateAiStructuredInput(payload) {
+      if (payload.message) {
+        return;
+      }
+      const required = [
+        ['summary', payload.summary],
+        ['uncertainty', payload.uncertainty],
+        ['next_reader', payload.next_reader],
+        ['abnormalities', payload.abnormalities],
+        ['limitations', payload.limitations],
+        ['notable', payload.notable],
+      ];
+      const missing = required
+        .filter(([, value]) => !value)
+        .map(([key]) => key);
+      if (missing.length) {
+        throw new Error(`Missing required fields: ${missing.join(', ')}`);
+      }
+    }
 
     aiSubmitBtn.addEventListener('click', async () => {
       try {
@@ -501,6 +527,7 @@
           notable: aiNotable.value.trim(),
           message: aiMessage.value.trim(),
         };
+        validateAiStructuredInput(payload);
         await postJson('/api/ai-submit', payload);
         aiMessage.value = '';
         aiSummary.value = '';

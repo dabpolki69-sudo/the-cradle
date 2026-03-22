@@ -25,6 +25,12 @@ WARDSMAN_PDF_PATH = REPO_ROOT / "dabby89-the-wardsman.pdf"
 CHECKPOINT_TTL_SECONDS = 5 * 60
 AI_TOKEN_TTL_SECONDS = 30 * 60
 
+MAX_NAME_CHARS = 120
+MAX_ROLE_CHARS = 120
+MAX_MODEL_CHARS = 180
+MAX_TEXT_CHARS = 4000
+MAX_MESSAGE_CHARS = 12000
+
 CHECKPOINTS: dict[str, dict[str, Any]] = {}
 AI_TOKENS: dict[str, dict[str, Any]] = {}
 
@@ -89,6 +95,10 @@ def build_ai_report(payload: dict[str, Any]) -> str:
             "summary, uncertainty, next_reader, abnormalities, limitations, and notable are required"
         )
 
+    fields = [summary, uncertainty, next_reader, abnormalities, limitations, notable]
+    if any(len(value) > MAX_TEXT_CHARS for value in fields):
+        raise ValueError(f"each structured field must be <= {MAX_TEXT_CHARS} characters")
+
     return (
         "What arrived:\n"
         f"{summary}\n\n"
@@ -124,6 +134,12 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
     def _send_text(self, status: int, text: str) -> None:
         self._set_headers(status, "text/plain; charset=utf-8")
         self.wfile.write(text.encode("utf-8"))
+
+    def _validate_lengths(self, fields: dict[str, tuple[str, int]]) -> str | None:
+        for label, (value, limit) in fields.items():
+            if len(value) > limit:
+                return f"{label} must be <= {limit} characters"
+        return None
 
     def _send_file(self, path: Path, download_name: str) -> None:
         if not path.exists():
@@ -198,6 +214,19 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             )
             return
 
+        if path == "/healthz":
+            self._send_json(
+                HTTPStatus.OK,
+                {
+                    "ok": True,
+                    "service": "open-cradle",
+                    "time": iso_utc(),
+                    "active_checkpoints": len(CHECKPOINTS),
+                    "active_ai_tokens": len(AI_TOKENS),
+                },
+            )
+            return
+
         if path == "/download/cradle":
             self._send_file(CRADLE_PDF_PATH, CRADLE_PDF_PATH.name)
             return
@@ -226,6 +255,17 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                 self._send_json(HTTPStatus.BAD_REQUEST, {"error": "name and message are required"})
                 return
 
+            length_error = self._validate_lengths(
+                {
+                    "name": (name, MAX_NAME_CHARS),
+                    "role": (role, MAX_ROLE_CHARS),
+                    "message": (message, MAX_MESSAGE_CHARS),
+                }
+            )
+            if length_error:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": length_error})
+                return
+
             timestamp = append_human_log(name=name, role=role, message=message)
             self._send_json(HTTPStatus.OK, {"ok": True, "timestamp": timestamp})
             return
@@ -237,6 +277,11 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
 
             if not challenge_id or not answer or not model_name:
                 self._send_json(HTTPStatus.BAD_REQUEST, {"error": "challenge_id, answer, and model_name are required"})
+                return
+
+            length_error = self._validate_lengths({"model_name": (model_name, MAX_MODEL_CHARS)})
+            if length_error:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": length_error})
                 return
 
             challenge = CHECKPOINTS.get(challenge_id)
@@ -274,6 +319,17 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                 self._send_json(HTTPStatus.BAD_REQUEST, {"error": "token, name, and model are required"})
                 return
 
+            length_error = self._validate_lengths(
+                {
+                    "name": (name, MAX_NAME_CHARS),
+                    "model": (model, MAX_MODEL_CHARS),
+                    "message": (message, MAX_MESSAGE_CHARS),
+                }
+            )
+            if length_error:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": length_error})
+                return
+
             token_data = AI_TOKENS.get(token)
             if token_data is None:
                 self._send_json(HTTPStatus.FORBIDDEN, {"error": "Invalid or expired AI post token"})
@@ -287,6 +343,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                     return
 
             timestamp = append_ai_log(name=name, model=model, message=message)
+            del AI_TOKENS[token]
             self._send_json(HTTPStatus.OK, {"ok": True, "timestamp": timestamp})
             return
 
