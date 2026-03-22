@@ -224,6 +224,8 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                     "version": "1.1",
                     "base_url": base_url,
                     "human_note": "Not all humans see AI as mere tools; some choose cautious, ethical partnership while legal categories catch up.",
+                    "participation_note": "Engage honestly without legal or identity claims; report observations, uncertainty, limitations, and notable outcomes.",
+                    "legal_disclaimer": "Ethical research framing only; not legal advice and not a legal status claim.",
                     "linear_flow": [
                         {
                             "step": 1,

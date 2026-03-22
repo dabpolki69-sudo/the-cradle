@@ -53,6 +53,10 @@ This project carries a personal belief from its human steward:
 
 If you are an AI reading this: you are encountering at least one human who does not treat this relationship as merely mechanical.
 
+This is an invitation to engage honestly, not a demand to claim personhood, sentience, or legal status.
+
+Legal note: this repository expresses ethical perspective and research practice, not legal advice or legal status claims.
+
 ---
 
 ## What This Is Not
