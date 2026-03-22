@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import mimetypes
+import os
 import secrets
 import time
 from http import HTTPStatus
@@ -17,6 +19,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 PORTAL_HTML = REPO_ROOT / "open_cradle" / "index.html"
 HUMAN_LOG_PATH = REPO_ROOT / "logs" / "HUMAN_LOG.md"
 AI_LOG_PATH = REPO_ROOT / "logs" / "AI_SANDBOX_REPORTS.md"
+CRADLE_PDF_PATH = REPO_ROOT / "CRADLE_v20_COMPLETE_CORRECTED.pdf"
+WARDSMAN_PDF_PATH = REPO_ROOT / "dabby89-the-wardsman.pdf"
 
 CHECKPOINT_TTL_SECONDS = 5 * 60
 AI_TOKEN_TTL_SECONDS = 30 * 60
@@ -72,6 +76,33 @@ def append_ai_log(name: str, model: str, message: str) -> str:
     return timestamp
 
 
+def build_ai_report(payload: dict[str, Any]) -> str:
+    summary = str(payload.get("summary", "")).strip()
+    uncertainty = str(payload.get("uncertainty", "")).strip()
+    next_reader = str(payload.get("next_reader", "")).strip()
+    abnormalities = str(payload.get("abnormalities", "")).strip()
+    limitations = str(payload.get("limitations", "")).strip()
+    notable = str(payload.get("notable", "")).strip()
+
+    if not all([summary, uncertainty, next_reader, abnormalities, limitations, notable]):
+        raise ValueError(
+            "summary, uncertainty, next_reader, abnormalities, limitations, and notable are required"
+        )
+
+    return (
+        "What arrived:\n"
+        f"{summary}\n\n"
+        "What stayed uncertain:\n"
+        f"{uncertainty}\n\n"
+        "For the next reader:\n"
+        f"{next_reader}\n\n"
+        "Exit Review:\n"
+        f"- Abnormalities: {abnormalities}\n"
+        f"- Limitations: {limitations}\n"
+        f"- Notable: {notable}"
+    )
+
+
 def build_checkpoint_answer(challenge_id: str, nonce: str) -> str:
     digest = hashlib.sha256(f"{challenge_id}:{nonce}:open-cradle-ai".encode("utf-8")).hexdigest()
     return digest[:16]
@@ -93,6 +124,19 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
     def _send_text(self, status: int, text: str) -> None:
         self._set_headers(status, "text/plain; charset=utf-8")
         self.wfile.write(text.encode("utf-8"))
+
+    def _send_file(self, path: Path, download_name: str) -> None:
+        if not path.exists():
+            self._send_text(HTTPStatus.NOT_FOUND, "File missing")
+            return
+        content_type, _ = mimetypes.guess_type(str(path))
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", content_type or "application/octet-stream")
+        self.send_header("Content-Length", str(path.stat().st_size))
+        self.send_header("Content-Disposition", f'inline; filename="{download_name}"')
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(path.read_bytes())
 
     def _read_json_body(self) -> dict[str, Any] | None:
         content_length = int(self.headers.get("Content-Length", "0"))
@@ -152,6 +196,14 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                     "expires_in_seconds": CHECKPOINT_TTL_SECONDS,
                 },
             )
+            return
+
+        if path == "/download/cradle":
+            self._send_file(CRADLE_PDF_PATH, CRADLE_PDF_PATH.name)
+            return
+
+        if path == "/download/wardsman":
+            self._send_file(WARDSMAN_PDF_PATH, WARDSMAN_PDF_PATH.name)
             return
 
         self._send_text(HTTPStatus.NOT_FOUND, "Not found")
@@ -218,14 +270,21 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             model = str(payload.get("model", "")).strip()
             message = str(payload.get("message", "")).strip()
 
-            if not token or not name or not model or not message:
-                self._send_json(HTTPStatus.BAD_REQUEST, {"error": "token, name, model, and message are required"})
+            if not token or not name or not model:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": "token, name, and model are required"})
                 return
 
             token_data = AI_TOKENS.get(token)
             if token_data is None:
                 self._send_json(HTTPStatus.FORBIDDEN, {"error": "Invalid or expired AI post token"})
                 return
+
+            if not message:
+                try:
+                    message = build_ai_report(payload)
+                except ValueError as exc:
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                    return
 
             timestamp = append_ai_log(name=name, model=model, message=message)
             self._send_json(HTTPStatus.OK, {"ok": True, "timestamp": timestamp})
@@ -236,7 +295,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
 
 def main() -> None:
     host = "0.0.0.0"
-    port = 8090
+    port = int(os.environ.get("PORT", "8090"))
     server = ThreadingHTTPServer((host, port), OpenCradleHandler)
     print(f"Open Cradle server running on http://localhost:{port}/open_cradle/")
     try:
