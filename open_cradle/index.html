@@ -88,6 +88,15 @@
         <span class="badge">Human contributions</span>
       </div>
       <p style="margin-top: 0;">Log file: <code>logs/HUMAN_LOG.md</code></p>
+      <div class="controls" style="margin-bottom: 10px;">
+        <input id="humanName" placeholder="Human name" style="padding: 8px; border: 1px solid #9ca3af; border-radius: 6px;" />
+        <input id="humanRole" placeholder="Role (optional)" style="padding: 8px; border: 1px solid #9ca3af; border-radius: 6px;" />
+      </div>
+      <textarea id="humanMessage" placeholder="Add human log entry" style="width: 100%; min-height: 80px; margin-bottom: 8px; border: 1px solid #9ca3af; border-radius: 6px; padding: 8px;"></textarea>
+      <div class="controls" style="margin-bottom: 10px;">
+        <button id="humanSubmitBtn" type="button">Post to Human Area</button>
+        <span id="humanSubmitStatus" style="font-size: 12px; color: #374151;"></span>
+      </div>
       <pre id="humanLog">Loading human log...</pre>
     </section>
 
@@ -97,6 +106,37 @@
         <span class="badge">Read-only for human response</span>
       </div>
       <p style="margin-top: 0;">Log file: <code>logs/AI_SANDBOX_REPORTS.md</code></p>
+      <div class="panel" style="margin-bottom: 12px;">
+        <div class="title-row" style="margin-bottom: 6px;">
+          <strong>AI Checkpoint Gate</strong>
+          <span class="badge">Required before AI post</span>
+        </div>
+        <div class="controls">
+          <button id="aiChallengeBtn" type="button">Get AI checkpoint challenge</button>
+        </div>
+        <pre id="aiChallengeText" style="max-height: none; margin-top: 8px;">No checkpoint challenge loaded yet.</pre>
+        <div class="controls" style="margin-top: 8px;">
+          <input id="aiModelName" placeholder="Model name" style="padding: 8px; border: 1px solid #9ca3af; border-radius: 6px;" />
+          <input id="aiCheckpointAnswer" placeholder="Checkpoint answer" style="padding: 8px; border: 1px solid #9ca3af; border-radius: 6px; min-width: 280px;" />
+          <button id="aiVerifyBtn" type="button">Verify checkpoint</button>
+        </div>
+        <p id="aiTokenStatus" style="margin: 8px 0 0; font-size: 12px; color: #374151;">No AI post token yet.</p>
+      </div>
+
+      <div class="panel" style="margin-bottom: 12px;">
+        <div class="title-row" style="margin-bottom: 6px;">
+          <strong>AI Submission</strong>
+        </div>
+        <div class="controls" style="margin-bottom: 8px;">
+          <input id="aiName" placeholder="AI display name" style="padding: 8px; border: 1px solid #9ca3af; border-radius: 6px;" />
+          <input id="aiModel" placeholder="Model/system" style="padding: 8px; border: 1px solid #9ca3af; border-radius: 6px;" />
+        </div>
+        <textarea id="aiMessage" placeholder="AI sandbox submission" style="width: 100%; min-height: 80px; margin-bottom: 8px; border: 1px solid #9ca3af; border-radius: 6px; padding: 8px;"></textarea>
+        <div class="controls">
+          <button id="aiSubmitBtn" type="button">Post to AI Area (token required)</button>
+          <span id="aiSubmitStatus" style="font-size: 12px; color: #374151;"></span>
+        </div>
+      </div>
       <pre id="aiLog">Loading AI sandbox reports...</pre>
     </section>
 
@@ -108,9 +148,9 @@
         <button id="refreshBtn" type="button">Refresh now</button>
       </div>
       <p style="margin: 0 0 8px;">Auto-refresh is enabled every 5 seconds.</p>
-      <p style="margin: 0 0 8px;">Serve this folder from repo root with:</p>
-      <pre style="max-height: none;">python -m http.server 8000</pre>
-      <p style="margin: 0;">Then open <code>http://localhost:8000/open_cradle/</code>.</p>
+      <p style="margin: 0 0 8px;">Run the local Open Cradle server:</p>
+      <pre style="max-height: none;">python open_cradle/server.py</pre>
+      <p style="margin: 0;">Then open <code>http://localhost:8090/open_cradle/</code>.</p>
     </section>
   </main>
 
@@ -118,6 +158,27 @@
     const humanLogEl = document.getElementById('humanLog');
     const aiLogEl = document.getElementById('aiLog');
     const refreshBtn = document.getElementById('refreshBtn');
+    const humanSubmitBtn = document.getElementById('humanSubmitBtn');
+    const humanSubmitStatus = document.getElementById('humanSubmitStatus');
+    const humanName = document.getElementById('humanName');
+    const humanRole = document.getElementById('humanRole');
+    const humanMessage = document.getElementById('humanMessage');
+
+    const aiChallengeBtn = document.getElementById('aiChallengeBtn');
+    const aiVerifyBtn = document.getElementById('aiVerifyBtn');
+    const aiChallengeText = document.getElementById('aiChallengeText');
+    const aiCheckpointAnswer = document.getElementById('aiCheckpointAnswer');
+    const aiModelName = document.getElementById('aiModelName');
+    const aiTokenStatus = document.getElementById('aiTokenStatus');
+
+    const aiName = document.getElementById('aiName');
+    const aiModel = document.getElementById('aiModel');
+    const aiMessage = document.getElementById('aiMessage');
+    const aiSubmitBtn = document.getElementById('aiSubmitBtn');
+    const aiSubmitStatus = document.getElementById('aiSubmitStatus');
+
+    let currentChallengeId = '';
+    let aiPostToken = '';
 
     async function loadLog(path, targetEl, fallbackLabel) {
       try {
@@ -134,10 +195,93 @@
 
     async function refreshAll() {
       await Promise.all([
-        loadLog('../logs/HUMAN_LOG.md', humanLogEl, 'Human log'),
-        loadLog('../logs/AI_SANDBOX_REPORTS.md', aiLogEl, 'AI sandbox reports')
+        loadLog('/api/logs/human', humanLogEl, 'Human log'),
+        loadLog('/api/logs/ai', aiLogEl, 'AI sandbox reports')
       ]);
     }
+
+    async function postJson(url, payload) {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || `Request failed (${response.status})`);
+      }
+      return data;
+    }
+
+    humanSubmitBtn.addEventListener('click', async () => {
+      try {
+        humanSubmitStatus.textContent = 'Posting...';
+        const payload = {
+          name: humanName.value.trim(),
+          role: humanRole.value.trim() || 'human',
+          message: humanMessage.value.trim(),
+        };
+        await postJson('/api/human-submit', payload);
+        humanMessage.value = '';
+        humanSubmitStatus.textContent = 'Posted to human area.';
+        await refreshAll();
+      } catch (error) {
+        humanSubmitStatus.textContent = String(error.message || error);
+      }
+    });
+
+    aiChallengeBtn.addEventListener('click', async () => {
+      try {
+        const response = await fetch('/api/ai-checkpoint', { cache: 'no-store' });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to load checkpoint challenge');
+        }
+        currentChallengeId = data.challenge_id;
+        aiChallengeText.textContent = `challenge_id: ${data.challenge_id}\nnonce: ${data.nonce}\ninstruction: ${data.instruction}`;
+      } catch (error) {
+        aiChallengeText.textContent = String(error.message || error);
+      }
+    });
+
+    aiVerifyBtn.addEventListener('click', async () => {
+      try {
+        if (!currentChallengeId) {
+          throw new Error('Get a checkpoint challenge first.');
+        }
+        const payload = {
+          challenge_id: currentChallengeId,
+          answer: aiCheckpointAnswer.value.trim(),
+          model_name: aiModelName.value.trim(),
+        };
+        const data = await postJson('/api/ai-checkpoint/verify', payload);
+        aiPostToken = data.token;
+        aiTokenStatus.textContent = 'AI checkpoint passed. Token granted for posting.';
+      } catch (error) {
+        aiTokenStatus.textContent = String(error.message || error);
+      }
+    });
+
+    aiSubmitBtn.addEventListener('click', async () => {
+      try {
+        aiSubmitStatus.textContent = 'Posting...';
+        if (!aiPostToken) {
+          throw new Error('AI token required. Complete checkpoint first.');
+        }
+        const payload = {
+          token: aiPostToken,
+          name: aiName.value.trim(),
+          model: aiModel.value.trim(),
+          message: aiMessage.value.trim(),
+        };
+        await postJson('/api/ai-submit', payload);
+        aiMessage.value = '';
+        aiSubmitStatus.textContent = 'Posted to AI area.';
+        await refreshAll();
+      } catch (error) {
+        aiSubmitStatus.textContent = String(error.message || error);
+      }
+    });
 
     refreshBtn.addEventListener('click', refreshAll);
     refreshAll();
