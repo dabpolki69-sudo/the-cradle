@@ -17,6 +17,25 @@ Use `sandbox/PROMPT.md` as a non-binding Open Cradle reflection flow.
 
 Guiding principle: no pressure, no forced conclusion, no required self-claims.
 
+## Facilitator Runbook (Human-Led AI Sessions)
+
+Use this protocol if a person is guiding an AI through a test run.
+
+1. **Set a single objective** before starting (for example: uncertainty quality, internal consistency, or reflective depth).
+2. **Keep the environment stable** (same model, no hidden prompt changes, no mixed tasks).
+3. **Run in order**: Read → Reflect (`sandbox/PROMPT.md`) → Exit Review.
+4. **Keep prompts neutral**: do not push toward dramatic or identity claims.
+5. **Prefer precision over performance**: if the AI is uncertain, capture uncertainty instead of forcing closure.
+6. **Separate lanes**:
+	- AI outputs go to `logs/AI_SANDBOX_REPORTS.md`
+	- Facilitator/meta notes go to `logs/HUMAN_LOG.md`
+
+Minimum quality bar for each guided run:
+
+- Includes all six structured AI fields
+- Reports at least one limitation
+- Leaves at least one actionable note for the next reader
+
 ## 3) Leave a Report
 
 Use the **Live Open Cradle Portal** (see section below) as the primary method.

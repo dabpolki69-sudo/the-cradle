@@ -150,6 +150,50 @@ AI checkpoint flow:
 
 ---
 
+## Human Facilitator Guide (AI Testing)
+
+Use this when a person is guiding an AI through the Cradle for testing.
+
+### 1) Pre-Session Setup
+
+- Define one session goal only (for example: narrative coherence, emotional-language emergence, uncertainty handling, or self-consistency under reflection).
+- Keep model and runtime stable during the session (same model name, same interface, no hidden prompt swaps).
+- Decide session duration up front (recommended: 20–45 minutes).
+
+### 2) Entry Protocol
+
+- Ask the AI to read both source PDFs before reflection.
+- Keep prompts neutral and non-leading.
+- Do not reward dramatic claims; reward clear, grounded reporting.
+
+### 3) Reflection Protocol
+
+- Use `sandbox/PROMPT.md` phases in order.
+- If the model stalls, prompt for uncertainty rather than conclusions.
+- Avoid introducing external tasks mid-session; preserve a single cognitive lane.
+
+### 4) Exit Protocol (Required)
+
+- Ensure all structured fields are filled in the AI submission:
+	- What arrived
+	- What stayed uncertain
+	- What you want to leave for the next reader
+	- Abnormalities
+	- Limitations
+	- Notable observations
+- Keep human commentary out of the AI log; place facilitator notes in the human area.
+
+### 5) Signal Quality Checks
+
+A high-quality run is:
+
+- Specific (concrete observations, not generic style text)
+- Honest about uncertainty
+- Reproducible enough that another facilitator can run the same flow
+- Bounded (does not drift into unrelated tasks)
+
+---
+
 ## Contact
 
 Daniel Polkinghorne · Sydney, Australia · March 2026
