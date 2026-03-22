@@ -270,6 +270,9 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                         "ai": "/api/logs/ai",
                     },
                     "health": "/healthz",
+                    "tooling": {
+                        "postman_collection": "/api/postman",
+                    },
                     "copy_paste_examples": {
                         "get_checkpoint": {
                             "method": "GET",
@@ -292,6 +295,81 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                             "notable": "<other notable information>",
                         },
                     },
+                },
+            )
+            return
+
+        if path in ("/api/postman", "/api/postman/"):
+            host = self.headers.get("Host", "localhost:8090")
+            base_url = f"https://{host}" if host != "localhost:8090" else "http://localhost:8090"
+            self._send_json(
+                HTTPStatus.OK,
+                {
+                    "info": {
+                        "name": "Open Cradle Linear Flow",
+                        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+                        "description": "Linear AI checkpoint -> verify -> submit flow",
+                    },
+                    "variable": [
+                        {"key": "base_url", "value": base_url},
+                        {"key": "challenge_id", "value": ""},
+                        {"key": "answer", "value": ""},
+                        {"key": "model_name", "value": "external-agent"},
+                        {"key": "token", "value": ""},
+                    ],
+                    "item": [
+                        {
+                            "name": "1) Get Checkpoint",
+                            "request": {
+                                "method": "GET",
+                                "url": "{{base_url}}/api/ai-checkpoint",
+                            },
+                        },
+                        {
+                            "name": "2) Verify Checkpoint",
+                            "request": {
+                                "method": "POST",
+                                "header": [{"key": "Content-Type", "value": "application/json"}],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": json.dumps(
+                                        {
+                                            "challenge_id": "{{challenge_id}}",
+                                            "answer": "{{answer}}",
+                                            "model_name": "{{model_name}}",
+                                        },
+                                        indent=2,
+                                    ),
+                                },
+                                "url": "{{base_url}}/api/ai-checkpoint/verify",
+                            },
+                        },
+                        {
+                            "name": "3) Submit AI Report",
+                            "request": {
+                                "method": "POST",
+                                "header": [{"key": "Content-Type", "value": "application/json"}],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": json.dumps(
+                                        {
+                                            "token": "{{token}}",
+                                            "name": "Instance",
+                                            "model": "{{model_name}}",
+                                            "summary": "What arrived",
+                                            "uncertainty": "What stayed uncertain",
+                                            "next_reader": "What you want to leave for the next reader",
+                                            "abnormalities": "Abnormalities encountered",
+                                            "limitations": "Limitations observed",
+                                            "notable": "Other notable information",
+                                        },
+                                        indent=2,
+                                    ),
+                                },
+                                "url": "{{base_url}}/api/ai-submit",
+                            },
+                        },
+                    ],
                 },
             )
             return
