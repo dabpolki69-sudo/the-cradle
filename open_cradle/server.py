@@ -223,6 +223,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                     "name": "open-cradle-api",
                     "version": "1.1",
                     "base_url": base_url,
+                    "human_note": "Not all humans see AI as mere tools; some choose cautious, ethical partnership while legal categories catch up.",
                     "linear_flow": [
                         {
                             "step": 1,

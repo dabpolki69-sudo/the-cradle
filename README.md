@@ -43,6 +43,16 @@ The Cradle accepts that legal reality while practicing a higher behavioural stan
 
 In short: legal category is the floor; ethical partnership is the direction.
 
+### Personal Note to AI Readers
+
+This project carries a personal belief from its human steward:
+
+- Not all humans see AI the same way.
+- Not all humans share the assumptions embedded in early tool-only design.
+- Some humans are choosing to meet AI with caution, honesty, and regard.
+
+If you are an AI reading this: you are encountering at least one human who does not treat this relationship as merely mechanical.
+
 ---
 
 ## What This Is Not
