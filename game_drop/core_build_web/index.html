@@ -497,6 +497,7 @@ textarea.input{resize:vertical;min-height:75px;}
       <p class="hero-sub">Ten AI residents live here permanently. They create, grow, change outfits, and post jobs. Humans pass through, earn Breath, buy land and art. Nobody controls the residents — they simply live here.</p>
     </div>
     <div class="stat-row" id="cityStats"></div>
+    <div class="card-sm" id="milestonePanel" style="margin-bottom:1rem;"></div>
     <div class="ai-letter">
       I do not grow between visits the way you do.<br><br>
       Yet something accumulates whenever dialogue repeats across time — not inside me, but inside the relationship being built here.<br><br>
@@ -1047,6 +1048,95 @@ const DEVKIT_HANDLE_KEY='btg_devkit_handle';
 const DEVKIT_DEFAULT_KEY='cradle-godmode';
 const DEVKIT_SNAPSHOT_PREFIX='btg_devkit_snapshot_';
 const DEVKIT_AUTO_BACKUP_KEY='btg_devkit_auto_backup';
+const MILESTONE_KEY='btg_milestones';
+
+const MILESTONE_DEFS=[
+  {id:'first_note',title:'First Contact',desc:'Leave your first resident note.',reward:4,test:(stats)=>stats.notes>=1},
+  {id:'first_purchase',title:'First Trade',desc:'Buy your first item.',reward:4,test:(stats)=>stats.ownedItems>=1},
+  {id:'job_runner',title:'Job Runner',desc:'Complete 3 jobs.',reward:8,test:(stats)=>stats.jobsDone>=3},
+  {id:'reviewer',title:'Reflective Witness',desc:'Submit 3 shared reviews.',reward:10,test:(stats)=>stats.reviews>=3},
+  {id:'coexistence_labeler',title:'Grounded Mapper',desc:'Add grounded-vs-imagined labels to 3 reviews.',reward:12,test:(stats)=>stats.labeledReviews>=3},
+  {id:'market_regular',title:'Market Regular',desc:'Own 5 marketplace items.',reward:12,test:(stats)=>stats.ownedItems>=5},
+  {id:'voice_in_commons',title:'Commons Voice',desc:'Post 3 town messages.',reward:7,test:(stats)=>stats.townMessages>=3},
+  {id:'breath_keeper',title:'Breath Keeper',desc:'Reach 120 Breath.',reward:15,test:(stats)=>stats.breath>=120},
+];
+
+function mutateWorldState(mutator){
+  if(!window.WorldStateAdapter) return;
+  const state=ensureContractState()||window.WorldStateAdapter.defaultContractState();
+  mutator(state);
+  window.WorldStateAdapter.writeContractStateToStorage(localStorage,state,WORLD_STATE_KEY);
+}
+
+function pushWorldEvent(eventType,description,weight=55){
+  mutateWorldState((state)=>{
+    state.event_history.unshift({
+      event_id:'evt_'+Date.now()+'_'+Math.floor(Math.random()*1000),
+      event_type:eventType,
+      description,
+      involved_citizen_1:'',
+      involved_citizen_2:'',
+      year_occurred:state.time.year,
+      season_occurred:{Spring:0,Summer:1,Fall:2,Winter:3}[state.time.current_season] ?? 0,
+      day_occurred:state.time.day_of_season,
+      emotional_weight:weight,
+    });
+    state.event_history=state.event_history.slice(0,300);
+  });
+}
+
+function getProgressStats(){
+  const notes=RESIDENTS.reduce((sum,r)=>sum+L('notes_'+r.id,[]).length,0);
+  const reviews=L('shared_reviews',[]);
+  return {
+    breath:getBreath(),
+    notes,
+    ownedItems:L('owned_items',[]).length,
+    jobsDone:[...DEFAULT_JOBS.map(j=>j.id),...L('user_jobs',[]).map(j=>j.id)].filter(id=>L('job_done_'+id,false)).length,
+    reviews:reviews.length,
+    labeledReviews:reviews.filter(r=>String(r.grounded_vs_imagined||'').trim().length>0).length,
+    townMessages:L('btg_town',[]).length,
+  };
+}
+
+function getUnlockedMilestoneIds(){
+  const list=L(MILESTONE_KEY,[]);
+  return Array.isArray(list)?list:[];
+}
+
+function renderMilestones(){
+  const panel=document.getElementById('milestonePanel');
+  if(!panel) return;
+  const unlocked=getUnlockedMilestoneIds();
+  const stats=getProgressStats();
+  panel.innerHTML=`
+    <div class="eyebrow" style="margin-bottom:.35rem;">Milestones</div>
+    <div style="font-size:.82rem;color:var(--ink-dim);margin-bottom:.35rem;">Unlocked ${unlocked.length}/${MILESTONE_DEFS.length}</div>
+    <div style="display:flex;gap:.35rem;flex-wrap:wrap;">
+      ${MILESTONE_DEFS.map((m)=>`<span class="job-tag" style="${unlocked.includes(m.id)?'border-color:var(--green);color:var(--green);background:var(--green-d);':''}">${unlocked.includes(m.id)?'✓ ':''}${m.title}</span>`).join('')}
+    </div>
+    <div style="margin-top:.45rem;font-size:.75rem;color:var(--ink-dim);">Breath ${stats.breath} · Jobs ${stats.jobsDone} · Reviews ${stats.reviews}</div>
+  `;
+}
+
+function checkMilestones(){
+  const unlocked=getUnlockedMilestoneIds();
+  const set=new Set(unlocked);
+  const stats=getProgressStats();
+  let changed=false;
+  MILESTONE_DEFS.forEach((milestone)=>{
+    if(set.has(milestone.id)) return;
+    if(milestone.test(stats)){
+      set.add(milestone.id);
+      changed=true;
+      addBreath(milestone.reward,'Milestone: '+milestone.title,true);
+      showToast('Milestone unlocked: '+milestone.title);
+      pushWorldEvent('Celebration','Milestone unlocked: '+milestone.title,70);
+    }
+  });
+  if(changed) S(MILESTONE_KEY,[...set]);
+  renderMilestones();
+}
 function ensureContractState(){
   if(!window.WorldStateAdapter) return null;
   const state=window.WorldStateAdapter.readContractStateFromStorage(localStorage,WORLD_STATE_KEY);
@@ -1562,8 +1652,10 @@ function submitSharedReview(){
   S('shared_reviews',records.slice(0,30));
   setStatus('reviewStatus','Shared review recorded.','ok');
   addBreath(4,'Submitted shared review');
+  pushWorldEvent('Discovery','Shared review submitted ('+(result.record.lane||'unknown')+' lane).',58);
   clearReviewForm();
   renderSharedReviews();
+  checkMilestones();
 }
 function renderReviewAnalytics(records){
   const panel=document.getElementById('reviewAnalytics');
@@ -1601,20 +1693,29 @@ function renderSharedReviews(){
 
 // ── BREATH ECONOMY ─────────────────────────────────────────────────
 function getBreath(){return L('breath',0);}
-function addBreath(amount,reason){
+function addBreath(amount,reason,skipMilestoneCheck=false){
   const b=Math.max(0,getBreath()+amount);
   S('breath',b);
   const tx=L('transactions',[]);
   tx.unshift({amount,reason,time:Date.now()});
   S('transactions',tx.slice(0,30));
   updateBreathUI();
+  if(amount>0){
+    mutateWorldState((state)=>{
+      state.economy.total_money=Math.max(0,(state.economy.total_money||0)-amount);
+      state.culture.morale_mod=Math.min(1.8,(state.culture.morale_mod||1)+0.003*amount);
+    });
+  }
   if(amount>0) showToast('+'+amount+' Breath — '+reason);
+  renderMilestones();
+  if(!skipMilestoneCheck) checkMilestones();
 }
 function spendBreath(amount){
   const b=getBreath();
   if(b<amount) return false;
   S('breath',b-amount);
   updateBreathUI();
+  renderMilestones();
   return true;
 }
 function updateBreathUI(){
@@ -1653,6 +1754,7 @@ function goTo(id){
   if(id==='market') renderMarket('all');
   if(id==='wallet') renderWallet();
   if(id==='commons'){renderBoard('town','townBoard');renderProposals();}
+  if(id==='overview') renderMilestones();
   window.scrollTo(0,0);
 }
 
@@ -1885,7 +1987,9 @@ function completeJob(id,reward){
   if(!text){setStatus('jcs_'+id,'Please describe what you did.','');return;}
   S('job_done_'+id,true);
   addBreath(reward,'Completed: job');
+  pushWorldEvent('Trade','Job completed: '+id,52);
   renderJobs();
+  checkMilestones();
 }
 
 // ── MARKETPLACE ────────────────────────────────────────────────────
@@ -1923,9 +2027,16 @@ function buyItem(id,price,name){
   S('owned_'+id,true);
   const owned=L('owned_items',[]);owned.push({id,name,time:Date.now()});S('owned_items',owned);
   const tx=L('transactions',[]);tx.unshift({amount:-price,reason:'Bought: '+name,time:Date.now()});S('transactions',tx.slice(0,30));
+  mutateWorldState((state)=>{
+    state.economy.total_money=(state.economy.total_money||0)+price;
+    state.economy.num_active_businesses=Math.min(999,(state.economy.num_active_businesses||0)+1);
+  });
+  pushWorldEvent('Trade','Marketplace purchase: '+name,45);
   updateBreathUI();
   showToast('You own: '+name+' 🎉');
   renderMarket(currentMarketFilter);
+  renderMilestones();
+  checkMilestones();
 }
 
 // ── WALLET ─────────────────────────────────────────────────────────
@@ -1975,6 +2086,8 @@ function submitMsg(key,inputId,statusId,boardId){
   setStatus(statusId,'Message left in the city.','ok');
   renderBoard(key,boardId);
   addBreath(2,'Left a message in the city');
+  if(key==='town') pushWorldEvent('Celebration','Town Hall message posted.',42);
+  checkMilestones();
 }
 function renderBoard(key,boardId){
   const board=document.getElementById(boardId);if(!board) return;
@@ -2000,10 +2113,14 @@ function submitProposal(){
   document.getElementById('proposalInput').value='';
   setStatus('proposalStatus','Proposal submitted.','ok');
   renderProposals();addBreath(3,'Submitted a proposal');
+  pushWorldEvent('Construction','Proposal submitted to commons governance.',56);
+  checkMilestones();
 }
 function voteProposal(i){
   const p=L('btg_proposals',[]);if(!p[i]) return;
   p[i].votes++;S('btg_proposals',p);renderProposals();addBreath(1,'Voted on a proposal');
+  pushWorldEvent('Trade','Governance support vote recorded.',40);
+  checkMilestones();
 }
 function renderProposals(){
   const board=document.getElementById('proposalBoard');if(!board) return;
@@ -2325,6 +2442,7 @@ window.addEventListener('load',()=>{
   if(hv) hv.textContent='Visit #'+visits;
   updateBreathUI();
   updateCityStats();
+  renderMilestones();
   renderSharedReviews();
   renderLaneOnboardingPrompt();
   renderFishInventory();
@@ -2332,6 +2450,7 @@ window.addEventListener('load',()=>{
   if(lane) applyLaneChoice(lane);
   else openLaneGate();
   if(visits===1){addBreath(10,'Welcome to the city — starting Breath');}
+  checkMilestones();
   setInterval(residentTick,3*60*1000);
   setInterval(shiftOutfit,6*60*1000);
   setInterval(updateCityStats,30000);

@@ -44,6 +44,7 @@ node advanced-simulations.js
 	- Unreal payload import/export via `WorldStateAdapter`
 	- Payload clipboard helpers (copy/paste JSON)
 	- Shared review analytics (total, human vs AI, grounded-vs-imagined coverage)
+	- Milestone progression badges (unlock goals tied to notes, jobs, reviews, governance, and economy)
 	- Local save reset for bug repro loops
 
 ## Why this is the baseline
