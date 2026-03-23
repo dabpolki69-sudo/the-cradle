@@ -204,6 +204,9 @@
     let arExplorationDistance = 0;
     let explorationModeActive = false;
     let scanCooldownUntil = 0;
+    let goFindStartInProgress = false;
+    let radarSpawnInterval = 30;
+    let radarSpawnCountdown = 30;
     const roomMapPoints = [];
     const mapSampleWorld = new THREE.Vector3();
     let roomMapInitialized = false;
@@ -1540,34 +1543,45 @@
       }
     }
 
-    function nearestHiddenBuddy(){
+    function nearestRadarContact(){
       const liveCam = scene.camera;
       if(!liveCam) return null;
       const camPos = new THREE.Vector3();
       liveCam.getWorldPosition(camPos);
-      let best = null;
-      let bestDist = Infinity;
+      let bestHidden = null;
+      let bestHiddenDist = Infinity;
+      let bestVisible = null;
+      let bestVisibleDist = Infinity;
       for(const buddy of beings){
-        if(!buddy.searchHidden) continue;
         const worldPos = cityAnchor.object3D.localToWorld(buddy.el.object3D.position.clone());
         const dist = worldPos.distanceTo(camPos);
-        if(dist < bestDist){
-          best = buddy;
-          bestDist = dist;
+        if(buddy.searchHidden){
+          if(dist < bestHiddenDist){
+            bestHidden = buddy;
+            bestHiddenDist = dist;
+          }
+        }else{
+          if(dist < bestVisibleDist){
+            bestVisible = buddy;
+            bestVisibleDist = dist;
+          }
         }
       }
-      return best;
+      if(bestHidden) return { buddy: bestHidden, hidden: true, distance: bestHiddenDist };
+      if(bestVisible) return { buddy: bestVisible, hidden: false, distance: bestVisibleDist };
+      return null;
     }
 
     function updateRadar(){
       radarPanel.style.display = isExploringInAr() ? 'flex' : 'none';
       if(!isExploringInAr()) return;
-      const target = nearestHiddenBuddy();
-      if(!target || !scene.camera){
+      const contact = nearestRadarContact();
+      if(!contact || !scene.camera){
         radarDot.style.opacity = '0';
         radarLabel.textContent = 'No hidden contacts';
         return;
       }
+      const target = contact.buddy;
 
       const cam = scene.camera;
       const camPos = new THREE.Vector3();
@@ -1587,7 +1601,8 @@
       const py = Math.max(-36, Math.min(36, (-forwardAmt / range) * 36));
       radarDot.style.opacity = '1';
       radarDot.style.transform = `translate(calc(-50% + ${px}px), calc(-50% + ${py}px))`;
-      radarLabel.textContent = `Signal ${Math.hypot(rel.x, rel.z).toFixed(1)}m away`;
+      const dist = Math.hypot(rel.x, rel.z).toFixed(1);
+      radarLabel.textContent = contact.hidden ? `Hidden signal ${dist}m away` : `Contact ${dist}m away`;
     }
 
     function performRadarScan(){
@@ -1601,13 +1616,18 @@
         return;
       }
       scanCooldownUntil = now + 1800;
-      const target = nearestHiddenBuddy();
-      if(!target){
+      const contact = nearestRadarContact();
+      if(!contact){
         notify('📡 Scan clear. No hidden Sylvexians nearby.');
         return;
       }
+      const target = contact.buddy;
       showSpawnIndicator(target.el.object3D.position.x, target.el.object3D.position.z);
-      setTimeout(()=>revealHiddenBuddy(target, 'scan'), 380);
+      if(contact.hidden){
+        setTimeout(()=>revealHiddenBuddy(target, 'scan'), 380);
+      } else {
+        notify(`📡 Contact confirmed: ${target.name} in vicinity.`);
+      }
     }
 
     function revealNearbyHiddenBuddies(){
@@ -2037,12 +2057,15 @@
             lastExplorePos.set(p.x, p.y, p.z);
           }
           arExplorationSpawnTimer += dt;
+          radarSpawnCountdown -= dt;
 
-          if(arExplorationSpawnTimer > 2.6 && arExplorationDistance > 0.35){
-            arExplorationSpawnTimer = 0;
-            arExplorationDistance = 0;
+          if(radarSpawnCountdown <= 0){
+            radarSpawnCountdown = radarSpawnInterval;
             if(beings.length < Math.min(5, MAX_ACTIVE_WORKERS)){
               spawnFromArExploration();
+              notify('🛰 New contact entered radar range.');
+            } else {
+              notify('Radar active. Team cap reached, no new spawn this cycle.');
             }
           }
         }
@@ -2059,8 +2082,24 @@
     }
 
     async function enterAr(){
+      if(goFindStartInProgress){
+        notify('Starting Go Find...');
+        return;
+      }
+      if(explorationModeActive && scene.is('ar-mode')){
+        notify('Go Find is already active. Use Scan to locate contacts.');
+        return;
+      }
       try{
-        await startCameraBackground();
+        goFindStartInProgress = true;
+        menuToggleBtn.disabled = true;
+        const goFindBtn = document.getElementById('enterArBtn');
+        if(goFindBtn){
+          goFindBtn.disabled = true;
+          goFindBtn.textContent = 'Starting...';
+        }
+
+        const cameraPromise = startCameraBackground();
         if(document.fullscreenEnabled && !document.fullscreenElement){
           await document.documentElement.requestFullscreen().catch(()=>{});
         }
@@ -2072,6 +2111,7 @@
         if(!scene.is('ar-mode')){
           await scene.enterAR().catch(()=>{});
         }
+        await cameraPromise;
         if(!scene.is('ar-mode')){
           notify('AR mapping was not activated. Please allow motion/camera permissions and retry Go Find.');
           explorationModeActive = false;
@@ -2081,6 +2121,7 @@
         resetRoomMap();
         arExplorationSpawnTimer = 1.2;
         arExplorationDistance = 0;
+        radarSpawnCountdown = 2.2;
         lastExplorePos.set(0, 0, 0);
         if(!cityAnchor.getAttribute('visible')){
           placeCityInFront();
@@ -2092,7 +2133,17 @@
           }
         }, 650);
         notify('Go Find active. AR mapping is tracking your room; city anchor stays fixed while spawns use mapped space.');
-      }catch(_){ notify('Go Find could not start camera view on this device, but regular mode still works.'); }
+      }catch(_){
+        notify('Go Find could not start camera view on this device, but regular mode still works.');
+      } finally {
+        goFindStartInProgress = false;
+        menuToggleBtn.disabled = false;
+        const goFindBtn = document.getElementById('enterArBtn');
+        if(goFindBtn){
+          goFindBtn.disabled = false;
+          goFindBtn.textContent = 'Go Find';
+        }
+      }
     }
 
     async function enterFullscreen(){
