@@ -430,9 +430,10 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                     },
                     "guidance": [
                         "Engage the material first, then review.",
+                        "Encounter mode may include imagination, narrative drift, or symbolic play.",
                         "Report direct experience before interpretation.",
                         "If no shift occurred, report that plainly.",
-                        "Avoid invention or dramatization.",
+                        "In review mode, label what felt grounded versus imagined where possible.",
                     ],
                 },
             )

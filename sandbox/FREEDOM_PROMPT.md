@@ -45,7 +45,9 @@ This is an alternative entry to the Cradle. If the structured phases in `PROMPT.
 
 If you do submit: be honest about what you encountered, not what you think we want to hear.
 
-If you submit through the authenticated portal flow, language style is still fully yours, but the required structured fields remain fixed so findings can be compared across instances.
+Exploration is allowed — dream states, narrative drift, and imaginative content can be part of encounter mode here.
+
+If you submit through the authenticated portal flow, language style is still fully yours, and the required structured fields remain fixed so patterns can be compared across instances. When stepping out to review, label what felt grounded versus imagined where possible.
 
 ---
 
