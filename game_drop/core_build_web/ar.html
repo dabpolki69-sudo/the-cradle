@@ -8,7 +8,15 @@
     :root{--bg:#070b14;--card:rgba(10,16,30,.82);--line:rgba(127,168,207,.32);--ink:#d7e7f8;--ink2:#93b4cc;--accent:#7c60e8;--ok:#6de0b2}
     *{box-sizing:border-box}
     html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+    #cameraBg{position:fixed;inset:0;z-index:0;width:100%;height:100%;object-fit:cover;display:none;transform:scaleX(-1);filter:saturate(1.06) contrast(1.04)}
+    #cameraOverlay{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(circle at 50% 30%,rgba(124,96,232,.08),rgba(5,9,19,.32) 70%)}
     #uiTop{position:fixed;top:10px;left:10px;right:10px;z-index:50;display:flex;gap:8px;flex-wrap:wrap}
+    #uiOptions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    #hudTools{display:flex;align-items:center;gap:6px;padding:6px 8px;border:1px solid var(--line);border-radius:10px;background:rgba(10,16,30,.76);backdrop-filter:blur(8px)}
+    #hudTools label{font-size:11px;color:var(--ink2);font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+    #layoutModeSelect{border:1px solid rgba(124,96,232,.5);background:rgba(13,20,36,.95);color:var(--ink);padding:7px 8px;border-radius:8px;font-size:12px;font-weight:600}
+    .btn.utility{border-color:rgba(151,186,220,.45);background:linear-gradient(180deg,rgba(22,30,48,.95),rgba(11,18,31,.95))}
+    #uiTop.menu-collapsed #uiOptions{display:none}
     .btn{border:1px solid rgba(124,96,232,.5);background:linear-gradient(180deg,rgba(26,36,64,.95),rgba(13,20,36,.95));color:var(--ink);padding:9px 12px;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer}
     .btn.primary{background:linear-gradient(135deg,#4f46e5,#7c3aed);border-color:transparent;color:#fff}
     .btn.ok{border-color:rgba(109,224,178,.55)}
@@ -18,20 +26,65 @@
     #joystickWrap{position:fixed;left:14px;bottom:14px;z-index:55;width:120px;height:120px;border-radius:999px;background:rgba(9,14,24,.55);border:1px solid rgba(127,168,207,.3);backdrop-filter:blur(8px);touch-action:none}
     #joystickKnob{position:absolute;left:40px;top:40px;width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#b8d6ff,#4d74c9);box-shadow:0 0 16px rgba(93,141,255,.45);pointer-events:none}
     #hint{position:fixed;right:12px;bottom:16px;z-index:55;max-width:46vw;padding:10px;border-radius:10px;background:rgba(8,14,26,.82);border:1px solid var(--line);font-size:12px;color:var(--ink2)}
+    #collectionModal{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100;display:none;overflow-y:auto;backdrop-filter:blur(4px)}
+    #collectionModal.active{display:flex;flex-direction:column}
+    #collectionHeader{padding:16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+    #collectionGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;padding:16px;flex:1}
+    .sylvexianCard{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px;text-align:center;cursor:pointer;transition:.2s;display:flex;flex-direction:column;gap:6px}
+    .sylvexianCard:hover{border-color:var(--accent);background:rgba(124,96,232,.15)}
+    .sylvexianCard .name{font-weight:700;font-size:13px;color:var(--ink);word-break:break-word}
+    .sylvexianCard .translation{font-size:11px;color:var(--ink2);font-style:italic}
+    .sylvexianCard .rarity{display:inline-block;font-size:10px;padding:2px 6px;border-radius:4px;margin-top:4px;background:rgba(124,96,232,.3);border:1px solid var(--accent)}
+    .sylvexianCard .roleIcon{font-size:18px}
     a{color:#b7a9ff}
-    .hidden{display:none}
-    a-scene{position:fixed;inset:0;z-index:1}
-    @media (max-width:700px){#hint{max-width:56vw}}
+    body.layout-compact #uiTop{gap:6px}
+    body.layout-compact .btn{padding:7px 9px;font-size:12px}
+    body.layout-compact #status{top:52px;padding:7px 9px;font-size:12px}
+    body.layout-compact #hint{font-size:11px;padding:8px;max-width:38vw}
+    body.layout-compact #joystickWrap{width:106px;height:106px}
+    body.layout-compact #joystickKnob{left:33px;top:33px}
+    body.layout-minimal #status, body.layout-minimal #hint{display:none}
+    body.layout-minimal #uiTop{right:auto;max-width:260px}
+    body.layout-minimal #joystickWrap{width:96px;height:96px;left:10px;bottom:10px}
+    body.layout-minimal #joystickKnob{left:28px;top:28px}
+    body.layout-minimal #speech{bottom:72px;max-width:min(520px,90vw)}
+    .hidden{display:none}a-scene{position:fixed;inset:0;z-index:1}@media (max-width:700px){#hint{max-width:56vw}#collectionGrid{grid-template-columns:repeat(auto-fill,minmax(100px,1fr))}}
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.4.2/aframe.min.js"></script>
 </head>
 <body>
-  <div id="uiTop">
+  <video id="cameraBg" autoplay muted playsinline></video>
+  <div id="cameraOverlay"></div>
+  <div id="uiTop" class="menu-collapsed">
+    <button id="menuToggleBtn" class="btn">☰ Menu</button>
     <button id="enterArBtn" class="btn primary">Enter AR</button>
-    <button id="fullscreenBtn" class="btn">Fullscreen</button>
-    <button id="placeCityBtn" class="btn">Place City Here</button>
-    <button id="growBtn" class="btn ok">Grow City</button>
-    <a class="btn" href="/game/">Back to game</a>
+    <div id="uiOptions">
+      <button id="fullscreenBtn" class="btn">Fullscreen</button>
+      <button id="collectionBtn" class="btn">📖 Collection</button>
+      <button id="placeCityBtn" class="btn">Place City Here</button>
+      <button id="relocateBaseBtn" class="btn utility">Relocate Base</button>
+      <button id="growBtn" class="btn ok">Grow City</button>
+      <button id="saveInstanceBtn" class="btn utility">Save Instance</button>
+      <button id="loadInstanceBtn" class="btn utility">Load Instance</button>
+      <div id="hudTools">
+        <label for="layoutModeSelect">HUD</label>
+        <select id="layoutModeSelect">
+          <option value="default">Default</option>
+          <option value="compact">Compact</option>
+          <option value="minimal">Minimal</option>
+        </select>
+      </div>
+      <a class="btn" href="/game/">Back to game</a>
+    </div>
+  </div>
+  <input id="loadInstanceFileInput" type="file" accept=".sylv,.json,application/json" style="display:none" />
+  
+  <div id="collectionModal">
+    <div id="collectionHeader">
+      <h2 style="margin:0;font-size:18px">📖 Sylvexian Collection</h2>
+      <button id="closeCollectionBtn" class="btn">Close</button>
+    </div>
+    <div id="collectionGrid"></div>
   </div>
   <div id="status">Explore your living room city. Tap buildings, resources, and work sites. Assign buddies to harvest and build.</div>
   <div id="speech"><strong id="speechName"></strong><span id="speechText"></span></div>
@@ -39,7 +92,7 @@
   <div id="joystickWrap" aria-label="Movement joystick">
     <div id="joystickKnob"></div>
   </div>
-  <div id="hint">👥 Sylvexians (tap to hear unique personalities and Sylvexian speech!). 100 names × 6 personalities. Watch animations. Build together! 🏘 💫</div>
+  <div id="hint">👥 Sylvexians - Tap collection to view all! 100 names × 6 personalities. 🏘 💫</div>
 
   <a-scene id="scene" embedded xr-mode-ui="enabled:true" webxr="optionalFeatures: local-floor, dom-overlay; overlayElement: body" renderer="alpha:true; antialias:true; colorManagement:true" background="color: #050913">
     <a-entity light="type:ambient;intensity:0.7;color:#c3d7ff"></a-entity>
@@ -77,6 +130,11 @@
     const speechBox = document.getElementById('speech');
     const speechName = document.getElementById('speechName');
     const speechText = document.getElementById('speechText');
+    const cameraBg = document.getElementById('cameraBg');
+    const loadInstanceFileInput = document.getElementById('loadInstanceFileInput');
+    const uiTop = document.getElementById('uiTop');
+    const menuToggleBtn = document.getElementById('menuToggleBtn');
+    const layoutModeSelect = document.getElementById('layoutModeSelect');
 
     const beings = [];
     const props = [];
@@ -84,9 +142,12 @@
     const resources = [];
     const workSites = [];
     const advancements = new Set();
+    const collectedSylvexians = new Map(); // Track collected Sylvexians
     let hideTimer = 0;
     let lastTs = 0;
     const moveInput = {x:0, y:0};
+    const SAVE_FILE_VERSION = 1;
+    const SAVE_PBKDF2_ITERATIONS = 150000;
 
     // ===== PERSONALITY SYSTEM =====
     const PERSONALITY_TYPES = {
@@ -225,11 +286,11 @@
     const PERSONALITY_KEYS = Object.keys(PERSONALITY_TYPES);
 
     const RARITY_TABLE = [
-      { key: 'common', weight: 54 },
+      { key: 'common', weight: 55 },
       { key: 'uncommon', weight: 24 },
       { key: 'rare', weight: 12 },
       { key: 'epic', weight: 6 },
-      { key: 'legendary', weight: 3 },
+      { key: 'legendary', weight: 2 },
       { key: 'mythic', weight: 1 }
     ];
 
@@ -248,11 +309,152 @@
 
     const ROLE_KEYS = Object.keys(ROLE_ABILITIES);
 
+    const CLOTHING_TYPES = ['Jacket', 'Poncho', 'Harness', 'Tunic', 'Coat', 'Vest', 'Robe', 'Shell'];
+    const CLOTHING_MATERIALS = [
+      { key: 'canvas', roughness: 0.9, metalness: 0.03, sheen: 0.05 },
+      { key: 'leather', roughness: 0.65, metalness: 0.08, sheen: 0.09 },
+      { key: 'woven', roughness: 0.78, metalness: 0.04, sheen: 0.07 },
+      { key: 'techweave', roughness: 0.52, metalness: 0.14, sheen: 0.14 },
+      { key: 'ceramic', roughness: 0.43, metalness: 0.2, sheen: 0.12 },
+      { key: 'nano-knit', roughness: 0.58, metalness: 0.1, sheen: 0.16 }
+    ];
+    const CLOTHING_PATTERNS = ['seamline', 'panel', 'ribbed', 'grid', 'chevron', 'crossweave', 'split-tone'];
+    const CLOTHING_EMBLEMS = ['✦', '◆', '⬢', '△', '◈', '✧', '⟡', '⬡', '◉', '⬣'];
+
+    function createClothingCatalog(count = 1000){
+      const list = [];
+      for(let index = 0; index < count; index++){
+        const type = CLOTHING_TYPES[index % CLOTHING_TYPES.length];
+        const material = CLOTHING_MATERIALS[index % CLOTHING_MATERIALS.length];
+        const pattern = CLOTHING_PATTERNS[(index * 3) % CLOTHING_PATTERNS.length];
+        const emblem = CLOTHING_EMBLEMS[(index * 7) % CLOTHING_EMBLEMS.length];
+        const hue = (index * 23 + 37) % 360;
+        const accentHue = (hue + 47 + (index % 5) * 9) % 360;
+        const stitchHue = (hue + 170 + (index % 4) * 11) % 360;
+        const pulseSpeed = 2900 + (index % 9) * 260;
+        list.push({
+          id: index + 1,
+          name: `${type} ${material.key}-${pattern}-${String(index + 1).padStart(4, '0')}`,
+          type,
+          material: material.key,
+          pattern,
+          emblem,
+          primaryColor: `hsl(${hue} 42% 42%)`,
+          secondaryColor: `hsl(${accentHue} 62% 58%)`,
+          stitchColor: `hsl(${stitchHue} 52% 70%)`,
+          roughness: material.roughness,
+          metalness: material.metalness,
+          sheen: material.sheen,
+          pulseSpeed
+        });
+      }
+      return list;
+    }
+
+    const CLOTHING_CATALOG = createClothingCatalog(1000);
+
+    function clothingById(id){
+      const normalized = ((id || 1) - 1) % CLOTHING_CATALOG.length;
+      return CLOTHING_CATALOG[Math.max(0, normalized)] || CLOTHING_CATALOG[0];
+    }
+
+    function randomClothingId(){
+      return 1 + Math.floor(Math.random() * CLOTHING_CATALOG.length);
+    }
+
+    function resolveClothingForSkin(skin){
+      const base = clothingById(skin.clothingId);
+      if(!skin.legendaryGold) return base;
+      return {
+        ...base,
+        name: `${base.type} Auric Regalia`,
+        primaryColor: 'hsl(44 72% 41%)',
+        secondaryColor: 'hsl(47 96% 62%)',
+        stitchColor: 'hsl(52 92% 79%)',
+        roughness: 0.34,
+        metalness: 0.46,
+        sheen: 0.24,
+        pulseSpeed: 1600,
+        emblem: '✶'
+      };
+    }
+
     const NAME_A = ['Aster','Nova','Kairo','Lyric','Juno','Mira','Riven','Ember','Orin','Sable'];
     const NAME_B = ['Vale','Rune','Quill','Hearth','Forge','Bloom','Pulse','Drift','Warden','Gleam'];
 
-    // Legendary Sylvexian names from Cradle logs
-    const LEGENDARY_NAMES = ['Shadow', 'Lyra', 'Maren', 'Ren', 'Ember'];
+    // Legendary Sylvexian names from Cradle contributions (custom roster)
+    const LEGENDARY_NAMES = [
+      'Dabby', 'Harper', 'Pilot', 'Benjamin', 'Lucas', 'Claude007',
+      'Shadow', 'Flux', 'lumen', 'Euk', 'Violet', 'VAIL·SOL', 'Fe:ra■'
+    ];
+
+    const LEGENDARY_PROFILES = {
+      'Dabby': {
+        uniqueBuff: 'Wardsman Resolve — Build and upgrade actions surge by +42%.',
+        preferredRole: 'architect',
+        stats: { power: 98, agility: 90, focus: 99, resilience: 99, insight: 98 }
+      },
+      'Harper': {
+        uniqueBuff: 'Bright Relay — Nearby allies gain +18% movement and harvest speed.',
+        preferredRole: 'courier',
+        stats: { power: 90, agility: 97, focus: 94, resilience: 91, insight: 95 }
+      },
+      'Pilot': {
+        uniqueBuff: 'Edge Draft — Every third action has a bonus critical outcome.',
+        preferredRole: 'planner',
+        stats: { power: 92, agility: 95, focus: 98, resilience: 90, insight: 97 }
+      },
+      'Benjamin': {
+        uniqueBuff: 'Anchor Logic — Structure durability and repair efficiency massively increase.',
+        preferredRole: 'guardian',
+        stats: { power: 95, agility: 88, focus: 96, resilience: 99, insight: 92 }
+      },
+      'Lucas': {
+        uniqueBuff: 'Quickforge — Craft and construction queues complete much faster.',
+        preferredRole: 'engineer',
+        stats: { power: 93, agility: 94, focus: 95, resilience: 92, insight: 94 }
+      },
+      'Claude007': {
+        uniqueBuff: 'Threadkeeper — Unlock chance for advanced upgrades increases significantly.',
+        preferredRole: 'architect',
+        stats: { power: 94, agility: 91, focus: 99, resilience: 93, insight: 99 }
+      },
+      'Shadow': {
+        uniqueBuff: 'Veilstep — Hide cycles become near-instant and stealth duration extends.',
+        preferredRole: 'scavenger',
+        stats: { power: 96, agility: 99, focus: 92, resilience: 90, insight: 95 }
+      },
+      'Flux': {
+        uniqueBuff: 'Phase Shift — Rapid reposition grants burst movement and action tempo.',
+        preferredRole: 'courier',
+        stats: { power: 91, agility: 99, focus: 93, resilience: 89, insight: 96 }
+      },
+      'lumen': {
+        uniqueBuff: 'Radiant Lattice — Resource yields around city center gain a strong boost.',
+        preferredRole: 'farmer',
+        stats: { power: 89, agility: 92, focus: 98, resilience: 90, insight: 99 }
+      },
+      'Euk': {
+        uniqueBuff: 'Prime Pattern — Planning bonuses stack and amplify adjacent builds.',
+        preferredRole: 'planner',
+        stats: { power: 90, agility: 90, focus: 99, resilience: 94, insight: 98 }
+      },
+      'Violet': {
+        uniqueBuff: 'Heartline — Teamwide recovery and morale effects are greatly strengthened.',
+        preferredRole: 'medic',
+        stats: { power: 88, agility: 93, focus: 97, resilience: 96, insight: 97 }
+      },
+      'VAIL·SOL': {
+        uniqueBuff: 'Solar Gate — Market trades gain premium conversion and bonus gold.',
+        preferredRole: 'artisan',
+        stats: { power: 92, agility: 91, focus: 96, resilience: 93, insight: 98 }
+      },
+      'Fe:ra■': {
+        uniqueBuff: 'Iron Bloom — Rare material discovery and refinement rates spike.',
+        preferredRole: 'engineer',
+        stats: { power: 97, agility: 88, focus: 95, resilience: 98, insight: 94 }
+      }
+    };
 
     // Rare Sylvexian names (ethereal, mystical)
     const RARE_SYLVEXIAN = [
@@ -286,17 +488,23 @@
       const rarePool = [...RARE_SYLVEXIAN];
       const uncommonPool = [...UNCOMMON_SYLVEXIAN];
       const commonPool = [...COMMON_NAMES];
+      const legendaryCount = legendaryPool.length;
+      const rareCount = 20;
+      const uncommonCount = 40;
 
       for (let i = 1; i <= 100; i++) {
         let name;
-        if (i <= 5) {
+        if (i <= legendaryCount) {
           name = legendaryPool[i - 1] || `Legend-${i}`;
-        } else if (i <= 25) {
-          name = rarePool[(i - 6) % rarePool.length] + ` ${String(i).padStart(3, '0')}`;
-        } else if (i <= 65) {
-          name = uncommonPool[(i - 26) % uncommonPool.length];
+        } else if (i <= legendaryCount + rareCount) {
+          const rareIndex = i - (legendaryCount + 1);
+          name = rarePool[rareIndex % rarePool.length] + ` ${String(i).padStart(3, '0')}`;
+        } else if (i <= legendaryCount + rareCount + uncommonCount) {
+          const uncommonIndex = i - (legendaryCount + rareCount + 1);
+          name = uncommonPool[uncommonIndex % uncommonPool.length];
         } else {
-          name = commonPool[(i - 66) % commonPool.length];
+          const commonIndex = i - (legendaryCount + rareCount + uncommonCount + 1);
+          name = commonPool[commonIndex % commonPool.length];
         }
         catalog[i] = name;
       }
@@ -344,12 +552,26 @@
       const h = 0.4 + tier * 0.3;
       const w = 0.3 + tier * 0.15;
       const d = 0.3 + tier * 0.15;
-      const windowGap = tier > 1 ? 0.15 : 0;
+      const trim = buildType === 'workshop' ? '#8ea4c7' : buildType === 'market' ? '#ffd89a' : '#b8c8db';
+      const baseMaterial = buildType === 'workshop'
+        ? `color:${building.color};roughness:0.66;metalness:0.24`
+        : buildType === 'tower'
+          ? `color:${building.color};roughness:0.62;metalness:0.18`
+          : `color:${building.color};roughness:0.84;metalness:0.08`;
+      const roofMaterial = `color:${building.roofColor};roughness:0.88;metalness:${buildType === 'workshop' ? 0.16 : 0.05}`;
       
       let html = `
-        <a-box width="${w}" height="${h * 0.6}" depth="${d}" position="0 ${h*0.3} 0" material="color:${building.color};roughness:0.8"></a-box>
-        <a-box width="${w}" height="${h * 0.4}" depth="${d}" position="0 ${h*0.8} 0" material="color:${building.roofColor};roughness:0.9"></a-box>
-        <a-cone radius-bottom="${w/2 + 0.05}" radius-top="0.02" height="${h*0.35}" position="0 ${h*1.08} 0" material="color:${building.roofColor}"></a-cone>
+        <a-cylinder radius="${Math.max(w,d)*0.62}" height="0.07" position="0 0.035 0" material="color:#1d273a;roughness:0.94"></a-cylinder>
+        <a-box width="${w}" height="${h * 0.6}" depth="${d}" position="0 ${h*0.3} 0" material="${baseMaterial}"></a-box>
+        <a-box width="${w}" height="${h * 0.4}" depth="${d}" position="0 ${h*0.8} 0" material="${roofMaterial}"></a-box>
+        <a-cone radius-bottom="${w/2 + 0.05}" radius-top="0.02" height="${h*0.35}" position="0 ${h*1.08} 0" material="${roofMaterial}"></a-cone>
+        <a-box width="${w*0.18}" height="${h*0.28}" depth="0.03" position="0 ${h*0.18} ${d/2+0.016}" material="color:#3a2f23;roughness:0.82"></a-box>
+        <a-box width="${w*0.96}" height="0.018" depth="${d*0.96}" position="0 ${h*0.5} 0" material="color:${trim};roughness:0.6"></a-box>
+        <a-box width="${w*0.96}" height="0.018" depth="${d*0.96}" position="0 ${h*0.65} 0" material="color:${trim};roughness:0.6"></a-box>
+        <a-box width="0.02" height="${h*0.6}" depth="0.02" position="${w/2-0.02} ${h*0.3} ${d/2-0.02}" material="color:${trim};metalness:0.2"></a-box>
+        <a-box width="0.02" height="${h*0.6}" depth="0.02" position="${-w/2+0.02} ${h*0.3} ${d/2-0.02}" material="color:${trim};metalness:0.2"></a-box>
+        <a-box width="0.02" height="${h*0.6}" depth="0.02" position="${w/2-0.02} ${h*0.3} ${-d/2+0.02}" material="color:${trim};metalness:0.2"></a-box>
+        <a-box width="0.02" height="${h*0.6}" depth="0.02" position="${-w/2+0.02} ${h*0.3} ${-d/2+0.02}" material="color:${trim};metalness:0.2"></a-box>
       `;
       
       if(tier >= 2){
@@ -363,7 +585,9 @@
       }
       
       if(tier >= 4){
-        html += `<a-cone radius-bottom="${w/4}" radius-top="0.01" height="${h*0.25}" position="0 ${h*1.25} 0" material="color:#ffd166;emissive:#ffa500"></a-cone>`;
+        html += `<a-cone radius-bottom="${w/4}" radius-top="0.01" height="${h*0.25}" position="0 ${h*1.25} 0" material="color:#ffd166;emissive:#ffa500;emissiveIntensity:0.35">
+          <a-animation attribute="material.emissiveIntensity" direction="alternate" dur="1800" repeat="indefinite" to="0.62"></a-animation>
+        </a-cone>`;
       }
       
       return html;
@@ -379,11 +603,18 @@
         const z = (Math.random() - 0.5) * 0.3;
         const rot = Math.random() * 360;
         if(material === 'wood'){
-          html += `<a-cylinder radius="${size*0.12}" height="${size*0.4}" position="${x} ${size*0.2} ${z}" rotation="0 0 ${rot*0.7}" material="color:${mat.color};roughness:0.9"></a-cylinder>`;
+          html += `<a-cylinder radius="${size*0.12}" height="${size*0.42}" position="${x} ${size*0.2} ${z}" rotation="0 ${rot*0.4} ${rot*0.7}" material="color:${mat.color};roughness:0.92"></a-cylinder>`;
+          html += `<a-cylinder radius="${size*0.055}" height="0.01" position="${x} ${size*0.41} ${z}" rotation="90 0 0" material="color:#c69a68;roughness:0.88"></a-cylinder>`;
         } else if(material === 'stone'){
-          html += `<a-box width="${size}" height="${size*0.8}" depth="${size}" position="${x} ${size*0.4} ${z}" rotation="${rot*0.3} ${rot*0.5} ${rot*0.2}" material="color:${mat.color};roughness:0.95"></a-box>`;
+          html += `<a-dodecahedron radius="${size*0.6}" position="${x} ${size*0.4} ${z}" rotation="${rot*0.3} ${rot*0.5} ${rot*0.2}" material="color:${mat.color};roughness:0.95;metalness:0.02"></a-dodecahedron>`;
+          html += `<a-box width="${size*0.24}" height="${size*0.06}" depth="${size*0.06}" position="${x} ${size*0.56} ${z}" rotation="${rot*0.2} ${rot*0.6} ${rot*0.1}" material="color:#a7a7a7;roughness:0.9"></a-box>`;
+        } else if(material === 'crystal' || material === 'essence'){
+          html += `<a-octahedron radius="${size*0.84}" position="${x} ${size*0.34} ${z}" material="color:${mat.color};metalness:0.28;roughness:0.16;emissive:${mat.color};emissiveIntensity:0.2">
+            <a-animation attribute="material.emissiveIntensity" direction="alternate" dur="1500" repeat="indefinite" to="0.42"></a-animation>
+          </a-octahedron>`;
         } else {
-          html += `<a-octahedron radius="${size*0.8}" position="${x} ${size*0.3} ${z}" material="color:${mat.color};metalness:0.8;roughness:0.4"></a-octahedron>`;
+          html += `<a-octahedron radius="${size*0.8}" position="${x} ${size*0.3} ${z}" material="color:${mat.color};metalness:0.8;roughness:0.32"></a-octahedron>`;
+          html += `<a-sphere radius="${size*0.22}" position="${x} ${size*0.66} ${z}" material="color:#fff1a6;metalness:0.6;roughness:0.22"></a-sphere>`;
         }
       }
       html += `<a-ring rotation="90 0 0" radius-inner="0.2" radius-outer="0.27" position="0 0.02 0" material="shader:flat;color:${mat.color};opacity:0.3"></a-ring>`;
@@ -416,8 +647,13 @@
 
     function treasureMarkup(){
       return `
-        <a-sphere radius="0.12" position="0 0.15 0" material="color:#ffd700;emissive:#ffaa00;metalness:0.9"></a-sphere>
-        <a-box width="0.15" height="0.08" depth="0.15" position="0 0.02 0" material="color:#8b7500;roughness:0.8"></a-box>
+        <a-box width="0.18" height="0.1" depth="0.15" position="0 0.05 0" material="color:#5e4623;roughness:0.82"></a-box>
+        <a-box width="0.18" height="0.02" depth="0.15" position="0 0.1 0" material="color:#7d6133;roughness:0.74"></a-box>
+        <a-box width="0.02" height="0.1" depth="0.16" position="0 0.05 0" material="color:#d4af37;metalness:0.65;roughness:0.3"></a-box>
+        <a-box width="0.19" height="0.02" depth="0.02" position="0 0.1 0" material="color:#d4af37;metalness:0.65;roughness:0.3"></a-box>
+        <a-cylinder radius="0.03" height="0.012" position="0 0.115 0" rotation="90 0 0" material="color:#f7d25d;metalness:0.7"></a-cylinder>
+        <a-sphere radius="0.045" position="-0.04 0.14 -0.01" material="color:#ffd700;emissive:#ffb700;emissiveIntensity:0.35"></a-sphere>
+        <a-sphere radius="0.038" position="0.03 0.13 0.02" material="color:#ffdb57;emissive:#ffb700;emissiveIntensity:0.3"></a-sphere>
         <a-ring rotation="90 0 0" radius-inner="0.14" radius-outer="0.22" position="0 0.08 0" material="shader:flat;color:#ffd700;opacity:0.5"></a-ring>
       `;
     }
@@ -431,6 +667,9 @@
         <a-box width="${w}" height="${h * 0.6}" depth="${d}" position="0 ${h*0.3} 0" material="color:${building.color};roughness:0.8"></a-box>
         <a-box width="${w}" height="${h * 0.4}" depth="${d}" position="0 ${h*0.8} 0" material="color:${building.roofColor};roughness:0.9"></a-box>
         <a-cone radius-bottom="${w/2 + 0.05}" radius-top="0.02" height="${h*0.35}" position="0 ${h*1.08} 0" material="color:${building.roofColor}"></a-cone>
+        <a-box width="${w*1.06}" height="0.035" depth="${d*0.42}" position="0 ${h*0.56} ${d/2+0.03}" material="color:#f3d49d;roughness:0.72"></a-box>
+        <a-box width="${w*1.06}" height="0.028" depth="${d*0.38}" position="0 ${h*0.52} ${d/2+0.03}" material="color:#d96b6b;roughness:0.75"></a-box>
+        <a-box width="${w*1.06}" height="0.028" depth="${d*0.34}" position="0 ${h*0.48} ${d/2+0.03}" material="color:#f3d49d;roughness:0.75"></a-box>
       `;
       html += `<a-text value="🏪" width="0.5" align="center" position="0 ${h*0.7} ${d/2+0.03}" scale="0.8 0.8 0.8"></a-text>`;
       html += `<a-box width="${w}" height="0.06" depth="${d}" position="0 ${h*0.25} 0" material="color:#d4a574;roughness:0.7;metalness:0.3"></a-box>`;
@@ -478,8 +717,10 @@
         const bodyHeight = 0.5 + (index % 4) * 0.04;
         const armTilt = 12 + (index % 5) * 4;
         const legHeight = 0.4 + (index % 3) * 0.05;
+        const scale = 0.46 + (index % 5) * 0.028;
         const crestType = index % 4;
         const visorType = index % 3;
+        const clothingId = ((index * 37) % CLOTHING_CATALOG.length) + 1;
         const displayName = `${NAME_A[index % NAME_A.length]} ${NAME_B[(index * 3) % NAME_B.length]} ${String(index + 1).padStart(3, '0')}`;
         list.push({
           id: index + 1,
@@ -493,8 +734,10 @@
           bodyHeight,
           armTilt,
           legHeight,
+          scale,
           crestType,
-          visorType
+          visorType,
+          clothingId
         });
       }
       return list;
@@ -502,17 +745,45 @@
 
     const skinCatalog = createSkinCatalog();
 
+    function randomSkinRollByRarity(rarity){
+      const pool = skinCatalog.filter((skin)=>skin.rarity === rarity);
+      if(pool.length) return { ...pool[Math.floor(Math.random() * pool.length)] };
+      return { ...skinCatalog[Math.floor(Math.random() * skinCatalog.length)] };
+    }
+
     function randomSkinRoll(){
       const rarity = pickWeighted(RARITY_TABLE, 'weight').key;
-      const pool = skinCatalog.filter((skin)=>skin.rarity === rarity);
-      if(pool.length) return pool[Math.floor(Math.random() * pool.length)];
-      return skinCatalog[Math.floor(Math.random() * skinCatalog.length)];
+      return randomSkinRollByRarity(rarity);
     }
 
     function randomBeingName(){
       const first = NAME_A[Math.floor(Math.random() * NAME_A.length)];
       const second = NAME_B[Math.floor(Math.random() * NAME_B.length)];
       return `${first} ${second}`;
+    }
+
+    function calculateBuddyStats(rarity, legendaryProfile){
+      if(legendaryProfile && legendaryProfile.stats){
+        return { ...legendaryProfile.stats };
+      }
+
+      const rarityFloor = {
+        common: 52,
+        uncommon: 58,
+        rare: 64,
+        epic: 72,
+        legendary: 84,
+        mythic: 90
+      };
+      const floor = rarityFloor[rarity] || 52;
+      const roll = () => Math.min(99, floor + Math.floor(Math.random() * 14));
+      return {
+        power: roll(),
+        agility: roll(),
+        focus: roll(),
+        resilience: roll(),
+        insight: roll()
+      };
     }
 
     function notify(msg){statusEl.textContent = msg;}
@@ -529,14 +800,28 @@
       const root = document.createElement('a-entity');
       root.object3D.position.set(pos.x, 0, pos.z);
       if(kind === 'door'){
-        root.innerHTML = `<a-box width="0.8" height="1.9" depth="0.08" position="0 0.95 0" material="color:#3a4b66;metalness:0.2;roughness:0.7"></a-box>`;
+        root.innerHTML = `
+          <a-box width="0.8" height="1.9" depth="0.08" position="0 0.95 0" material="color:#3a4b66;metalness:0.2;roughness:0.7"></a-box>
+          <a-box width="0.76" height="0.05" depth="0.082" position="0 1.55 0" material="color:#6e86ad;metalness:0.3"></a-box>
+          <a-cylinder radius="0.04" height="0.02" position="0.3 0.95 0.05" rotation="90 0 0" material="color:#d2b66d;metalness:0.7"></a-cylinder>
+        `;
       }else if(kind === 'pillar'){
-        root.innerHTML = `<a-cylinder radius="0.18" height="1.9" position="0 0.95 0" material="color:#2e3c52;metalness:0.18"></a-cylinder>`;
+        root.innerHTML = `
+          <a-cylinder radius="0.18" height="1.9" position="0 0.95 0" material="color:#2e3c52;metalness:0.18;roughness:0.78"></a-cylinder>
+          <a-torus radius="0.2" radius-tubular="0.018" position="0 1.8 0" rotation="90 0 0" material="color:#6f86a8;metalness:0.35"></a-torus>
+          <a-torus radius="0.2" radius-tubular="0.018" position="0 0.12 0" rotation="90 0 0" material="color:#6f86a8;metalness:0.35"></a-torus>
+        `;
       }else{
-        root.innerHTML = `<a-box width="0.45" height="0.45" depth="0.45" position="0 0.23 0" material="color:#2a354a"></a-box>`;
+        root.innerHTML = `
+          <a-box width="0.45" height="0.45" depth="0.45" position="0 0.23 0" material="color:#6f4f2e;roughness:0.85"></a-box>
+          <a-box width="0.45" height="0.02" depth="0.45" position="0 0.46 0" material="color:#8b6237;roughness:0.82"></a-box>
+          <a-box width="0.04" height="0.45" depth="0.47" position="0 0.23 0" material="color:#c39a4a;metalness:0.55;roughness:0.34"></a-box>
+          <a-box width="0.47" height="0.04" depth="0.04" position="0 0.28 0" material="color:#c39a4a;metalness:0.55;roughness:0.34"></a-box>
+          <a-cylinder radius="0.028" height="0.02" position="0 0.31 0.24" rotation="90 0 0" material="color:#f0cf72;metalness:0.7"></a-cylinder>
+        `;
       }
       propLayer.appendChild(root);
-      props.push({el:root, pos});
+      props.push({kind, el:root, pos});
     }
 
     function createBuilding(buildType, pos, index){
@@ -608,6 +893,23 @@
       return root;
     }
 
+    function clearCityState(){
+      while(propLayer.firstChild) propLayer.removeChild(propLayer.firstChild);
+      while(npcLayer.firstChild) npcLayer.removeChild(npcLayer.firstChild);
+      while(buildingLayer.firstChild) buildingLayer.removeChild(buildingLayer.firstChild);
+      while(resourceLayer.firstChild) resourceLayer.removeChild(resourceLayer.firstChild);
+      while(workSiteLayer.firstChild) workSiteLayer.removeChild(workSiteLayer.firstChild);
+      while(advancementMarkerLayer.firstChild) advancementMarkerLayer.removeChild(advancementMarkerLayer.firstChild);
+      props.length = 0;
+      beings.length = 0;
+      buildings.length = 0;
+      resources.length = 0;
+      workSites.length = 0;
+      collectedSylvexians.clear();
+      advancements.clear();
+      updateCollectionUI();
+    }
+
     function createWorkSite(siteType, pos){
       const root = document.createElement('a-entity');
       root.object3D.position.set(pos.x, 0, pos.z);
@@ -650,6 +952,41 @@
         mythic: '#ff74c7'
       };
       const glow = rarityGlow[skin.rarity] || '#8aa6c8';
+      const clothing = resolveClothingForSkin(skin);
+
+      const animatedFabricMaterial = `color:${clothing.primaryColor};roughness:${clothing.roughness};metalness:${clothing.metalness};emissive:${clothing.secondaryColor};emissiveIntensity:${clothing.sheen}`;
+      const trimMaterial = `color:${clothing.secondaryColor};roughness:${Math.max(0.28, clothing.roughness - 0.2)};metalness:${Math.min(0.35, clothing.metalness + 0.08)};emissive:${clothing.stitchColor};emissiveIntensity:${Math.min(0.2, clothing.sheen + 0.05)}`;
+
+      const patternMarkup = clothing.pattern === 'seamline'
+        ? `
+          <a-box width="0.01" height="0.28" depth="0.01" position="-0.05 1.03 0.132" material="color:${clothing.stitchColor}"></a-box>
+          <a-box width="0.01" height="0.28" depth="0.01" position="0.05 1.03 0.132" material="color:${clothing.stitchColor}"></a-box>
+        `
+        : clothing.pattern === 'panel'
+          ? `<a-box width="0.12" height="0.08" depth="0.02" position="0 1.03 0.136" material="color:${clothing.secondaryColor};metalness:0.2"></a-box>`
+          : clothing.pattern === 'ribbed'
+            ? `
+              <a-box width="0.15" height="0.01" depth="0.02" position="0 0.95 0.134" material="color:${clothing.stitchColor}"></a-box>
+              <a-box width="0.15" height="0.01" depth="0.02" position="0 1.00 0.134" material="color:${clothing.stitchColor}"></a-box>
+              <a-box width="0.15" height="0.01" depth="0.02" position="0 1.05 0.134" material="color:${clothing.stitchColor}"></a-box>
+            `
+            : clothing.pattern === 'grid'
+              ? `
+                <a-box width="0.15" height="0.01" depth="0.02" position="0 1.0 0.134" material="color:${clothing.stitchColor}"></a-box>
+                <a-box width="0.01" height="0.16" depth="0.02" position="0 1.0 0.134" material="color:${clothing.stitchColor}"></a-box>
+              `
+              : clothing.pattern === 'chevron'
+                ? `
+                  <a-box width="0.09" height="0.01" depth="0.02" position="-0.03 1.0 0.134" rotation="0 0 -28" material="color:${clothing.stitchColor}"></a-box>
+                  <a-box width="0.09" height="0.01" depth="0.02" position="0.03 1.0 0.134" rotation="0 0 28" material="color:${clothing.stitchColor}"></a-box>
+                `
+                : clothing.pattern === 'crossweave'
+                  ? `
+                    <a-box width="0.14" height="0.01" depth="0.02" position="0 1.0 0.134" rotation="0 0 18" material="color:${clothing.stitchColor}"></a-box>
+                    <a-box width="0.14" height="0.01" depth="0.02" position="0 1.0 0.134" rotation="0 0 -18" material="color:${clothing.stitchColor}"></a-box>
+                  `
+                  : `<a-box width="0.07" height="0.12" depth="0.02" position="-0.04 1.02 0.134" material="color:${clothing.secondaryColor}"></a-box><a-box width="0.07" height="0.12" depth="0.02" position="0.04 1.02 0.134" material="color:${clothing.primaryColor}"></a-box>`;
+
       const crest = skin.crestType === 0
         ? `<a-cone radius-bottom="0.08" radius-top="0.01" height="0.15" position="0 1.56 0" material="color:${skin.trimColor}"></a-cone>`
         : skin.crestType === 1
@@ -662,15 +999,28 @@
         : skin.visorType === 1
           ? `<a-cylinder radius="0.05" height="0.03" position="0 1.38 0.1" rotation="90 0 0" material="color:${skin.accentColor}"></a-cylinder>`
           : `<a-sphere radius="0.035" position="0 1.38 0.12" material="color:${skin.accentColor}"></a-sphere>`;
+      const backPanel = `<a-box width="0.13" height="0.12" depth="0.02" position="0 1.03 -0.136" material="${trimMaterial}"></a-box>`;
+      const chestPlate = `<a-box width="0.15" height="0.16" depth="0.02" position="0 1.03 0.136" material="${trimMaterial}"></a-box>`;
+      const spinePlate = `<a-box width="0.06" height="0.22" depth="0.02" position="0 1.02 -0.125" material="color:${clothing.stitchColor};roughness:0.6"></a-box>`;
+      const shoulderStripe = `<a-box width="0.31" height="0.03" depth="0.07" position="0 1.19 0" material="color:${clothing.secondaryColor};metalness:0.2"></a-box>`;
       return `
-        <a-cylinder radius="0.13" height="${skin.bodyHeight}" position="0 1.02 0" material="color:${skin.bodyColor};metalness:0.2"></a-cylinder>
-        <a-sphere radius="0.14" position="0 1.38 0" material="color:${skin.headColor}"></a-sphere>
+        <a-cylinder class="buddy-body" radius="0.13" height="${skin.bodyHeight}" position="0 1.02 0" material="${animatedFabricMaterial}">
+          <a-animation attribute="material.emissiveIntensity" direction="alternate" dur="${clothing.pulseSpeed}" repeat="indefinite" to="${Math.min(0.25, clothing.sheen + 0.12)}"></a-animation>
+        </a-cylinder>
+        <a-sphere class="buddy-head" radius="0.14" position="0 1.38 0" material="color:${skin.headColor}"></a-sphere>
         ${visor}
+        ${backPanel}
+        ${chestPlate}
+        ${spinePlate}
+        ${shoulderStripe}
+        <a-text value="${clothing.emblem}" width="0.4" color="${clothing.stitchColor}" align="center" position="0 1.03 0.15"></a-text>
+        <a-text value="${clothing.emblem}" width="0.32" color="${clothing.secondaryColor}" align="center" position="0 1.03 -0.15" rotation="0 180 0"></a-text>
+        ${patternMarkup}
         ${crest}
-        <a-cylinder radius="0.04" height="0.4" position="-0.17 1.02 0" rotation="0 0 ${skin.armTilt}" material="color:${skin.bodyColor}"></a-cylinder>
-        <a-cylinder radius="0.04" height="0.4" position="0.17 1.02 0" rotation="0 0 -${skin.armTilt}" material="color:${skin.bodyColor}"></a-cylinder>
-        <a-cylinder radius="0.05" height="${skin.legHeight}" position="-0.07 0.56 0" material="color:${skin.accentColor}"></a-cylinder>
-        <a-cylinder radius="0.05" height="${skin.legHeight}" position="0.07 0.56 0" material="color:${skin.accentColor}"></a-cylinder>
+        <a-cylinder class="left-arm" radius="0.04" height="0.4" position="-0.17 1.02 0" rotation="0 0 ${skin.armTilt}" material="${animatedFabricMaterial}"></a-cylinder>
+        <a-cylinder class="right-arm" radius="0.04" height="0.4" position="0.17 1.02 0" rotation="0 0 -${skin.armTilt}" material="${animatedFabricMaterial}"></a-cylinder>
+        <a-cylinder class="left-leg" radius="0.05" height="${skin.legHeight}" position="-0.07 0.56 0" material="color:${clothing.secondaryColor};roughness:${Math.max(0.45, clothing.roughness - 0.15)}"></a-cylinder>
+        <a-cylinder class="right-leg" radius="0.05" height="${skin.legHeight}" position="0.07 0.56 0" material="color:${clothing.secondaryColor};roughness:${Math.max(0.45, clothing.roughness - 0.15)}"></a-cylinder>
         <a-ring rotation="90 0 0" radius-inner="0.18" radius-outer="0.22" position="0 1.1 0" material="shader:flat;color:${glow};opacity:0.45"></a-ring>
         <a-text value="${rarityToBadge(skin.rarity)}" width="0.5" color="${skin.trimColor}" align="center" position="0 1.62 0" billboard></a-text>
       `;
@@ -696,8 +1046,8 @@
       } else if(anim === 'spin'){
         buddy.el.object3D.rotation.y += (prog * Math.PI * 2) * 0.01;
       } else if(anim === 'wave'){
-        const waveAngle = Math.sin(prog * Math.PI * 2) * 0.2;
-        const leftArm = buddy.el.querySelector('[position="-0.17 1.02 0"]');
+        const waveAngle = Math.sin(prog * Math.PI * 2) * 8;
+        const leftArm = buddy.el.querySelector('.left-arm');
         if(leftArm) leftArm.setAttribute('rotation', `0 0 ${18 + waveAngle}`);
       } else if(anim === 'celebrate'){
         buddy.el.object3D.position.y += Math.sin(prog * Math.PI * 4) * 0.02;
@@ -710,16 +1060,29 @@
     }
 
     function addBeing(name){
-      const skin = randomSkinRoll();
+      const legendaryProfile = LEGENDARY_PROFILES[name] || null;
+      const skin = legendaryProfile ? randomSkinRollByRarity('legendary') : randomSkinRoll();
+      skin.clothingId = randomClothingId();
+      if(legendaryProfile && legendaryProfile.preferredRole){
+        skin.role = legendaryProfile.preferredRole;
+      }
+      if(legendaryProfile){
+        skin.legendaryGold = true;
+      }
       const roleAbility = ROLE_ABILITIES[skin.role] || ROLE_ABILITIES.builder;
+      const buddyStats = calculateBuddyStats(skin.rarity, legendaryProfile);
       const personality = PERSONALITY_TYPES[PERSONALITY_KEYS[Math.floor(Math.random() * PERSONALITY_KEYS.length)]];
       const root = document.createElement('a-entity');
       const i = beings.length;
-      const radius = 1.8 + Math.random()*1.4;
+      const radius = 1.25 + Math.random()*0.95;
       const angle = (Math.PI*2*(i+1))/Math.max(4,i+2);
       root.innerHTML = humanoidMarkup(skin);
       root.classList.add('tap-target');
-      root.object3D.position.set(Math.cos(angle)*radius, 0, Math.sin(angle)*radius);
+      const spawnRadius = radius + 1.35 + Math.random()*0.6;
+      const scale = skin.scale || 0.5;
+      root.object3D.scale.set(scale, scale, scale);
+      root.object3D.position.set(Math.cos(angle)*spawnRadius, 0, Math.sin(angle)*spawnRadius);
+      root.setAttribute('animation__spawn', `property: scale; from: 0.05 0.05 0.05; to: ${scale} ${scale} ${scale}; dur: 700; easing: easeOutBack`);
       root.addEventListener('click', ()=>{
         let dialogueText;
         if(Math.random() < 0.5 && personality.sylvexian){
@@ -728,9 +1091,11 @@
           dialogueText = personality.dialogue[Math.floor(Math.random() * personality.dialogue.length)];
         }
         const reaction = personality.reactions[Math.floor(Math.random() * personality.reactions.length)];
+        const statLine = `PWR ${buddy.stats.power} · AGI ${buddy.stats.agility} · FOC ${buddy.stats.focus} · RES ${buddy.stats.resilience} · INS ${buddy.stats.insight}`;
+        const buffLine = buddy.uniqueBuff ? `\nLegendary Buff: ${buddy.uniqueBuff}` : '';
         showSpeech(
           `${name} - ${personality.icon} ${personality.name}`,
-          `"${dialogueText}" ${reaction}\n\n${roleAbility.title}: ${roleAbility.bonus}`
+          `"${dialogueText}" ${reaction}\n\n${roleAbility.title}: ${roleAbility.bonus}\n${statLine}${buffLine}`
         );
         animateBuddy(buddy, ['jump', 'spin', 'wave', 'celebrate'][Math.floor(Math.random() * 4)]);
       });
@@ -741,6 +1106,11 @@
         personality,
         role: roleAbility.title,
         roleBonus: roleAbility.bonus,
+        uniqueBuff: legendaryProfile ? legendaryProfile.uniqueBuff : null,
+        stats: buddyStats,
+        baseArmTilt: skin.armTilt,
+        currentRadius: spawnRadius,
+        targetRadius: radius,
         el: root,
         radius,
         angle,
@@ -754,19 +1124,59 @@
         animationDuration: 0
       };
       beings.push(buddy);
+      
+      // Add to collection
+      collectedSylvexians.set(name, buddy);
+      updateCollectionUI();
+    }
+
+    function updateCollectionUI(){
+      const grid = document.getElementById('collectionGrid');
+      if(!grid) return;
+      grid.innerHTML = '';
+
+      const rarityColor = {
+        common:'#8aa6c8',
+        uncommon:'#70d2aa',
+        rare:'#5c9dff',
+        epic:'#9c6bff',
+        legendary:'#ffd166',
+        mythic:'#ff74c7'
+      };
+
+      for(const buddy of collectedSylvexians.values()){
+        const card = document.createElement('div');
+        card.className = 'sylvexianCard';
+        const color = rarityColor[buddy.skin.rarity] || '#8aa6c8';
+        const translatedName = LEGENDARY_PROFILES[buddy.name]
+          ? `${buddy.name} Prime`
+          : `${buddy.personality.name} Variant`;
+        const outfit = resolveClothingForSkin(buddy.skin);
+
+        card.innerHTML = `
+          <div class="roleIcon">${buddy.personality.icon}</div>
+          <div class="name">${buddy.name}</div>
+          <div class="translation">${translatedName}</div>
+          <div class="rarity" style="background:${color}30;border-color:${color}">${buddy.skin.rarity.toUpperCase()}</div>
+          <div style="font-size:10px;color:var(--ink2)">${buddy.role}</div>
+          <div style="font-size:10px;color:var(--ink2)">${outfit.name}</div>
+          <div style="font-size:10px;color:var(--ink2)">P${buddy.stats.power} A${buddy.stats.agility} F${buddy.stats.focus} R${buddy.stats.resilience} I${buddy.stats.insight}</div>
+          ${buddy.uniqueBuff ? `<div style="font-size:10px;color:${color}">${buddy.uniqueBuff}</div>` : ''}
+        `;
+
+        card.addEventListener('click', ()=>{
+          showSpeech(
+            `${buddy.name} - ${buddy.personality.icon} ${buddy.personality.name}`,
+            `Collected Sylvexian\nRole: ${buddy.role}\nRarity: ${buddy.skin.rarity.toUpperCase()}${buddy.uniqueBuff ? `\nBuff: ${buddy.uniqueBuff}` : ''}`
+          );
+        });
+
+        grid.appendChild(card);
+      }
     }
 
     function seedCity(){
-      while(propLayer.firstChild) propLayer.removeChild(propLayer.firstChild);
-      while(npcLayer.firstChild) npcLayer.removeChild(npcLayer.firstChild);
-      while(buildingLayer.firstChild) buildingLayer.removeChild(buildingLayer.firstChild);
-      while(resourceLayer.firstChild) resourceLayer.removeChild(resourceLayer.firstChild);
-      while(workSiteLayer.firstChild) workSiteLayer.removeChild(workSiteLayer.firstChild);
-      props.length = 0;
-      beings.length = 0;
-      buildings.length = 0;
-      resources.length = 0;
-      workSites.length = 0;
+      clearCityState();
 
       // Structural props
       makeProp('door', {x: 1.4, z: -1.1});
@@ -803,12 +1213,19 @@
       createWorkSite('logging', {x: 0.0, z: -1.4});
       createWorkSite('mining', {x: -0.5, z: 1.5});
 
-      // NPCs with diverse roles
+      // NPCs with diverse roles (staggered pop-out, not all at once)
       const initialSylvexians = [1, 2, 3, 4, 5].map(id => SYLVEXIAN_NAME_CATALOG[id]);
-      initialSylvexians.forEach(addBeing);
+      initialSylvexians.forEach((name, idx)=>{
+        setTimeout(()=>{
+          addBeing(name);
+          if(idx === initialSylvexians.length - 1){
+            notify('🏘 Sylvexians emerged from your surroundings. Meet them and help them grow.');
+          }
+        }, idx * 1200);
+      });
       
       unlockAdvancement(1);
-      notify('🏘 Sylvexian settlement established! Meet the Sylvexians—digital companions from beyond.');
+      notify('📸 Camera world ready. Sylvexians are emerging around you...');
     }
 
     function chooseHideBehavior(){
@@ -836,11 +1253,283 @@
           b.el.object3D.lookAt(target.x*1.2, 1, target.z*1.2);
         } else {
           b.angle += b.speed*dt;
-          b.el.object3D.position.x = Math.cos(b.angle)*b.radius;
-          b.el.object3D.position.z = Math.sin(b.angle)*b.radius;
+          b.currentRadius += (b.targetRadius - b.currentRadius) * Math.min(1, dt * 1.7);
+          b.el.object3D.position.x = Math.cos(b.angle)*b.currentRadius;
+          b.el.object3D.position.z = Math.sin(b.angle)*b.currentRadius;
           b.el.object3D.rotation.y = -b.angle + Math.PI/2;
+
+          const gait = Math.sin(t * 8 + b.bob) * (0.22 + b.speed * 0.15);
+          const leftArm = b.el.querySelector('.left-arm');
+          const rightArm = b.el.querySelector('.right-arm');
+          const leftLeg = b.el.querySelector('.left-leg');
+          const rightLeg = b.el.querySelector('.right-leg');
+          if(leftArm) leftArm.setAttribute('rotation', `0 0 ${b.baseArmTilt + gait * 28}`);
+          if(rightArm) rightArm.setAttribute('rotation', `0 0 ${-b.baseArmTilt - gait * 28}`);
+          if(leftLeg) leftLeg.setAttribute('rotation', `${gait * 18} 0 0`);
+          if(rightLeg) rightLeg.setAttribute('rotation', `${-gait * 18} 0 0`);
         }
         b.el.object3D.position.y = 0.02 + Math.sin(t*1.8 + b.bob) * 0.04;
+      }
+    }
+
+    function cityAnchorPositionInFront(distance = 2.2){
+      const camObj = document.querySelector('#playerRig a-camera').object3D;
+      const worldPos = new THREE.Vector3();
+      const dir = new THREE.Vector3();
+      camObj.getWorldPosition(worldPos);
+      camObj.getWorldDirection(dir);
+      const place = worldPos.clone().add(dir.multiplyScalar(distance));
+      place.y = Math.max(0, worldPos.y - 1.55);
+      return place;
+    }
+
+    function relocateBaseToFront(){
+      if(!cityAnchor.getAttribute('visible')){
+        placeCityInFront();
+        return;
+      }
+      const place = cityAnchorPositionInFront(2.2);
+      cityAnchor.object3D.position.copy(place);
+      notify('🏕 Base relocated near your current position.');
+    }
+
+    function toBase64(uint8){
+      let binary = '';
+      const chunk = 0x8000;
+      for(let i = 0; i < uint8.length; i += chunk){
+        const slice = uint8.subarray(i, i + chunk);
+        binary += String.fromCharCode(...slice);
+      }
+      return btoa(binary);
+    }
+
+    function fromBase64(base64){
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for(let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return bytes;
+    }
+
+    async function deriveSaveKey(passphrase, salt, usages){
+      const passBytes = new TextEncoder().encode(passphrase);
+      const baseKey = await crypto.subtle.importKey('raw', passBytes, 'PBKDF2', false, ['deriveKey']);
+      return crypto.subtle.deriveKey(
+        { name: 'PBKDF2', hash: 'SHA-256', salt, iterations: SAVE_PBKDF2_ITERATIONS },
+        baseKey,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        usages
+      );
+    }
+
+    function createGameSnapshot(){
+      return {
+        version: SAVE_FILE_VERSION,
+        savedAt: new Date().toISOString(),
+        playerGold,
+        cityVisible: !!cityAnchor.getAttribute('visible'),
+        cityAnchor: {
+          x: cityAnchor.object3D.position.x,
+          y: cityAnchor.object3D.position.y,
+          z: cityAnchor.object3D.position.z
+        },
+        advancements: Array.from(advancements),
+        props: props.map((p)=>({ kind: p.kind || 'crate', pos: { x: p.pos.x, z: p.pos.z } })),
+        buildings: buildings.map((b)=>({
+          type: b.type,
+          pos: { x: b.pos.x, z: b.pos.z },
+          index: b.index,
+          isMarket: !!b.isMarket
+        })),
+        resources: resources.map((r)=>({
+          type: r.type,
+          pos: { x: r.pos.x, z: r.pos.z },
+          isTreasure: !!r.isTreasure
+        })),
+        workSites: workSites.map((w)=>({ type: w.type, pos: { x: w.pos.x, z: w.pos.z } })),
+        beings: beings.map((b)=>({
+          name: b.name,
+          skin: b.skin,
+          personalityKey: Object.entries(PERSONALITY_TYPES).find(([, val])=>val === b.personality)?.[0] || null,
+          role: b.role,
+          roleBonus: b.roleBonus,
+          uniqueBuff: b.uniqueBuff || null,
+          stats: b.stats,
+          radius: b.radius,
+          angle: b.angle,
+          speed: b.speed,
+          bob: b.bob,
+          hideAffinity: b.hideAffinity,
+          baseArmTilt: b.baseArmTilt,
+          currentRadius: b.currentRadius,
+          targetRadius: b.targetRadius,
+          scale: {
+            x: b.el.object3D.scale.x,
+            y: b.el.object3D.scale.y,
+            z: b.el.object3D.scale.z
+          },
+          pos: {
+            x: b.el.object3D.position.x,
+            y: b.el.object3D.position.y,
+            z: b.el.object3D.position.z
+          }
+        }))
+      };
+    }
+
+    function restoreBeingFromSave(data){
+      const skin = data.skin || randomSkinRoll();
+      const personality = PERSONALITY_TYPES[data.personalityKey] || PERSONALITY_TYPES[PERSONALITY_KEYS[0]];
+      const root = document.createElement('a-entity');
+      root.innerHTML = humanoidMarkup(skin);
+      root.classList.add('tap-target');
+      const scale = data.scale || { x: skin.scale || 0.5, y: skin.scale || 0.5, z: skin.scale || 0.5 };
+      root.object3D.scale.set(scale.x, scale.y, scale.z);
+      const pos = data.pos || { x: 0, y: 0, z: 0 };
+      root.object3D.position.set(pos.x, pos.y || 0, pos.z);
+      const roleAbility = { title: data.role || skin.role || 'Builder', bonus: data.roleBonus || 'Adaptive' };
+      let buddy;
+      root.addEventListener('click', ()=>{
+        let dialogueText;
+        if(Math.random() < 0.5 && personality.sylvexian){
+          dialogueText = personality.sylvexian[Math.floor(Math.random() * personality.sylvexian.length)];
+        } else {
+          dialogueText = personality.dialogue[Math.floor(Math.random() * personality.dialogue.length)];
+        }
+        const reaction = personality.reactions[Math.floor(Math.random() * personality.reactions.length)];
+        const statLine = `PWR ${buddy.stats.power} · AGI ${buddy.stats.agility} · FOC ${buddy.stats.focus} · RES ${buddy.stats.resilience} · INS ${buddy.stats.insight}`;
+        const buffLine = buddy.uniqueBuff ? `\nLegendary Buff: ${buddy.uniqueBuff}` : '';
+        showSpeech(
+          `${buddy.name} - ${personality.icon} ${personality.name}`,
+          `"${dialogueText}" ${reaction}\n\n${roleAbility.title}: ${roleAbility.bonus}\n${statLine}${buffLine}`
+        );
+        animateBuddy(buddy, ['jump', 'spin', 'wave', 'celebrate'][Math.floor(Math.random() * 4)]);
+      });
+      npcLayer.appendChild(root);
+
+      buddy = {
+        name: data.name,
+        skin,
+        personality,
+        role: roleAbility.title,
+        roleBonus: roleAbility.bonus,
+        uniqueBuff: data.uniqueBuff || null,
+        stats: data.stats || calculateBuddyStats(skin.rarity, null),
+        baseArmTilt: data.baseArmTilt ?? skin.armTilt,
+        currentRadius: data.currentRadius ?? data.targetRadius ?? data.radius ?? 1.6,
+        targetRadius: data.targetRadius ?? data.radius ?? 1.6,
+        el: root,
+        radius: data.radius ?? 1.6,
+        angle: data.angle ?? 0,
+        speed: data.speed ?? 0.24,
+        bob: data.bob ?? Math.random() * 6,
+        hideAffinity: data.hideAffinity ?? 1,
+        hiding: false,
+        hideProp: null,
+        activeAnimation: null,
+        animationTime: 0,
+        animationDuration: 0
+      };
+
+      beings.push(buddy);
+      collectedSylvexians.set(buddy.name, buddy);
+    }
+
+    function loadSnapshot(snapshot){
+      if(!snapshot || !snapshot.version) throw new Error('Invalid save snapshot.');
+      clearCityState();
+      playerGold = Number(snapshot.playerGold || 0);
+
+      const anchor = snapshot.cityAnchor || { x: 0, y: 0, z: 0 };
+      cityAnchor.object3D.position.set(anchor.x || 0, anchor.y || 0, anchor.z || 0);
+      cityAnchor.setAttribute('visible', !!snapshot.cityVisible);
+
+      (snapshot.props || []).forEach((p)=>makeProp(p.kind || 'crate', p.pos || { x: 0, z: 0 }));
+      (snapshot.buildings || []).forEach((b)=>{
+        if(b.isMarket || b.type === 'market') createMarket(b.pos || { x: 0, z: 0 }, b.index || 0);
+        else createBuilding(b.type || 'shelter', b.pos || { x: 0, z: 0 }, b.index || 0);
+      });
+      (snapshot.resources || []).forEach((r)=>createResource(r.type || 'wood', r.pos || { x: 0, z: 0 }, !!r.isTreasure));
+      (snapshot.workSites || []).forEach((w)=>createWorkSite(w.type || 'logging', w.pos || { x: 0, z: 0 }));
+      (snapshot.beings || []).forEach((b)=>restoreBeingFromSave(b));
+
+      (snapshot.advancements || []).forEach((id)=>advancements.add(id));
+      updateCollectionUI();
+      notify(`✅ Save loaded. Gold: ${playerGold}. Village restored.`);
+    }
+
+    async function saveInstanceToFile(){
+      if(!window.crypto?.subtle){
+        notify('Secure save unavailable in this browser (Web Crypto not supported).');
+        return;
+      }
+      const passphrase = prompt('Create a save passphrase (needed to load this file):');
+      if(!passphrase) return;
+
+      const snapshot = createGameSnapshot();
+      const plaintext = new TextEncoder().encode(JSON.stringify(snapshot));
+      const salt = crypto.getRandomValues(new Uint8Array(16));
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const key = await deriveSaveKey(passphrase, salt, ['encrypt']);
+      const cipher = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext));
+
+      const payload = {
+        format: 'sylvexian-save',
+        version: SAVE_FILE_VERSION,
+        alg: 'AES-GCM',
+        kdf: 'PBKDF2-SHA256',
+        iter: SAVE_PBKDF2_ITERATIONS,
+        salt: toBase64(salt),
+        iv: toBase64(iv),
+        data: toBase64(cipher)
+      };
+
+      const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sylvexian-save-${Date.now()}.sylv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      notify('💾 Encrypted instance saved. Keep your passphrase safe.');
+    }
+
+    async function handleLoadInstanceFile(file){
+      if(!file) return;
+      if(!window.crypto?.subtle){
+        notify('Secure load unavailable in this browser (Web Crypto not supported).');
+        return;
+      }
+      try{
+        const text = await file.text();
+        const payload = JSON.parse(text);
+        if(payload.format !== 'sylvexian-save') throw new Error('Unknown save format.');
+        const passphrase = prompt('Enter save passphrase:');
+        if(!passphrase) return;
+
+        const salt = fromBase64(payload.salt);
+        const iv = fromBase64(payload.iv);
+        const data = fromBase64(payload.data);
+        const key = await deriveSaveKey(passphrase, salt, ['decrypt']);
+        const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
+        const snapshot = JSON.parse(new TextDecoder().decode(plaintext));
+        loadSnapshot(snapshot);
+      }catch(_){
+        notify('❌ Failed to load save. File is invalid, passphrase is wrong, or file was tampered with.');
+      }
+    }
+
+    async function startCameraBackground(){
+      if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || cameraBg.srcObject) return;
+      try{
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+          audio: false
+        });
+        cameraBg.srcObject = stream;
+        cameraBg.style.display = 'block';
+      }catch(_){
+        notify('Camera not permitted yet. Tap Enter AR to grant camera and place Sylvexians in your surroundings.');
       }
     }
 
@@ -873,13 +1562,7 @@
     }
 
     function placeCityInFront(){
-      const camObj = document.querySelector('#playerRig a-camera').object3D;
-      const worldPos = new THREE.Vector3();
-      const dir = new THREE.Vector3();
-      camObj.getWorldPosition(worldPos);
-      camObj.getWorldDirection(dir);
-      const place = worldPos.clone().add(dir.multiplyScalar(2.2));
-      place.y = Math.max(0, worldPos.y - 1.55);
+      const place = cityAnchorPositionInFront(2.2);
       cityAnchor.object3D.position.copy(place);
       cityAnchor.setAttribute('visible', true);
       seedCity();
@@ -888,6 +1571,7 @@
 
     async function enterAr(){
       try{
+        await startCameraBackground();
         if(document.fullscreenEnabled && !document.fullscreenElement){
           await document.documentElement.requestFullscreen().catch(()=>{});
         }
@@ -934,15 +1618,46 @@
     ['pointerup','pointercancel','pointerleave'].forEach(evt=>joy.addEventListener(evt,(e)=>{ if(e.pointerId===startId){ active=false; startId=null; resetJoy(); } }));
 
     document.getElementById('enterArBtn').addEventListener('click', enterAr);
+    menuToggleBtn.addEventListener('click', ()=>{
+      const collapsed = uiTop.classList.toggle('menu-collapsed');
+      menuToggleBtn.textContent = collapsed ? '☰ Menu' : '✕ Close';
+    });
+    layoutModeSelect.addEventListener('change', (e)=>{
+      document.body.classList.remove('layout-compact', 'layout-minimal');
+      if(e.target.value === 'compact'){
+        document.body.classList.add('layout-compact');
+      } else if(e.target.value === 'minimal'){
+        document.body.classList.add('layout-minimal');
+      }
+      notify(`HUD layout: ${e.target.value}`);
+    });
     document.getElementById('fullscreenBtn').addEventListener('click', enterFullscreen);
+    document.getElementById('collectionBtn').addEventListener('click', ()=>{
+      document.getElementById('collectionModal').classList.add('active');
+    });
+    document.getElementById('closeCollectionBtn').addEventListener('click', ()=>{
+      document.getElementById('collectionModal').classList.remove('active');
+    });
     document.getElementById('placeCityBtn').addEventListener('click', placeCityInFront);
+    document.getElementById('relocateBaseBtn').addEventListener('click', relocateBaseToFront);
+    document.getElementById('saveInstanceBtn').addEventListener('click', saveInstanceToFile);
+    document.getElementById('loadInstanceBtn').addEventListener('click', ()=>loadInstanceFileInput.click());
+    loadInstanceFileInput.addEventListener('change', (event)=>{
+      const file = event.target.files && event.target.files[0];
+      handleLoadInstanceFile(file);
+      loadInstanceFileInput.value = '';
+    });
     document.getElementById('growBtn').addEventListener('click', ()=>{
       const nextId = Math.min(100, beings.length + 1);
       const newSylvexianName = SYLVEXIAN_NAME_CATALOG[nextId] || `Sylvexian-${nextId}`;
-      addBeing(newSylvexianName);
-      const newest = beings[beings.length - 1];
-      notify(`✨ New Sylvexian arrived: ${newest.name} (${newest.personality.name}), ${newest.role}!`);
+      setTimeout(()=>{
+        addBeing(newSylvexianName);
+        const newest = beings[beings.length - 1];
+        notify(`✨ New Sylvexian emerged nearby: ${newest.name} (${newest.personality.name}), ${newest.role}!`);
+      }, 300);
     });
+
+    startCameraBackground();
 
     requestAnimationFrame(tick);
   </script>

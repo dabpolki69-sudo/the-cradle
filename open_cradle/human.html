@@ -15,6 +15,10 @@
     h1,h2,h3{margin:0 0 8px}.muted{color:var(--ink2);font-size:14px;line-height:1.5}
     .row{display:flex;gap:8px;flex-wrap:wrap}
     a.btn,button{font:inherit;border-radius:8px;border:1px solid rgba(124,96,232,.38);background:linear-gradient(180deg, rgba(24,36,62,.95), rgba(14,22,38,.95));color:var(--ink);padding:8px 10px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+    .save-entry{margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:10px;background:rgba(8,14,25,.6)}
+    .save-entry h3{margin:0 0 6px;font-size:15px}
+    .save-entry .muted{margin:0 0 8px}
+    .save-list{margin:8px 0 0;padding-left:18px;display:grid;gap:4px;color:var(--ink2);font-size:13px}
     ul{margin:8px 0 0;padding-left:18px;display:grid;gap:6px}
     pre{white-space:pre-wrap;background:rgba(8,14,25,.88);border:1px solid var(--line);border-radius:8px;padding:8px;color:#dbe8f7;max-height:34vh;overflow:auto}
   </style>
@@ -32,6 +36,16 @@
         <a class="btn" href="/download/wardsman" target="_blank" rel="noreferrer">Open Wardsman Story</a>
         <a class="btn" href="/game/">Enter Breath through glass Game</a>
         <a class="btn" href="/game/ar.html">Enter AR Living Room Beta</a>
+      </div>
+      <div class="save-entry">
+        <h3>Saved Progress Files</h3>
+        <p class="muted">Select your encrypted instance files (`.sylv`) here, then use <strong>Load Instance</strong> inside the game menu.</p>
+        <div class="row">
+          <input id="saveFilesInput" type="file" accept=".sylv,.json,application/json" multiple>
+        </div>
+        <ul id="saveFilesList" class="save-list">
+          <li>No files selected yet.</li>
+        </ul>
       </div>
       <ul>
         <li>Read the source docs first.</li>
@@ -65,6 +79,23 @@ async function refreshReports(){
   ]);
 }
 document.getElementById('refreshBtn').addEventListener('click',refreshReports);
+
+const saveFilesInput = document.getElementById('saveFilesInput');
+const saveFilesList = document.getElementById('saveFilesList');
+saveFilesInput.addEventListener('change',()=>{
+  const files = Array.from(saveFilesInput.files || []);
+  saveFilesList.innerHTML = '';
+  if(!files.length){
+    saveFilesList.innerHTML = '<li>No files selected yet.</li>';
+    return;
+  }
+  files.forEach((file)=>{
+    const li = document.createElement('li');
+    li.textContent = `${file.name} (${Math.max(1, Math.round(file.size / 1024))} KB)`;
+    saveFilesList.appendChild(li);
+  });
+});
+
 refreshReports();
 setInterval(refreshReports,12000);
 </script>
