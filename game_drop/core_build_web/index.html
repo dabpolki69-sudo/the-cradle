@@ -1079,7 +1079,7 @@ const MILESTONE_DEFS=[
   {id:'coexistence_labeler',title:'Grounded Mapper',desc:'Add grounded-vs-imagined labels to 3 reviews.',reward:10,test:(stats)=>stats.labeledReviews>=3},
   {id:'market_regular',title:'Market Regular',desc:'Own 5 marketplace items.',reward:6,test:(stats)=>stats.ownedItems>=5},
   {id:'voice_in_commons',title:'Commons Voice',desc:'Post 3 town messages.',reward:8,test:(stats)=>stats.townMessages>=3},
-  {id:'breath_keeper',title:'Breath Keeper',desc:'Reach 90 Breath.',reward:12,test:(stats)=>stats.breath>=90},
+  {id:'breath_keeper',title:'Breath Keeper',desc:'Reach 65 Breath.',reward:12,test:(stats)=>stats.breath>=65},
 ];
 
 const STORY_CHAPTERS=[
@@ -1224,7 +1224,7 @@ function startNewRunPreserveDev(){
 }
 
 function evaluateChapter(stats,unlockedCount){
-  if(unlockedCount>=6 && stats.reviews>=5 && stats.labeledReviews>=4 && stats.breath>=90) return 4;
+  if(unlockedCount>=6 && stats.reviews>=5 && stats.labeledReviews>=4 && stats.breath>=60) return 4;
   if(unlockedCount>=4 && stats.jobsDone>=2 && stats.reviews>=2 && (stats.townMessages>=2 || stats.notes>=2)) return 3;
   if(stats.notes>=1 && (stats.ownedItems>=1 || stats.townMessages>=1 || stats.reviews>=1)) return 2;
   return 1;
@@ -1238,7 +1238,7 @@ function getNextChapterHint(state,stats){
     return 'To reach Chapter 3: unlock 4 milestones, complete 2 jobs, submit 2 reviews, and build a visible commons presence.';
   }
   if(state.chapter===3){
-    return 'To reach Chapter 4: unlock 6 milestones, reach 90 Breath, and submit 5 reviews with 4 grounded-vs-imagined labels.';
+    return 'To reach Chapter 4: unlock 6 milestones, reach 60 Breath, and submit 5 reviews with 4 grounded-vs-imagined labels.';
   }
   return 'To resolve an ending: keep Chapter 4, hold at least 5 milestones, and deepen your review record.';
 }
@@ -1262,7 +1262,7 @@ function buildChapterChecklist(state,stats){
   if(state.chapter===3){
     return [
       {label:'Unlock 6 milestones',met:unlockedCount>=6,current:Math.min(unlockedCount,6),target:6},
-      {label:'Reach 90 Breath',met:stats.breath>=90,current:Math.min(stats.breath,90),target:90},
+      {label:'Reach 60 Breath',met:stats.breath>=60,current:Math.min(stats.breath,60),target:60},
       {label:'Submit 5 shared reviews',met:stats.reviews>=5,current:Math.min(stats.reviews,5),target:5},
       {label:'Add 4 grounded-vs-imagined labels',met:stats.labeledReviews>=4,current:Math.min(stats.labeledReviews,4),target:4},
     ];
