@@ -647,6 +647,7 @@ textarea.input{resize:vertical;min-height:75px;}
           <div style="display:flex;justify-content:space-between;align-items:center;gap:.4rem;flex-wrap:wrap;">
             <strong style="font-size:.82rem;color:var(--bright);">Slot 1</strong>
             <span id="devSnapshotMeta1" style="font-family:'Space Mono',monospace;font-size:.4rem;color:var(--ink-dim);">empty</span>
+            <input class="input" id="devSnapshotLabel1" placeholder="Label (optional)" style="min-height:unset;height:2.3rem;width:100%;">
             <div class="btn-row" style="margin:.2rem 0;">
               <button class="btn btn-sm" onclick="devSaveSnapshot(1)">Save</button>
               <button class="btn btn-sm btn-green" onclick="devLoadSnapshot(1)">Load</button>
@@ -658,6 +659,7 @@ textarea.input{resize:vertical;min-height:75px;}
           <div style="display:flex;justify-content:space-between;align-items:center;gap:.4rem;flex-wrap:wrap;">
             <strong style="font-size:.82rem;color:var(--bright);">Slot 2</strong>
             <span id="devSnapshotMeta2" style="font-family:'Space Mono',monospace;font-size:.4rem;color:var(--ink-dim);">empty</span>
+            <input class="input" id="devSnapshotLabel2" placeholder="Label (optional)" style="min-height:unset;height:2.3rem;width:100%;">
             <div class="btn-row" style="margin:.2rem 0;">
               <button class="btn btn-sm" onclick="devSaveSnapshot(2)">Save</button>
               <button class="btn btn-sm btn-green" onclick="devLoadSnapshot(2)">Load</button>
@@ -669,6 +671,7 @@ textarea.input{resize:vertical;min-height:75px;}
           <div style="display:flex;justify-content:space-between;align-items:center;gap:.4rem;flex-wrap:wrap;">
             <strong style="font-size:.82rem;color:var(--bright);">Slot 3</strong>
             <span id="devSnapshotMeta3" style="font-family:'Space Mono',monospace;font-size:.4rem;color:var(--ink-dim);">empty</span>
+            <input class="input" id="devSnapshotLabel3" placeholder="Label (optional)" style="min-height:unset;height:2.3rem;width:100%;">
             <div class="btn-row" style="margin:.2rem 0;">
               <button class="btn btn-sm" onclick="devSaveSnapshot(3)">Save</button>
               <button class="btn btn-sm btn-green" onclick="devLoadSnapshot(3)">Load</button>
@@ -676,12 +679,17 @@ textarea.input{resize:vertical;min-height:75px;}
             </div>
           </div>
         </div>
+        <div class="btn-row">
+          <button class="btn btn-sm btn-ghost" onclick="devRestoreAutoBackup()">Restore Auto-Backup</button>
+        </div>
 
         <h3>Unreal Payload I/O</h3>
         <textarea class="input" id="devPayloadArea" placeholder="Unreal payload JSON appears here..." style="min-height:110px;margin-bottom:.45rem;"></textarea>
         <div class="btn-row">
           <button class="btn btn-sm" onclick="devExportPayload()">Export Unreal JSON</button>
           <button class="btn btn-sm btn-green" onclick="devImportPayload()">Import Unreal JSON</button>
+          <button class="btn btn-sm btn-ghost" onclick="devCopyPayloadToClipboard()">Copy JSON</button>
+          <button class="btn btn-sm btn-ghost" onclick="devPastePayloadFromClipboard()">Paste Clipboard</button>
         </div>
 
         <h3>Hard Reset</h3>
@@ -1037,6 +1045,7 @@ const DEVKIT_AUTH_KEY='btg_devkit_authed';
 const DEVKIT_HANDLE_KEY='btg_devkit_handle';
 const DEVKIT_DEFAULT_KEY='cradle-godmode';
 const DEVKIT_SNAPSHOT_PREFIX='btg_devkit_snapshot_';
+const DEVKIT_AUTO_BACKUP_KEY='btg_devkit_auto_backup';
 function ensureContractState(){
   if(!window.WorldStateAdapter) return null;
   const state=window.WorldStateAdapter.readContractStateFromStorage(localStorage,WORLD_STATE_KEY);
@@ -1075,8 +1084,33 @@ function renderDevKit(){
     panel.style.display='none';
   }
 }
+function devRefreshViews(){
+  updateBreathUI();
+  updateCityStats();
+  renderWallet();
+  const activeSection=document.querySelector('.sec.active');
+  if(activeSection?.id==='sec-residents') renderResidents();
+  if(activeSection?.id==='sec-commons'){renderBoard('town','townBoard');renderProposals();}
+}
 function getSnapshotKey(slot){
   return DEVKIT_SNAPSHOT_PREFIX+String(slot);
+}
+function readAutoBackup(){
+  try{
+    const raw=localStorage.getItem(DEVKIT_AUTO_BACKUP_KEY);
+    if(!raw) return null;
+    return JSON.parse(raw);
+  }catch(e){
+    return null;
+  }
+}
+function saveAutoBackup(reason){
+  const backup={
+    created_at:new Date().toISOString(),
+    reason:String(reason||'unspecified'),
+    state:collectLocalStateForSnapshot(),
+  };
+  localStorage.setItem(DEVKIT_AUTO_BACKUP_KEY,JSON.stringify(backup));
 }
 function readSnapshot(slot){
   try{
@@ -1097,8 +1131,10 @@ function renderDevSnapshotMeta(){
       return;
     }
     const d=new Date(snap.created_at||Date.now());
-    const label=snap.handle?String(snap.handle):'dev';
+    const label=(snap.label||snap.handle||'dev').toString();
     metaEl.textContent=label+' · '+d.toLocaleDateString('en-AU',{month:'short',day:'numeric'})+' '+d.toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'});
+    const input=document.getElementById('devSnapshotLabel'+slot);
+    if(input && !input.value) input.value=String(snap.label||'');
   });
 }
 function collectLocalStateForSnapshot(){
@@ -1114,10 +1150,12 @@ function collectLocalStateForSnapshot(){
 function devSaveSnapshot(slot){
   if(!isDevAuthed()) return devStatus('Unlock Dev Kit first.','blocked');
   if(![1,2,3].includes(Number(slot))) return devStatus('Invalid snapshot slot.','blocked');
+  const label=(document.getElementById('devSnapshotLabel'+slot)?.value||'').trim();
   const snapshot={
     slot:Number(slot),
     created_at:new Date().toISOString(),
     handle:L(DEVKIT_HANDLE_KEY,'dev'),
+    label:label||'',
     state:collectLocalStateForSnapshot(),
   };
   localStorage.setItem(getSnapshotKey(slot),JSON.stringify(snapshot));
@@ -1131,6 +1169,7 @@ function devLoadSnapshot(slot){
   const ok=window.confirm('Load snapshot '+slot+' and replace current local state?');
   if(!ok) return;
 
+  saveAutoBackup('before loading snapshot '+slot);
   const snapshotCopies={};
   [1,2,3].forEach((s)=>{
     const raw=localStorage.getItem(getSnapshotKey(s));
@@ -1160,8 +1199,43 @@ function devDeleteSnapshot(slot){
   const existing=readSnapshot(slot);
   if(!existing) return devStatus('Snapshot slot '+slot+' already empty.','');
   localStorage.removeItem(getSnapshotKey(slot));
+  const input=document.getElementById('devSnapshotLabel'+slot);
+  if(input) input.value='';
   renderDevSnapshotMeta();
   devStatus('Deleted snapshot slot '+slot+'.','ok');
+}
+function devRestoreAutoBackup(){
+  if(!isDevAuthed()) return devStatus('Unlock Dev Kit first.','blocked');
+  const backup=readAutoBackup();
+  if(!backup || !backup.state) return devStatus('No auto-backup available.','blocked');
+  const ok=window.confirm('Restore auto-backup from '+new Date(backup.created_at).toLocaleString()+'?');
+  if(!ok) return;
+
+  const snapshotCopies={};
+  [1,2,3].forEach((s)=>{
+    const raw=localStorage.getItem(getSnapshotKey(s));
+    if(raw) snapshotCopies[getSnapshotKey(s)]=raw;
+  });
+  const autoRaw=localStorage.getItem(DEVKIT_AUTO_BACKUP_KEY);
+
+  const keysToRemove=[];
+  for(let i=0;i<localStorage.length;i++){
+    const key=localStorage.key(i);
+    if(!key) continue;
+    if(key.startsWith(DEVKIT_SNAPSHOT_PREFIX)) continue;
+    if(key===DEVKIT_AUTO_BACKUP_KEY) continue;
+    keysToRemove.push(key);
+  }
+  keysToRemove.forEach((key)=>localStorage.removeItem(key));
+
+  Object.entries(snapshotCopies).forEach(([key,val])=>localStorage.setItem(key,val));
+  if(autoRaw) localStorage.setItem(DEVKIT_AUTO_BACKUP_KEY,autoRaw);
+  Object.entries(backup.state).forEach(([key,val])=>{
+    if(!key.startsWith(DEVKIT_SNAPSHOT_PREFIX) && key!==DEVKIT_AUTO_BACKUP_KEY) localStorage.setItem(key,String(val));
+  });
+  localStorage.setItem(DEVKIT_AUTH_KEY,JSON.stringify(true));
+  devStatus('Auto-backup restored. Reloading...','ok');
+  setTimeout(()=>window.location.reload(),150);
 }
 function loginDevKit(){
   const handle=(document.getElementById('devLoginName')?.value||'').trim();
@@ -1191,19 +1265,18 @@ function devSetBreath(){
   if(!isDevAuthed()) return devStatus('Unlock Dev Kit first.','blocked');
   const target=parseInt(document.getElementById('devBreathSet')?.value,10);
   if(!Number.isFinite(target) || target<0) return devStatus('Enter a valid non-negative Breath value.','blocked');
+  saveAutoBackup('before set breath');
   S('breath',target);
-  updateBreathUI();
-  renderWallet();
-  updateCityStats();
+  devRefreshViews();
   devStatus('Breath set to '+target+'.','ok');
 }
 function devAddBreath(){
   if(!isDevAuthed()) return devStatus('Unlock Dev Kit first.','blocked');
   const amount=parseInt(document.getElementById('devBreathAdd')?.value,10);
   if(!Number.isFinite(amount)) return devStatus('Enter a valid add amount.','blocked');
+  saveAutoBackup('before add breath');
   addBreath(amount,'Dev kit adjustment');
-  renderWallet();
-  updateCityStats();
+  devRefreshViews();
   devStatus('Adjusted Breath by '+amount+'.','ok');
 }
 function devLoadWorldParams(){
@@ -1220,6 +1293,7 @@ function devApplyWorldParams(){
   if(!isDevAuthed()) return devStatus('Unlock Dev Kit first.','blocked');
   if(!window.WorldStateAdapter) return devStatus('World adapter unavailable.','blocked');
   const state=ensureContractState()||window.WorldStateAdapter.defaultContractState();
+  saveAutoBackup('before apply world params');
   const readNum=(id,current)=>{
     const raw=(document.getElementById(id)?.value||'').trim();
     if(raw==='') return current;
@@ -1232,24 +1306,27 @@ function devApplyWorldParams(){
   state.population_count=readNum('devWorldPopulation',state.population_count);
   window.WorldStateAdapter.writeContractStateToStorage(localStorage,state,WORLD_STATE_KEY);
   devLoadWorldParams();
+  devRefreshViews();
   devStatus('World parameters applied.','ok');
 }
 function devTriggerResidentTick(){
   if(!isDevAuthed()) return devStatus('Unlock Dev Kit first.','blocked');
+  saveAutoBackup('before resident tick');
   residentTick();
-  renderResidents();
-  updateCityStats();
+  devRefreshViews();
   devStatus('Resident tick executed.','ok');
 }
 function devTriggerOutfitShift(){
   if(!isDevAuthed()) return devStatus('Unlock Dev Kit first.','blocked');
+  saveAutoBackup('before outfit shift');
   shiftOutfit();
-  renderResidents();
+  devRefreshViews();
   devStatus('Outfit shift executed.','ok');
 }
 function devInjectWorldEvent(){
   if(!isDevAuthed()) return devStatus('Unlock Dev Kit first.','blocked');
   if(!window.WorldStateAdapter) return devStatus('World adapter unavailable.','blocked');
+  saveAutoBackup('before inject world event');
   const state=ensureContractState()||window.WorldStateAdapter.defaultContractState();
   const event={
     event_id:'dev_evt_'+Date.now(),
@@ -1265,11 +1342,13 @@ function devInjectWorldEvent(){
   state.event_history.unshift(event);
   state.event_history=state.event_history.slice(0,200);
   window.WorldStateAdapter.writeContractStateToStorage(localStorage,state,WORLD_STATE_KEY);
+  devRefreshViews();
   devStatus('Injected one world event.','ok');
 }
 function devApplyScenario(){
   if(!isDevAuthed()) return devStatus('Unlock Dev Kit first.','blocked');
   if(!window.WorldStateAdapter) return devStatus('World adapter unavailable.','blocked');
+  saveAutoBackup('before apply scenario');
   const scenario=(document.getElementById('devScenarioPreset')?.value||'').trim();
   if(!scenario) return devStatus('Choose a scenario first.','blocked');
   const state=ensureContractState()||window.WorldStateAdapter.defaultContractState();
@@ -1336,8 +1415,7 @@ function devApplyScenario(){
 
   window.WorldStateAdapter.writeContractStateToStorage(localStorage,state,WORLD_STATE_KEY);
   devLoadWorldParams();
-  updateCityStats();
-  renderWallet();
+  devRefreshViews();
   devStatus('Applied scenario: '+scenario.replace(/_/g,' ')+'.','ok');
 }
 function devExportPayload(){
@@ -1354,12 +1432,38 @@ function devImportPayload(){
   const raw=(area.value||'').trim();
   if(!raw) return devStatus('Paste Unreal payload JSON first.','blocked');
   try{
+    saveAutoBackup('before import payload');
     const parsed=JSON.parse(raw);
     importWorldStateFromUnreal(parsed);
     devLoadWorldParams();
+    devRefreshViews();
     devStatus('Imported Unreal payload JSON.','ok');
   }catch(e){
     devStatus('Invalid JSON payload.','blocked');
+  }
+}
+async function devCopyPayloadToClipboard(){
+  if(!isDevAuthed()) return devStatus('Unlock Dev Kit first.','blocked');
+  const area=document.getElementById('devPayloadArea');
+  const raw=(area?.value||'').trim();
+  if(!raw) return devStatus('No payload to copy.','blocked');
+  try{
+    await navigator.clipboard.writeText(raw);
+    devStatus('Payload copied to clipboard.','ok');
+  }catch(e){
+    devStatus('Clipboard copy failed.','blocked');
+  }
+}
+async function devPastePayloadFromClipboard(){
+  if(!isDevAuthed()) return devStatus('Unlock Dev Kit first.','blocked');
+  const area=document.getElementById('devPayloadArea');
+  if(!area) return;
+  try{
+    const text=await navigator.clipboard.readText();
+    area.value=text||'';
+    devStatus('Clipboard pasted into payload area.','ok');
+  }catch(e){
+    devStatus('Clipboard paste failed.','blocked');
   }
 }
 function devResetAllLocalData(){
