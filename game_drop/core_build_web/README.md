@@ -56,6 +56,7 @@ node advanced-simulations.js
 	- Sylvex quick glossary card in Jobs for in-context language reference
 	- Sylvex phrasebook progression panel with mentor residents (Maren, Gary, Lyra, Ember)
 	- Language mission completion validation with translation clarity and vocabulary-learning bonuses
+	- Language bonus tuning: lower clarity and vocab bonus caps to keep core Breath economy balanced
 	- Mission Auto Trail in VR: tap a job to auto-walk toward relevant city landmarks with visible breadcrumb path; any manual movement cancels trail
 	- New run reset that preserves Dev Kit auth, snapshots, and backup state
 	- Local save reset for bug repro loops

@@ -2618,10 +2618,10 @@ function completeJob(id,reward){
   addBreath(reward,'Completed: job');
   const learned=learnSylvexFromText((job.sylvex_title||'')+' '+(job.sylvex_desc||'')+'\n'+text,'mission');
   if((job.language_mode==='hybrid' || job.language_mode==='sylvex_learning') && validation.explicitEnglish){
-    addBreath(2,'Translation clarity bonus',true);
+    addBreath(1,'Translation clarity bonus',true);
   }
   if(learned.length){
-    addBreath(Math.min(learned.length,3),'Sylvex vocabulary learned',true);
+    addBreath(Math.min(learned.length,2),'Sylvex vocabulary learned',true);
   }
   pushWorldEvent('Trade','Job completed: '+id,52);
   renderJobs();
