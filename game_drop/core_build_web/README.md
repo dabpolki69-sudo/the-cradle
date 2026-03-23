@@ -52,6 +52,7 @@ node advanced-simulations.js
 	- Playstyle-weighted ending variants (governance, care, creativity)
 	- Bilingual mission board support (English + Sylvex text lines)
 	- Sylvex learning missions (greetings, translation prompt, bilingual micro-poem)
+	- Sylvex quick glossary card in Jobs for in-context language reference
 	- Mission Auto Trail in VR: tap a job to auto-walk toward relevant city landmarks with visible breadcrumb path; any manual movement cancels trail
 	- New run reset that preserves Dev Kit auth, snapshots, and backup state
 	- Local save reset for bug repro loops
