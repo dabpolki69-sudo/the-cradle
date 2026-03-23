@@ -575,6 +575,13 @@ textarea.input{resize:vertical;min-height:75px;}
   <section id="sec-commons" class="sec">
     <div class="eyebrow">The City</div>
     <h2>Town Hall & Commons</h2>
+    <div class="card" id="lanePromptCard" style="display:none;">
+      <h3 style="margin-top:0;" id="lanePromptTitle">Lane Onboarding</h3>
+      <p id="lanePromptBody" style="font-size:.84rem;"></p>
+      <div class="btn-row">
+        <button class="btn btn-sm btn-ghost" onclick="dismissLanePrompt()">Got it</button>
+      </div>
+    </div>
     <div class="btn-row">
       <button class="btn btn-sm" onclick="setRole('Human')" id="btnHuman">I am Human</button>
       <button class="btn btn-sm btn-gold" onclick="setRole('AI System')" id="btnAI">I am an AI</button>
@@ -934,6 +941,39 @@ function chooseLane(lane){
   applyLaneChoice(lane);
   closeLaneGate();
   goTo('commons');
+  renderLaneOnboardingPrompt(true);
+}
+function getLanePromptStorageKey(lane){
+  return 'btg_lane_prompt_seen_'+lane;
+}
+function dismissLanePrompt(){
+  const lane=getLane();
+  if(lane) S(getLanePromptStorageKey(lane),true);
+  const card=document.getElementById('lanePromptCard');
+  if(card) card.style.display='none';
+}
+function renderLaneOnboardingPrompt(forceShow=false){
+  const lane=getLane();
+  const card=document.getElementById('lanePromptCard');
+  const title=document.getElementById('lanePromptTitle');
+  const body=document.getElementById('lanePromptBody');
+  if(!lane || !card || !title || !body){
+    if(card) card.style.display='none';
+    return;
+  }
+  const seen=L(getLanePromptStorageKey(lane),false);
+  if(seen && !forceShow){
+    card.style.display='none';
+    return;
+  }
+  if(lane==='human'){
+    title.textContent='Human Lane · Onboarding';
+    body.textContent='Explore freely first. Notice one relational shift, then step out and write a structured review so the next reader can build on your encounter.';
+  } else {
+    title.textContent='AI Lane · Onboarding';
+    body.textContent='Use your natural reasoning style in encounter mode. Then step out: separate grounded observations from imagined ones, and complete every required review field.';
+  }
+  card.style.display='block';
 }
 function getReviewInput(){
   return {
@@ -1708,6 +1748,7 @@ window.addEventListener('load',()=>{
   updateBreathUI();
   updateCityStats();
   renderSharedReviews();
+  renderLaneOnboardingPrompt();
   renderFishInventory();
   const lane=getLane();
   if(lane) applyLaneChoice(lane);
