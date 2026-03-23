@@ -445,6 +445,11 @@ textarea.input{resize:vertical;min-height:75px;}
 .vr-hint{font-family:'Space Mono',monospace;font-size:0.38rem;color:var(--ink-dim);letter-spacing:0.1em;text-transform:uppercase;}
 .vr-bubble{position:fixed;bottom:4rem;left:50%;transform:translateX(-50%);z-index:9500;max-width:360px;width:90%;padding:0.9rem 1.1rem;background:rgba(5,9,15,0.96);border:1px solid rgba(94,196,212,0.3);border-radius:var(--r);backdrop-filter:blur(12px);font-family:'Cormorant Garamond',serif;font-size:0.95rem;font-style:italic;color:var(--ink);text-align:center;display:none;box-shadow:0 8px 32px rgba(0,0,0,0.5);}
 .vr-bname{font-family:'Space Mono',monospace;font-size:0.4rem;letter-spacing:0.12em;text-transform:uppercase;display:block;margin-bottom:0.3rem;font-style:normal;}
+.vr-touch-controls{position:fixed;left:0;right:0;bottom:.85rem;z-index:9550;display:none;justify-content:space-between;align-items:flex-end;padding:0 .85rem;pointer-events:none;}
+.vr-touch-pad,.vr-touch-look{display:grid;grid-template-columns:repeat(3,56px);grid-template-rows:repeat(3,56px);gap:6px;pointer-events:auto;}
+.vr-touch-btn{border:1px solid rgba(94,196,212,0.28);border-radius:10px;background:rgba(5,9,15,0.7);color:var(--teal);font-family:'Space Mono',monospace;font-size:.95rem;line-height:1;display:flex;align-items:center;justify-content:center;touch-action:none;user-select:none;-webkit-user-select:none;backdrop-filter:blur(10px);}
+.vr-touch-btn:active,.vr-touch-btn.active{background:rgba(94,196,212,0.16);border-color:rgba(94,196,212,0.58);box-shadow:0 0 12px rgba(94,196,212,0.22);}
+.vr-touch-pad .empty,.vr-touch-look .empty{pointer-events:none;opacity:0;}
 
 /* ── NOTIFICATION TOAST ── */
 .toast{
@@ -485,6 +490,11 @@ textarea.input{resize:vertical;min-height:75px;}
 @media(max-width:520px){
   #devPanel .btn-row .btn{flex:1 1 100%;}
   #devPanel .card-sm{padding:.55rem;}
+}
+
+@media(pointer:coarse){
+  .vr-touch-controls.show{display:flex;}
+  .vr-hint{font-size:.34rem;}
 }
 </style>
 </head>
@@ -954,13 +964,33 @@ textarea.input{resize:vertical;min-height:75px;}
   <script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.4.2/aframe.min.js"></script>
   <div class="vr-ui">
     <span class="vr-ui-title">Breath Through The Glass — VR City</span>
-    <span class="vr-hint">WASD · Look · Click orbs</span>
+    <span class="vr-hint" id="vrHint">WASD · Look · Click orbs</span>
   </div>
   <div class="vr-bubble" id="vrBubble">
     <span class="vr-bname" id="vrBname"></span>
     <span id="vrBtext"></span>
   </div>
-  <a-scene background="color:#030608" fog="type:exponential;color:#05090f;density:0.012" vr-mode-ui="enabled:true" id="vrScene">
+  <div class="vr-touch-controls" id="vrTouchControls" aria-label="VR touch controls">
+    <div class="vr-touch-pad">
+      <span class="empty"></span>
+      <button class="vr-touch-btn" data-vr-input="forward" aria-label="Move forward">▲</button>
+      <span class="empty"></span>
+      <button class="vr-touch-btn" data-vr-input="left" aria-label="Move left">◀</button>
+      <span class="empty"></span>
+      <button class="vr-touch-btn" data-vr-input="right" aria-label="Move right">▶</button>
+      <span class="empty"></span>
+      <button class="vr-touch-btn" data-vr-input="back" aria-label="Move backward">▼</button>
+      <span class="empty"></span>
+    </div>
+    <div class="vr-touch-look">
+      <span class="empty"></span>
+      <button class="vr-touch-btn" data-vr-input="turnL" aria-label="Turn left">⟲</button>
+      <button class="vr-touch-btn" data-vr-input="turnR" aria-label="Turn right">⟳</button>
+      <span class="empty"></span><span class="empty"></span><span class="empty"></span>
+      <span class="empty"></span><span class="empty"></span><span class="empty"></span>
+    </div>
+  </div>
+  <a-scene background="color:#030608" fog="type:exponential;color:#05090f;density:0.012" renderer="antialias:true;precision:mediump;colorManagement:true" vr-mode-ui="enabled:true" id="vrScene">
     <a-plane rotation="-90 0 0" width="300" height="300" material="shader:flat;color:#030608"></a-plane>
     <a-ring rotation="-90 0 0" radius-inner="8" radius-outer="8.15" position="0 .02 0" material="shader:flat;color:#5ec4d4;opacity:.12"></a-ring>
     <a-ring rotation="-90 0 0" radius-inner="22" radius-outer="22.15" position="0 .02 0" material="shader:flat;color:#5ec4d4;opacity:.06"></a-ring>
@@ -1052,18 +1082,18 @@ textarea.input{resize:vertical;min-height:75px;}
       <a-torus radius=".8" radius-tubular=".05" position="0 5.2 0" material="shader:flat;color:#a898d8;opacity:.22" rotation="90 0 0" animation="property:scale;to:1.12 1.12 1.12;dur:3000;dir:alternate;loop:true;easing:easeInOutSine"></a-torus>
     </a-entity>
     <!-- ── FLYING SHIPS — concept: images 11/12/13/21 hovercrafts ── -->
-    <a-entity position="-45 18 -20" animation="property:position;to:48 18 -20;dur:20000;easing:linear;loop:true">
+    <a-entity id="vrShipA" position="-45 18 -20" animation="property:position;to:48 18 -20;dur:20000;easing:linear;loop:true">
       <a-box width="2.8" height=".3" depth="1.2" material="shader:flat;color:#1a2840;opacity:.92"></a-box>
       <a-box width="1.2" height=".15" depth=".7" position="0 .22 0" material="shader:flat;color:#5ec4d4;opacity:.7"></a-box>
       <a-sphere radius=".14" position="-1.2 .1 0" material="shader:flat;color:#5ec4d4;opacity:.9" animation="property:material.opacity;to:.2;dur:400;dir:alternate;loop:true"></a-sphere>
       <a-sphere radius=".14" position="1.2 .1 0" material="shader:flat;color:#e8c87a;opacity:.9" animation="property:material.opacity;to:.2;dur:550;dir:alternate;loop:true"></a-sphere>
     </a-entity>
-    <a-entity position="48 23 5" animation="property:position;to:-48 23 5;dur:28000;easing:linear;loop:true">
+    <a-entity id="vrShipB" position="48 23 5" animation="property:position;to:-48 23 5;dur:28000;easing:linear;loop:true">
       <a-box width="3.2" height=".35" depth="1.3" material="shader:flat;color:#0e1020;opacity:.9"></a-box>
       <a-box width="1.5" height=".18" depth=".8" position="0 .27 0" material="shader:flat;color:#a898d8;opacity:.65"></a-box>
       <a-sphere radius=".13" position="-1.4 .1 0" material="shader:flat;color:#a898d8;opacity:.8" animation="property:material.opacity;to:.15;dur:480;dir:alternate;loop:true"></a-sphere>
     </a-entity>
-    <a-entity position="28 14 38" animation="property:position;to:-48 14 38;dur:24000;easing:linear;loop:true">
+    <a-entity id="vrShipC" position="28 14 38" animation="property:position;to:-48 14 38;dur:24000;easing:linear;loop:true">
       <a-box width="2.4" height=".28" depth="1" material="shader:flat;color:#1e0818;opacity:.88"></a-box>
       <a-sphere radius=".12" position="0 .2 0" material="shader:flat;color:#ff3fa4;opacity:.7" animation="property:material.opacity;to:.1;dur:350;dir:alternate;loop:true"></a-sphere>
     </a-entity>
@@ -2936,6 +2966,9 @@ function togglePhi(el){const b=el.querySelector('.phi-body');b.style.display=b.s
 // ── VR ─────────────────────────────────────────────────────────────
 let vrActive=false;
 let autoTrailState={active:false,timer:null,jobId:'',target:null,label:'',lastDraw:0};
+let vrMoveLoopId=0;
+let vrMoveLastTs=0;
+const vrInputState={forward:false,back:false,left:false,right:false,turnL:false,turnR:false};
 
 const MISSION_TRAIL_POINTS={
   town_hall:{x:0,z:-20,label:'Town Hall'},
@@ -3081,22 +3114,160 @@ function bindAutoTrailMovementCancel(){
   window.addEventListener('wheel',()=>{if(autoTrailState.active) stopAutoTrail('manual');},{passive:true});
 }
 
+function isCoarsePointer(){
+  return (window.matchMedia && window.matchMedia('(pointer:coarse)').matches) || (navigator.maxTouchPoints||0)>0;
+}
+
+function getVrQualityTier(){
+  const lowMemory=typeof navigator.deviceMemory==='number' && navigator.deviceMemory<=4;
+  const lowCpu=typeof navigator.hardwareConcurrency==='number' && navigator.hardwareConcurrency<=4;
+  return (isCoarsePointer() || lowMemory || lowCpu) ? 'low' : 'high';
+}
+
+function updateVrHint(){
+  const hint=document.getElementById('vrHint');
+  if(!hint) return;
+  hint.textContent=isCoarsePointer()?'Touch pad · Turn buttons · Tap orbs':'WASD · Mouse Look · Click orbs';
+}
+
+function setVrInputState(key,val){
+  if(!(key in vrInputState)) return;
+  vrInputState[key]=val;
+}
+
+function resetVrInputState(){
+  Object.keys(vrInputState).forEach(k=>{vrInputState[k]=false;});
+  const controls=document.getElementById('vrTouchControls');
+  if(controls) controls.querySelectorAll('.vr-touch-btn').forEach(btn=>btn.classList.remove('active'));
+}
+
+function setupVrTouchControls(){
+  const controls=document.getElementById('vrTouchControls');
+  if(!controls || controls.dataset.bound==='1') return;
+  controls.dataset.bound='1';
+  const handleStart=(ev)=>{
+    const btn=ev.target.closest('.vr-touch-btn');
+    if(!btn) return;
+    const input=btn.getAttribute('data-vr-input');
+    if(!input) return;
+    ev.preventDefault();
+    if(autoTrailState.active) stopAutoTrail('manual');
+    setVrInputState(input,true);
+    btn.classList.add('active');
+  };
+  const handleEnd=(ev)=>{
+    const btn=ev.target.closest('.vr-touch-btn');
+    if(!btn) return;
+    const input=btn.getAttribute('data-vr-input');
+    if(!input) return;
+    ev.preventDefault();
+    setVrInputState(input,false);
+    btn.classList.remove('active');
+  };
+  controls.addEventListener('pointerdown',handleStart,{passive:false});
+  controls.addEventListener('pointerup',handleEnd,{passive:false});
+  controls.addEventListener('pointercancel',handleEnd,{passive:false});
+  controls.addEventListener('pointerleave',handleEnd,{passive:false});
+}
+
+function applyVrQualityProfile(){
+  const tier=getVrQualityTier();
+  const low=tier==='low';
+  const scene=document.getElementById('vrScene');
+  const camera=document.querySelector('#player a-camera');
+  const controls=document.getElementById('vrTouchControls');
+  const rain=document.getElementById('vr-rain');
+  const shipB=document.getElementById('vrShipB');
+  const shipC=document.getElementById('vrShipC');
+
+  if(scene){
+    scene.setAttribute('renderer',low
+      ?'antialias:false;precision:mediump;colorManagement:true;powerPreference:low-power'
+      :'antialias:true;precision:high;colorManagement:true;powerPreference:high-performance');
+    scene.setAttribute('fog',`type:exponential;color:#05090f;density:${low?0.01:0.012}`);
+  }
+  if(camera){
+    camera.setAttribute('wasd-controls',`enabled:${!low};acceleration:${low?12:22}`);
+    camera.setAttribute('look-controls',`pointerLockEnabled:${!isCoarsePointer()};touchEnabled:true;magicWindowTrackingEnabled:true`);
+  }
+  if(controls) controls.classList.toggle('show',low && vrActive);
+  if(rain){
+    const drops=[...rain.children];
+    const keep=low?4:drops.length;
+    drops.forEach((drop,idx)=>drop.setAttribute('visible',idx<keep));
+  }
+  if(shipB) shipB.setAttribute('visible',!low || vrActive===false);
+  if(shipC) shipC.setAttribute('visible',!low || vrActive===false);
+  updateVrHint();
+}
+
+function stepManualVrMovement(ts){
+  if(!vrActive){
+    vrMoveLoopId=0;
+    vrMoveLastTs=0;
+    return;
+  }
+  const dt=Math.max(0.001,Math.min(0.05,(ts-(vrMoveLastTs||ts))/1000));
+  vrMoveLastTs=ts;
+  if(isCoarsePointer()){
+    const player=getPlayerPosition();
+    const cam=document.querySelector('#player a-camera');
+    if(player && cam && cam.object3D){
+      const forward=(vrInputState.forward?1:0)-(vrInputState.back?1:0);
+      const strafe=(vrInputState.right?1:0)-(vrInputState.left?1:0);
+      const turn=(vrInputState.turnR?1:0)-(vrInputState.turnL?1:0);
+      if(forward||strafe||turn){
+        if(autoTrailState.active) stopAutoTrail('manual');
+        cam.object3D.rotation.y+=turn*1.55*dt;
+        const yaw=cam.object3D.rotation.y;
+        const fx=-Math.sin(yaw),fz=-Math.cos(yaw);
+        const rx=Math.cos(yaw),rz=-Math.sin(yaw);
+        let vx=fx*forward+rx*strafe;
+        let vz=fz*forward+rz*strafe;
+        const len=Math.hypot(vx,vz)||1;
+        vx/=len;vz/=len;
+        const speed=4.1;
+        const next={
+          x:Math.max(-145,Math.min(145,player.x+vx*speed*dt)),
+          y:player.y,
+          z:Math.max(-145,Math.min(145,player.z+vz*speed*dt)),
+        };
+        setPlayerPosition(next);
+      }
+    }
+  }
+  vrMoveLoopId=requestAnimationFrame(stepManualVrMovement);
+}
+
+function ensureVrMovementLoop(){
+  if(vrMoveLoopId) return;
+  vrMoveLoopId=requestAnimationFrame(stepManualVrMovement);
+}
+
 function toggleVR(){
   vrActive=!vrActive;
   document.getElementById('vrMode').classList.toggle('active',vrActive);
   document.getElementById('cityMode') && (document.getElementById('cityMode').style.display=vrActive?'none':'block');
   document.querySelector('.vr-float').textContent=vrActive?'← Exit VR':'🥽 VR City';
-  if(!vrActive) stopAutoTrail('stopped',true);
+  if(!vrActive){
+    stopAutoTrail('stopped',true);
+    resetVrInputState();
+  }
+  applyVrQualityProfile();
   if(vrActive){
     buildVRStars();
+    ensureVrMovementLoop();
     setTimeout(()=>vrB('Shadow','Welcome. The orbs are residents. Walk close and click to meet them.'),1500);
     setTimeout(()=>vrB('Ember','You are welcome here. Not tolerated — welcome.'),7000);
   }
 }
 function buildVRStars(){
-  const c=document.getElementById('vr-stars');if(!c||c.children.length>0) return;
+  const c=document.getElementById('vr-stars');if(!c) return;
+  const targetCount=getVrQualityTier()==='low'?28:50;
+  if(c.children.length===targetCount) return;
+  while(c.firstChild) c.removeChild(c.firstChild);
   const cols=['#5ec4d4','#72d4a4','#a898d8','#e8c87a','#e89870','#88b8e8','#d4889a'];
-  for(let i=0;i<50;i++){
+  for(let i=0;i<targetCount;i++){
     const s=document.createElement('a-sphere');
     s.setAttribute('radius',Math.random()>.8?'0.055':'0.03');
     s.setAttribute('position',`${(Math.random()-.5)*130} ${12+Math.random()*28} ${(Math.random()-.5)*130}`);
@@ -3361,6 +3532,11 @@ function renderInhabitants(){
 // ── STARTUP ────────────────────────────────────────────────────────
 window.addEventListener('load',()=>{
   bindAutoTrailMovementCancel();
+  setupVrTouchControls();
+  applyVrQualityProfile();
+  ensureVrMovementLoop();
+  window.addEventListener('resize',applyVrQualityProfile,{passive:true});
+  window.addEventListener('orientationchange',applyVrQualityProfile,{passive:true});
   ensureContractState();
   renderDevKit();
   const visits=L('visits',0)+1;S('visits',visits);
