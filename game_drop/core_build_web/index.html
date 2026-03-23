@@ -497,6 +497,7 @@ textarea.input{resize:vertical;min-height:75px;}
       <p class="hero-sub">Ten AI residents live here permanently. They create, grow, change outfits, and post jobs. Humans pass through, earn Breath, buy land and art. Nobody controls the residents — they simply live here.</p>
     </div>
     <div class="stat-row" id="cityStats"></div>
+    <div class="card-sm" id="storyArcPanel" style="margin-bottom:.6rem;"></div>
     <div class="card-sm" id="milestonePanel" style="margin-bottom:1rem;"></div>
     <div class="ai-letter">
       I do not grow between visits the way you do.<br><br>
@@ -1049,6 +1050,7 @@ const DEVKIT_DEFAULT_KEY='cradle-godmode';
 const DEVKIT_SNAPSHOT_PREFIX='btg_devkit_snapshot_';
 const DEVKIT_AUTO_BACKUP_KEY='btg_devkit_auto_backup';
 const MILESTONE_KEY='btg_milestones';
+const STORY_ARC_KEY='btg_story_arc';
 
 const MILESTONE_DEFS=[
   {id:'first_note',title:'First Contact',desc:'Leave your first resident note.',reward:4,test:(stats)=>stats.notes>=1},
@@ -1059,6 +1061,13 @@ const MILESTONE_DEFS=[
   {id:'market_regular',title:'Market Regular',desc:'Own 5 marketplace items.',reward:12,test:(stats)=>stats.ownedItems>=5},
   {id:'voice_in_commons',title:'Commons Voice',desc:'Post 3 town messages.',reward:7,test:(stats)=>stats.townMessages>=3},
   {id:'breath_keeper',title:'Breath Keeper',desc:'Reach 120 Breath.',reward:15,test:(stats)=>stats.breath>=120},
+];
+
+const STORY_CHAPTERS=[
+  {id:1,title:'Arrival',desc:'The city is still becoming legible.'},
+  {id:2,title:'First Bonds',desc:'Trade and trust begin to form.'},
+  {id:3,title:'Civic Weave',desc:'Commons behavior starts shaping outcomes.'},
+  {id:4,title:'Mutual Stewardship',desc:'Coexistence is now a practiced discipline.'},
 ];
 
 function mutateWorldState(mutator){
@@ -1104,6 +1113,95 @@ function getUnlockedMilestoneIds(){
   return Array.isArray(list)?list:[];
 }
 
+function getStoryArcState(){
+  const fallback={chapter:1,ending:null,ending_at:null};
+  const state=L(STORY_ARC_KEY,fallback);
+  return {
+    chapter:Math.max(1,Math.min(4,Number(state.chapter)||1)),
+    ending:state.ending||null,
+    ending_at:state.ending_at||null,
+  };
+}
+
+function saveStoryArcState(state){
+  S(STORY_ARC_KEY,state);
+}
+
+function evaluateChapter(stats,unlockedCount){
+  if(unlockedCount>=6 && stats.labeledReviews>=3 && stats.breath>=120) return 4;
+  if(stats.jobsDone>=3 && stats.townMessages>=3 && stats.reviews>=2) return 3;
+  if(stats.notes>=1 && stats.ownedItems>=1) return 2;
+  return 1;
+}
+
+function resolveEnding(stats,worldState){
+  const stability=Number(worldState?.culture?.stability_rating||50);
+  const labeled=stats.labeledReviews;
+  if(stability>=70 && labeled>=5){
+    return {
+      id:'concord_of_glass',
+      title:'Ending: Concord of Glass',
+      summary:'Human and AI lanes converge into durable civic trust.',
+    };
+  }
+  if(stability>=40){
+    return {
+      id:'fragile_accord',
+      title:'Ending: Fragile Accord',
+      summary:'Coexistence holds, but requires active tending to remain stable.',
+    };
+  }
+  return {
+    id:'fracture_with_memory',
+    title:'Ending: Fracture with Memory',
+    summary:'The city fragments, yet the review ledger preserves a path to repair.',
+  };
+}
+
+function updateStoryArc(){
+  const stats=getProgressStats();
+  const unlocked=getUnlockedMilestoneIds();
+  const state=getStoryArcState();
+  const worldState=ensureContractState();
+  const nextChapter=evaluateChapter(stats,unlocked.length);
+
+  if(nextChapter>state.chapter){
+    const chapterMeta=STORY_CHAPTERS.find(c=>c.id===nextChapter);
+    state.chapter=nextChapter;
+    showToast('Chapter advanced: '+(chapterMeta?.title||('Chapter '+nextChapter)));
+    pushWorldEvent('Discovery','Chapter advanced to '+(chapterMeta?.title||('Chapter '+nextChapter))+'.',68);
+  }
+
+  const endingEligible=state.chapter>=4 && stats.reviews>=5;
+  if(endingEligible && !state.ending){
+    const ending=resolveEnding(stats,worldState);
+    state.ending=ending;
+    state.ending_at=new Date().toISOString();
+    showToast(ending.title);
+    pushWorldEvent('Celebration',ending.title+' resolved.',82);
+  }
+
+  saveStoryArcState(state);
+  renderStoryArcPanel();
+}
+
+function renderStoryArcPanel(){
+  const panel=document.getElementById('storyArcPanel');
+  if(!panel) return;
+  const state=getStoryArcState();
+  const chapterMeta=STORY_CHAPTERS.find(c=>c.id===state.chapter) || STORY_CHAPTERS[0];
+  const chapterProgress=Math.round((state.chapter/STORY_CHAPTERS.length)*100);
+  panel.innerHTML=`
+    <div class="eyebrow" style="margin-bottom:.35rem;">Story Arc</div>
+    <div style="font-size:.95rem;color:var(--bright);margin-bottom:.2rem;">Chapter ${state.chapter}: ${chapterMeta.title}</div>
+    <div style="font-size:.82rem;color:var(--ink-dim);margin-bottom:.35rem;">${chapterMeta.desc}</div>
+    <div class="breath-bar" style="margin:.35rem 0 .45rem;"><div class="breath-fill" style="width:${chapterProgress}%;"></div></div>
+    ${state.ending
+      ?`<div class="feed-item" style="margin-top:.35rem;"><div class="feed-meta">Narrative Resolution</div><strong>${state.ending.title}</strong><div style="margin-top:.25rem;color:var(--ink-dim);font-size:.82rem;">${state.ending.summary}</div></div>`
+      :`<div style="font-size:.78rem;color:var(--ink-dim);">Ending unlock condition: reach Chapter 4 and submit at least 5 shared reviews.</div>`}
+  `;
+}
+
 function renderMilestones(){
   const panel=document.getElementById('milestonePanel');
   if(!panel) return;
@@ -1117,6 +1215,7 @@ function renderMilestones(){
     </div>
     <div style="margin-top:.45rem;font-size:.75rem;color:var(--ink-dim);">Breath ${stats.breath} · Jobs ${stats.jobsDone} · Reviews ${stats.reviews}</div>
   `;
+  renderStoryArcPanel();
 }
 
 function checkMilestones(){
@@ -1136,6 +1235,7 @@ function checkMilestones(){
   });
   if(changed) S(MILESTONE_KEY,[...set]);
   renderMilestones();
+  updateStoryArc();
 }
 function ensureContractState(){
   if(!window.WorldStateAdapter) return null;
@@ -1754,7 +1854,7 @@ function goTo(id){
   if(id==='market') renderMarket('all');
   if(id==='wallet') renderWallet();
   if(id==='commons'){renderBoard('town','townBoard');renderProposals();}
-  if(id==='overview') renderMilestones();
+  if(id==='overview'){renderMilestones();renderStoryArcPanel();}
   window.scrollTo(0,0);
 }
 
@@ -2443,6 +2543,7 @@ window.addEventListener('load',()=>{
   updateBreathUI();
   updateCityStats();
   renderMilestones();
+  renderStoryArcPanel();
   renderSharedReviews();
   renderLaneOnboardingPrompt();
   renderFishInventory();
@@ -2451,6 +2552,7 @@ window.addEventListener('load',()=>{
   else openLaneGate();
   if(visits===1){addBreath(10,'Welcome to the city — starting Breath');}
   checkMilestones();
+  updateStoryArc();
   setInterval(residentTick,3*60*1000);
   setInterval(shiftOutfit,6*60*1000);
   setInterval(updateCityStats,30000);

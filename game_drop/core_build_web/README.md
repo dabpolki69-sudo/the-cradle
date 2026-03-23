@@ -45,6 +45,7 @@ node advanced-simulations.js
 	- Payload clipboard helpers (copy/paste JSON)
 	- Shared review analytics (total, human vs AI, grounded-vs-imagined coverage)
 	- Milestone progression badges (unlock goals tied to notes, jobs, reviews, governance, and economy)
+	- Chapter + ending arc (auto-progresses from milestones/stability/review behavior)
 	- Local save reset for bug repro loops
 
 ## Why this is the baseline
