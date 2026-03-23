@@ -21,6 +21,12 @@
     .btn.primary{background:linear-gradient(135deg,#4f46e5,#7c3aed);border-color:transparent;color:#fff}
     .btn.ok{border-color:rgba(109,224,178,.55)}
     #status{position:fixed;top:58px;left:10px;right:10px;z-index:50;padding:8px 10px;background:var(--card);border:1px solid var(--line);border-radius:10px;color:var(--ink2);font-size:13px;backdrop-filter:blur(8px)}
+    #modeBadge{position:fixed;top:58px;right:12px;z-index:58;padding:6px 9px;border-radius:999px;border:1px solid var(--line);background:rgba(8,14,26,.86);font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--ink2);backdrop-filter:blur(8px)}
+    #modeBadge.home{border-color:rgba(109,224,178,.5);color:#9df0ca}
+    #modeBadge.expedition{border-color:rgba(124,96,232,.55);color:#cab6ff}
+    #scannerTutorial{position:fixed;right:12px;bottom:246px;z-index:62;max-width:260px;padding:10px 11px;border-radius:10px;background:rgba(10,16,30,.94);border:1px solid rgba(124,96,232,.48);font-size:11px;line-height:1.35;color:var(--ink2);display:none}
+    #scannerTutorial strong{display:block;color:#d7c9ff;font-size:11px;letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px}
+    #scannerTutorial button{margin-top:7px;padding:4px 7px;font-size:11px;border-radius:8px}
     #speech{position:fixed;bottom:96px;left:50%;transform:translateX(-50%);z-index:60;max-width:min(680px,92vw);padding:10px 14px 12px;border-radius:12px;background:rgba(8,14,26,.92);border:1px solid rgba(124,96,232,.5);display:none}
     #speech strong{display:block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#b6a8ff;margin-bottom:4px}
     #speechCloseBtn{position:absolute;top:6px;right:8px;border:1px solid rgba(124,96,232,.45);background:rgba(20,30,52,.85);color:var(--ink);border-radius:8px;padding:1px 7px;font-size:12px;cursor:pointer}
@@ -80,6 +86,7 @@
     body.layout-compact #joystickWrap{width:106px;height:106px}
     body.layout-compact #joystickKnob{left:33px;top:33px}
     body.layout-minimal #status, body.layout-minimal #hint{display:none}
+    body.layout-minimal #modeBadge{display:none}
     body.layout-minimal #uiTop{right:auto;max-width:260px}
     body.layout-minimal #joystickWrap{width:96px;height:96px;left:10px;bottom:10px}
     body.layout-minimal #joystickKnob{left:28px;top:28px}
@@ -154,6 +161,13 @@
     </div>
   </div>
   <div id="status">Explore your living room city. Tap buildings, resources, and work sites. Assign buddies to harvest and build.</div>
+  <div id="modeBadge" class="home">🏞 HOME VALLEY</div>
+  <div id="scannerTutorial">
+    <strong>Scanner Tips</strong>
+    Sweep your phone around the room for 1-2 seconds, then tap Scan.
+    Contacts and rubble loot spawn around mapped points.
+    <button id="closeScannerTutorialBtn" class="btn utility">Got it</button>
+  </div>
   <div id="speech"><button id="speechCloseBtn" type="button">✕</button><strong id="speechName"></strong><span id="speechText"></span></div>
 
   <div id="joystickWrap" aria-label="Movement joystick">
@@ -205,6 +219,9 @@
     const advancementMarkerLayer = document.getElementById('advancementMarkerLayer');
     const playerRig = document.getElementById('playerRig');
     const statusEl = document.getElementById('status');
+    const modeBadgeEl = document.getElementById('modeBadge');
+    const scannerTutorialEl = document.getElementById('scannerTutorial');
+    const closeScannerTutorialBtn = document.getElementById('closeScannerTutorialBtn');
     const speechBox = document.getElementById('speech');
     const speechCloseBtn = document.getElementById('speechCloseBtn');
     const speechName = document.getElementById('speechName');
@@ -248,6 +265,7 @@
     let scanCooldownUntil = 0;
     let scannerWarmUntil = 0;
     let pendingScannerKick = false;
+    let scannerTutorialShown = false;
     let goFindStartInProgress = false;
     let radarSpawnInterval = 30;
     let radarSpawnCountdown = 30;
@@ -804,9 +822,32 @@
     function updateModeUi(){
       enterArBtn.textContent = gameMode === 'expedition' ? 'Return Home' : 'Scanner Expedition';
       scanBtn.textContent = gameMode === 'expedition' ? 'Scan' : 'Enter AR';
+      if(modeBadgeEl){
+        modeBadgeEl.classList.toggle('home', gameMode === 'home');
+        modeBadgeEl.classList.toggle('expedition', gameMode === 'expedition');
+        modeBadgeEl.textContent = gameMode === 'home' ? '🏞 HOME VALLEY' : '📡 EXPEDITION';
+      }
       if(gameMode === 'home'){
         radarLabel.textContent = 'Scanner idle • tap Enter AR';
+        if(scannerTutorialEl) scannerTutorialEl.style.display = 'none';
       }
+    }
+
+    function showScannerTutorialOnce(){
+      if(scannerTutorialShown) return;
+      try{
+        if(localStorage.getItem('scannerTutorialSeen') === '1'){
+          scannerTutorialShown = true;
+          return;
+        }
+      }catch(_){
+      }
+      scannerTutorialShown = true;
+      if(scannerTutorialEl) scannerTutorialEl.style.display = 'block';
+      try{ localStorage.setItem('scannerTutorialSeen', '1'); }catch(_){ }
+      setTimeout(()=>{
+        if(scannerTutorialEl) scannerTutorialEl.style.display = 'none';
+      }, 9000);
     }
 
     async function returnHomeFromExpedition(){
@@ -2646,6 +2687,7 @@
         }
         updateRoomMap();
         updateModeUi();
+        showScannerTutorialOnce();
         setTimeout(()=>{
           if(explorationModeActive && beings.length < Math.min(5, MAX_ACTIVE_WORKERS)){
             spawnFromArExploration();
@@ -2701,6 +2743,9 @@
 
     enterArBtn.addEventListener('click', enterAr);
     scanBtn.addEventListener('click', performRadarScan);
+    closeScannerTutorialBtn.addEventListener('click', ()=>{
+      scannerTutorialEl.style.display = 'none';
+    });
     menuToggleBtn.addEventListener('click', ()=>{
       const collapsed = uiTop.classList.toggle('menu-collapsed');
       menuToggleBtn.textContent = collapsed ? '☰ Menu' : '✕ Close';
@@ -2793,7 +2838,7 @@
     // (look-controls touchEnabled:true prevents synthetic click from touchstart;
     //  this handler fires reliably on touchend and bypasses that issue)
     document.addEventListener('touchend', (e)=>{
-      if(e.target.closest('#uiTop,#status,#speech,#hint,#joystickWrap,#collectionModal,#teamModal,#introOverlay')) return;
+      if(e.target.closest('#uiTop,#status,#speech,#hint,#joystickWrap,#collectionModal,#teamModal,#introOverlay,#scannerTutorial')) return;
       if(!cityAnchor.getAttribute('visible')) return;
       const touch = e.changedTouches[0];
       if(!touch) return;
