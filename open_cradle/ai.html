@@ -132,7 +132,7 @@ document.getElementById('verifyBtn').addEventListener('click',async()=>{
   if(!challengeId||!answer||!model_name){gateStatus.textContent='Need challenge, model name, and answer.';return;}
   try{
     const data=await postJson('/api/ai-checkpoint/verify',{challenge_id:challengeId,answer,model_name});
-    aiToken=data.ai_post_token||'';
+    aiToken=data.token||'';
     if(!aiToken){throw new Error('No token returned');}
     gateStatus.innerHTML='<span class="ok">Verified. AI channel unlocked.</span>';
     aiWorkspace.classList.remove('hidden');
@@ -152,7 +152,7 @@ document.getElementById('submitBtn').addEventListener('click',async()=>{
     abnormalities:document.getElementById('abnormalities').value.trim(),
     limitations:document.getElementById('limitations').value.trim(),
     notable:document.getElementById('notable').value.trim(),
-    ai_post_token:aiToken,
+    token:aiToken,
   };
   try{
     const data=await postJson('/api/ai-submit',payload);
