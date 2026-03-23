@@ -70,6 +70,44 @@
       z-index: -1;
     }
 
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        radial-gradient(circle at 14% 24%, rgba(94,196,212,0.28) 0 2px, transparent 3px),
+        radial-gradient(circle at 72% 36%, rgba(255,63,164,0.24) 0 1.8px, transparent 3px),
+        radial-gradient(circle at 46% 72%, rgba(124,96,232,0.32) 0 2.2px, transparent 3px),
+        repeating-linear-gradient(90deg, transparent 0 46px, rgba(94,196,212,0.08) 46px 47px),
+        repeating-linear-gradient(0deg, transparent 0 52px, rgba(124,96,232,0.06) 52px 53px),
+        linear-gradient(118deg, transparent 0 34%, rgba(94,196,212,0.08) 34% 35%, transparent 35% 68%, rgba(255,63,164,0.06) 68% 69%, transparent 69% 100%);
+      background-size: 220px 220px, 260px 260px, 320px 320px, 190px 190px, 210px 210px, 100% 100%;
+      background-position: 0 0, 34px 58px, -42px 26px, 0 0, 0 0, 0 0;
+      mix-blend-mode: screen;
+      opacity: 0.34;
+      z-index: -1;
+      animation: circuit-drift 26s linear infinite, circuit-glimmer 4.6s ease-in-out infinite;
+    }
+
+    @keyframes circuit-drift {
+      0% { background-position: 0 0, 34px 58px, -42px 26px, 0 0, 0 0, 0 0; }
+      50% { background-position: 26px 12px, 12px 82px, -12px 2px, 16px 0, 0 18px, 0 0; }
+      100% { background-position: 40px 22px, -4px 106px, 10px -16px, 34px 0, 0 34px, 0 0; }
+    }
+
+    @keyframes circuit-glimmer {
+      0%, 100% { opacity: 0.25; filter: brightness(0.95); }
+      45% { opacity: 0.38; filter: brightness(1.08); }
+      60% { opacity: 0.3; filter: brightness(1); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      body::after {
+        animation: none;
+      }
+    }
+
     header {
       background: linear-gradient(135deg, rgba(12,18,34,0.9) 0%, rgba(36,24,78,0.88) 55%, rgba(35,66,99,0.86) 100%);
       color: #fff;
