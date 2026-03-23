@@ -39,6 +39,7 @@ node advanced-simulations.js
 	- Core world parameter edits (money/food/stability/population)
 	- Simulation triggers (resident tick, outfit shift, event injection)
 	- One-click scenario presets (economy collapse, food crisis, unstable culture, high-growth boom)
+	- Snapshot slots (save/load/delete 3 full local-state snapshots)
 	- Unreal payload import/export via `WorldStateAdapter`
 	- Local save reset for bug repro loops
 

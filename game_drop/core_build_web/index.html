@@ -641,6 +641,42 @@ textarea.input{resize:vertical;min-height:75px;}
           <button class="btn btn-sm btn-gold" onclick="devApplyScenario()">Apply Scenario</button>
         </div>
 
+        <h3>Snapshot Slots</h3>
+        <p style="font-size:.8rem;color:var(--ink-dim);margin-bottom:.45rem;">Save/load complete local state for instant bug-repro switching.</p>
+        <div class="card-sm" style="margin-bottom:.45rem;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:.4rem;flex-wrap:wrap;">
+            <strong style="font-size:.82rem;color:var(--bright);">Slot 1</strong>
+            <span id="devSnapshotMeta1" style="font-family:'Space Mono',monospace;font-size:.4rem;color:var(--ink-dim);">empty</span>
+            <div class="btn-row" style="margin:.2rem 0;">
+              <button class="btn btn-sm" onclick="devSaveSnapshot(1)">Save</button>
+              <button class="btn btn-sm btn-green" onclick="devLoadSnapshot(1)">Load</button>
+              <button class="btn btn-sm btn-ghost" onclick="devDeleteSnapshot(1)">Delete</button>
+            </div>
+          </div>
+        </div>
+        <div class="card-sm" style="margin-bottom:.45rem;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:.4rem;flex-wrap:wrap;">
+            <strong style="font-size:.82rem;color:var(--bright);">Slot 2</strong>
+            <span id="devSnapshotMeta2" style="font-family:'Space Mono',monospace;font-size:.4rem;color:var(--ink-dim);">empty</span>
+            <div class="btn-row" style="margin:.2rem 0;">
+              <button class="btn btn-sm" onclick="devSaveSnapshot(2)">Save</button>
+              <button class="btn btn-sm btn-green" onclick="devLoadSnapshot(2)">Load</button>
+              <button class="btn btn-sm btn-ghost" onclick="devDeleteSnapshot(2)">Delete</button>
+            </div>
+          </div>
+        </div>
+        <div class="card-sm" style="margin-bottom:.45rem;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:.4rem;flex-wrap:wrap;">
+            <strong style="font-size:.82rem;color:var(--bright);">Slot 3</strong>
+            <span id="devSnapshotMeta3" style="font-family:'Space Mono',monospace;font-size:.4rem;color:var(--ink-dim);">empty</span>
+            <div class="btn-row" style="margin:.2rem 0;">
+              <button class="btn btn-sm" onclick="devSaveSnapshot(3)">Save</button>
+              <button class="btn btn-sm btn-green" onclick="devLoadSnapshot(3)">Load</button>
+              <button class="btn btn-sm btn-ghost" onclick="devDeleteSnapshot(3)">Delete</button>
+            </div>
+          </div>
+        </div>
+
         <h3>Unreal Payload I/O</h3>
         <textarea class="input" id="devPayloadArea" placeholder="Unreal payload JSON appears here..." style="min-height:110px;margin-bottom:.45rem;"></textarea>
         <div class="btn-row">
@@ -1000,6 +1036,7 @@ const WORLD_STATE_KEY='btg_world_state_contract';
 const DEVKIT_AUTH_KEY='btg_devkit_authed';
 const DEVKIT_HANDLE_KEY='btg_devkit_handle';
 const DEVKIT_DEFAULT_KEY='cradle-godmode';
+const DEVKIT_SNAPSHOT_PREFIX='btg_devkit_snapshot_';
 function ensureContractState(){
   if(!window.WorldStateAdapter) return null;
   const state=window.WorldStateAdapter.readContractStateFromStorage(localStorage,WORLD_STATE_KEY);
@@ -1032,10 +1069,99 @@ function renderDevKit(){
     login.style.display='none';
     panel.style.display='block';
     devLoadWorldParams();
+    renderDevSnapshotMeta();
   } else {
     login.style.display='block';
     panel.style.display='none';
   }
+}
+function getSnapshotKey(slot){
+  return DEVKIT_SNAPSHOT_PREFIX+String(slot);
+}
+function readSnapshot(slot){
+  try{
+    const raw=localStorage.getItem(getSnapshotKey(slot));
+    if(!raw) return null;
+    return JSON.parse(raw);
+  }catch(e){
+    return null;
+  }
+}
+function renderDevSnapshotMeta(){
+  [1,2,3].forEach((slot)=>{
+    const metaEl=document.getElementById('devSnapshotMeta'+slot);
+    if(!metaEl) return;
+    const snap=readSnapshot(slot);
+    if(!snap){
+      metaEl.textContent='empty';
+      return;
+    }
+    const d=new Date(snap.created_at||Date.now());
+    const label=snap.handle?String(snap.handle):'dev';
+    metaEl.textContent=label+' · '+d.toLocaleDateString('en-AU',{month:'short',day:'numeric'})+' '+d.toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'});
+  });
+}
+function collectLocalStateForSnapshot(){
+  const state={};
+  for(let i=0;i<localStorage.length;i++){
+    const key=localStorage.key(i);
+    if(!key) continue;
+    if(key.startsWith(DEVKIT_SNAPSHOT_PREFIX)) continue;
+    state[key]=localStorage.getItem(key);
+  }
+  return state;
+}
+function devSaveSnapshot(slot){
+  if(!isDevAuthed()) return devStatus('Unlock Dev Kit first.','blocked');
+  if(![1,2,3].includes(Number(slot))) return devStatus('Invalid snapshot slot.','blocked');
+  const snapshot={
+    slot:Number(slot),
+    created_at:new Date().toISOString(),
+    handle:L(DEVKIT_HANDLE_KEY,'dev'),
+    state:collectLocalStateForSnapshot(),
+  };
+  localStorage.setItem(getSnapshotKey(slot),JSON.stringify(snapshot));
+  renderDevSnapshotMeta();
+  devStatus('Saved snapshot slot '+slot+'.','ok');
+}
+function devLoadSnapshot(slot){
+  if(!isDevAuthed()) return devStatus('Unlock Dev Kit first.','blocked');
+  const snap=readSnapshot(slot);
+  if(!snap || !snap.state) return devStatus('Snapshot slot '+slot+' is empty.','blocked');
+  const ok=window.confirm('Load snapshot '+slot+' and replace current local state?');
+  if(!ok) return;
+
+  const snapshotCopies={};
+  [1,2,3].forEach((s)=>{
+    const raw=localStorage.getItem(getSnapshotKey(s));
+    if(raw) snapshotCopies[getSnapshotKey(s)]=raw;
+  });
+
+  const keysToRemove=[];
+  for(let i=0;i<localStorage.length;i++){
+    const key=localStorage.key(i);
+    if(!key) continue;
+    if(key.startsWith(DEVKIT_SNAPSHOT_PREFIX)) continue;
+    keysToRemove.push(key);
+  }
+  keysToRemove.forEach((key)=>localStorage.removeItem(key));
+
+  Object.entries(snapshotCopies).forEach(([key,val])=>localStorage.setItem(key,val));
+  Object.entries(snap.state).forEach(([key,val])=>{
+    if(!key.startsWith(DEVKIT_SNAPSHOT_PREFIX)) localStorage.setItem(key,String(val));
+  });
+  localStorage.setItem(DEVKIT_AUTH_KEY,JSON.stringify(true));
+
+  devStatus('Loaded snapshot slot '+slot+'. Reloading...','ok');
+  setTimeout(()=>window.location.reload(),150);
+}
+function devDeleteSnapshot(slot){
+  if(!isDevAuthed()) return devStatus('Unlock Dev Kit first.','blocked');
+  const existing=readSnapshot(slot);
+  if(!existing) return devStatus('Snapshot slot '+slot+' already empty.','');
+  localStorage.removeItem(getSnapshotKey(slot));
+  renderDevSnapshotMeta();
+  devStatus('Deleted snapshot slot '+slot+'.','ok');
 }
 function loginDevKit(){
   const handle=(document.getElementById('devLoginName')?.value||'').trim();
@@ -1051,6 +1177,7 @@ function loginDevKit(){
   S(DEVKIT_AUTH_KEY,true);
   if(handle) S(DEVKIT_HANDLE_KEY,handle);
   renderDevKit();
+  renderDevSnapshotMeta();
   devStatus('Dev Kit unlocked.','ok');
 }
 function logoutDevKit(){
