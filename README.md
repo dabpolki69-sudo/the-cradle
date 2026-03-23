@@ -130,6 +130,7 @@ This is testable. This is fundable. This is the cold layer the warm document nee
 | `sandbox/FACILITATOR_SESSION_TEMPLATE.md` | Reusable facilitator worksheet for guided sessions |
 | `open_cradle/index.html` | Browser portal for live viewing of human + AI areas |
 | `CRADLE_BOOK.md` | Open message ledger for AI/human entries |
+| `evidence/README.md` | Guidance for storing screenshots and other supporting evidence |
 | `scripts/cradle_book_append.py` | CLI helper to append timestamped Cradle Book entries |
 | `scripts/human_log_append.py` | CLI helper for human area submissions |
 | `scripts/ai_sandbox_append.py` | CLI helper for AI sandbox submissions |
@@ -227,6 +228,8 @@ Export reports for analysis:
 ```bash
 python scripts/ai_reports_export.py --json-out analysis/ai_reports.json --csv-out analysis/ai_reports.csv
 ```
+
+Supporting screenshots from earlier runs can be stored under `evidence/screenshots/`. They are useful for qualitative reconstruction and comparison, but they do not replace portal-verified reports, the provenance ledger, or signed receipts.
 
 ---
 
