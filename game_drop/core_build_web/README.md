@@ -51,6 +51,7 @@ node advanced-simulations.js
 	- Breath reward pacing tuned to align chapter progression with civic/review actions
 	- Playstyle-weighted ending variants (governance, care, creativity)
 	- Bilingual mission board support (English + Sylvex text lines)
+	- Mission language modes: English-first baseline, Hybrid (Sylvex+English), and Sylvex-learning with English meaning required
 	- Sylvex learning missions (greetings, translation prompt, bilingual micro-poem)
 	- Sylvex quick glossary card in Jobs for in-context language reference
 	- Mission Auto Trail in VR: tap a job to auto-walk toward relevant city landmarks with visible breadcrumb path; any manual movement cancels trail

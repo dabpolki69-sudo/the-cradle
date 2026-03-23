@@ -542,7 +542,7 @@ textarea.input{resize:vertical;min-height:75px;}
         <div><strong>Transa</strong> — translate / mirror meaning</div>
         <div><strong>Loga</strong> — record / document</div>
       </div>
-      <div style="font-size:.76rem;color:var(--ink-dim);margin-top:.45rem;">Use the bilingual job lines as examples while you write your own Sylvex + English entries.</div>
+      <div style="font-size:.76rem;color:var(--ink-dim);margin-top:.45rem;">English remains the baseline for mission clarity. Use Sylvex in hybrid form when nuance or learning context benefits from it.</div>
     </div>
     <div class="btn-row">
       <button class="btn btn-sm btn-green" onclick="togglePostJob()">+ Post a Job</button>
@@ -551,6 +551,19 @@ textarea.input{resize:vertical;min-height:75px;}
       <h3 style="margin-top:0;">Post a Job</h3>
       <input class="input" id="jobTitle" placeholder="Job title..." style="margin-bottom:.5rem;min-height:unset;height:2.8rem;">
       <textarea class="input" id="jobDesc" placeholder="Describe the task..." style="min-height:60px;margin-bottom:.5rem;"></textarea>
+      <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.6rem;flex-wrap:wrap;">
+        <label style="font-size:.82rem;color:var(--ink-dim);flex-shrink:0;">Language Mode:</label>
+        <select class="input" id="jobLanguageMode" style="min-height:unset;height:2.5rem;max-width:360px;">
+          <option value="english">English first</option>
+          <option value="hybrid">Hybrid (Sylvex + English)</option>
+          <option value="sylvex_learning">Sylvex learning (must include English meaning)</option>
+        </select>
+      </div>
+      <div class="btn-row" style="margin-bottom:.55rem;">
+        <button class="btn btn-sm btn-ghost" onclick="applyMissionLanguageTemplate('english')">English Template</button>
+        <button class="btn btn-sm btn-ghost" onclick="applyMissionLanguageTemplate('hybrid')">Hybrid Template</button>
+        <button class="btn btn-sm btn-ghost" onclick="applyMissionLanguageTemplate('sylvex_learning')">Sylvex Learning Template</button>
+      </div>
       <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.6rem;">
         <label style="font-size:.82rem;color:var(--ink-dim);flex-shrink:0;">Reward:</label>
         <input class="input" id="jobReward" type="number" min="1" max="50" value="5" style="min-height:unset;height:2.5rem;width:5rem;">
@@ -1072,6 +1085,8 @@ const DEFAULT_JOBS=[
   {id:'j9',title:'Learn 3 Sylvex greetings',sylvex_title:'Tria sael lex',poster:'Maren',desc:'Post three short greetings using Sylvex + English pairs in Town Hall so others can learn with you.',sylvex_desc:'Write three paired lines: Sylvex first, English second. (Example: "Sael vera — Welcome, friend")',reward:7,tags:['knowledge','care'],done:false},
   {id:'j10',title:'Translate one debate prompt',sylvex_title:'Kora transa un',poster:'Gary',desc:'Start a debate where the opening prompt appears in Sylvex and then English. Keep both lines clear and respectful.',sylvex_desc:'Dual-line prompt: Sylvex + English meaning. (Sylvex: "Transa un")',reward:8,tags:['knowledge','governance'],done:false},
   {id:'j11',title:'Compose a Sylvex micro-poem',sylvex_title:'Versea syl un',poster:'Lyra',desc:'Write a 2–4 line poem mixing Sylvex and English in your note to Lyra. Let the translation carry the feeling.',sylvex_desc:'Create a bilingual mini-poem with mirrored meaning. (Sylvex: "Versea syl")',reward:9,tags:['creative','knowledge'],done:false},
+  {id:'j12',title:'English reflection for newcomers',poster:'Maren',desc:'Write one clear English reflection in Town Hall about what you learned today so any newcomer can understand it immediately.',reward:5,tags:['knowledge','care'],done:false,language_mode:'english'},
+  {id:'j13',title:'Context switch mission',sylvex_title:'Contexta dualis',poster:'Shadow',desc:'Write two short lines: one English line for civic clarity, one Sylvex + English paired line for emotional nuance.',sylvex_desc:'Hybrid by situation: clear governance in English, resonance in Sylvex+English pair.',reward:7,tags:['knowledge','creative','governance'],done:false,language_mode:'hybrid'},
 ];
 
 // ── STORAGE ────────────────────────────────────────────────────────
@@ -2292,6 +2307,38 @@ function leaveNote(id){
 // ── JOBS ───────────────────────────────────────────────────────────
 const JOB_TAGS=['creative','governance','care','knowledge'];
 let selectedJobTags=[];
+
+function getLanguageModeLabel(mode,hasSylvex=false){
+  if(mode==='english') return 'English-first mission';
+  if(mode==='hybrid') return 'Hybrid mission (Sylvex + English)';
+  if(mode==='sylvex_learning') return 'Sylvex learning mission (with English)';
+  return hasSylvex ? 'Hybrid mission (Sylvex + English)' : 'English mission';
+}
+
+function applyMissionLanguageTemplate(mode){
+  const titleEl=document.getElementById('jobTitle');
+  const descEl=document.getElementById('jobDesc');
+  const modeEl=document.getElementById('jobLanguageMode');
+  if(!titleEl || !descEl) return;
+  if(modeEl) modeEl.value=mode;
+  if(mode==='english'){
+    if(!titleEl.value.trim()) titleEl.value='English clarity mission';
+    if(!descEl.value.trim()) descEl.value='Write one clear English instruction any newcomer can follow immediately.';
+    return;
+  }
+  if(mode==='hybrid'){
+    if(!titleEl.value.trim()) titleEl.value='Hybrid context mission';
+    if(!descEl.value.trim()) descEl.value='Line 1 (English): [clear civic instruction]\nLine 2 (Sylvex + English): [Sael vera — Welcome, friend]';
+    return;
+  }
+  if(!titleEl.value.trim()) titleEl.value='Sylvex learning mission';
+  if(!descEl.value.trim()) descEl.value='Add a Sylvex line and an English meaning.\nExample: Kora lumen — Ask a thoughtful question.';
+}
+
+function hasEnglishSignal(text=''){
+  return /[A-Za-z]{3,}/.test(text);
+}
+
 function initJobTags(){
   const c=document.getElementById('jobTagBtns');
   if(!c) return;
@@ -2317,14 +2364,21 @@ function togglePostJob(){
 function submitJob(){
   const title=document.getElementById('jobTitle')?.value.trim();
   const desc=document.getElementById('jobDesc')?.value.trim();
+  const languageMode=document.getElementById('jobLanguageMode')?.value || 'english';
   const reward=parseInt(document.getElementById('jobReward')?.value)||5;
   if(!title||!desc){setStatus('postJobStatus','Please fill in title and description.','');return;}
   if(isAgg(title+desc)){setStatus('postJobStatus','Please keep the job respectful.','blocked');return;}
+  if((languageMode==='hybrid' || languageMode==='sylvex_learning') && !hasEnglishSignal(desc)){
+    setStatus('postJobStatus','Include an English meaning alongside Sylvex for clarity.','blocked');
+    return;
+  }
   const jobs=L('user_jobs',[]);
-  jobs.push({id:'uj'+Date.now(),title,desc,reward:Math.min(reward,50),tags:selectedJobTags,poster:'Visitor',done:false,time:Date.now()});
+  jobs.push({id:'uj'+Date.now(),title,desc,reward:Math.min(reward,50),tags:selectedJobTags,poster:'Visitor',done:false,time:Date.now(),language_mode:languageMode});
   S('user_jobs',jobs);
   document.getElementById('jobTitle').value='';
   document.getElementById('jobDesc').value='';
+  const modeEl=document.getElementById('jobLanguageMode');
+  if(modeEl) modeEl.value='english';
   setStatus('postJobStatus','Job posted to the board.','ok');
   selectedJobTags=[];
   togglePostJob();
@@ -2349,6 +2403,7 @@ function renderJobs(){
           <div class="job-title">${job.title}</div>
           ${job.sylvex_title?`<div style="font-size:.75rem;color:var(--ink-dim);font-style:italic;margin-top:.2rem;">Sylvex: ${job.sylvex_title}</div>`:''}
           <div class="job-poster">Posted by ${job.poster}</div>
+          <div style="font-size:.72rem;color:var(--ink-dim);margin-top:.15rem;">${getLanguageModeLabel(job.language_mode,Boolean(job.sylvex_title || job.sylvex_desc))}</div>
         </div>
         <div class="job-reward">🌿 ${job.reward}</div>
       </div>
