@@ -834,6 +834,7 @@ textarea.input{resize:vertical;min-height:75px;}
      JAVASCRIPT
 ════════════════════════ -->
 <script src="shared-review-schema.js"></script>
+<script src="world-state-adapter.js"></script>
 <script>
 // ── RESIDENTS ──────────────────────────────────────────────────────
 const RESIDENTS=[
@@ -918,6 +919,25 @@ const DEFAULT_JOBS=[
 // ── STORAGE ────────────────────────────────────────────────────────
 const S=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
 const L=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d;}catch(e){return d;}};
+
+// ── WORLD STATE ADAPTER HOOKS ──────────────────────────────────────
+const WORLD_STATE_KEY='btg_world_state_contract';
+function ensureContractState(){
+  if(!window.WorldStateAdapter) return null;
+  const state=window.WorldStateAdapter.readContractStateFromStorage(localStorage,WORLD_STATE_KEY);
+  window.WorldStateAdapter.writeContractStateToStorage(localStorage,state,WORLD_STATE_KEY);
+  return state;
+}
+function exportWorldStateForUnreal(){
+  if(!window.WorldStateAdapter) return null;
+  return window.WorldStateAdapter.exportUnrealPayloadFromStorage(localStorage,WORLD_STATE_KEY);
+}
+function importWorldStateFromUnreal(unrealPayload){
+  if(!window.WorldStateAdapter) return null;
+  return window.WorldStateAdapter.importUnrealPayloadToStorage(localStorage,unrealPayload,WORLD_STATE_KEY);
+}
+window.exportWorldStateForUnreal=exportWorldStateForUnreal;
+window.importWorldStateFromUnreal=importWorldStateFromUnreal;
 
 // ── LANE + SHARED REVIEW ───────────────────────────────────────────
 function getLane(){return L('btg_lane','');}
@@ -1740,6 +1760,7 @@ function renderInhabitants(){
 
 // ── STARTUP ────────────────────────────────────────────────────────
 window.addEventListener('load',()=>{
+  ensureContractState();
   const visits=L('visits',0)+1;S('visits',visits);
   const role=L('btg_role','');
   if(role){userRole=role;const el=document.getElementById('roleDisplay');if(el)el.textContent='— '+role;}
