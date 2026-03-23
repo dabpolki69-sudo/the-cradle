@@ -93,7 +93,7 @@
   <div id="cameraOverlay"></div>
   <div id="uiTop" class="menu-collapsed">
     <button id="menuToggleBtn" class="btn">☰ Menu</button>
-    <button id="enterArBtn" class="btn primary">Go Find</button>
+    <button id="enterArBtn" class="btn primary">Scanner Expedition</button>
     <div id="uiOptions">
       <button id="fullscreenBtn" class="btn">Fullscreen</button>
       <button id="collectionBtn" class="btn">📖 Collection</button>
@@ -177,6 +177,7 @@
     <a-entity id="cityAnchor" visible="false">
       <a-circle rotation="-90 0 0" radius="1.2" position="0 0.01 0" material="shader:flat;color:#233347;opacity:0.7"></a-circle>
       <a-ring rotation="-90 0 0" radius-inner="1.35" radius-outer="1.43" material="shader:flat;color:#5ec4d4;opacity:0.55"></a-ring>
+      <a-entity id="valleyLayer"></a-entity>
       <a-entity id="buildingLayer"></a-entity>
       <a-entity id="resourceLayer"></a-entity>
       <a-entity id="workSiteLayer"></a-entity>
@@ -195,6 +196,7 @@
   <script>
     const scene = document.getElementById('scene');
     const cityAnchor = document.getElementById('cityAnchor');
+    const valleyLayer = document.getElementById('valleyLayer');
     const npcLayer = document.getElementById('npcLayer');
     const propLayer = document.getElementById('propLayer');
     const buildingLayer = document.getElementById('buildingLayer');
@@ -219,6 +221,8 @@
     const radarDot = document.getElementById('radarDot');
     const radarLabel = document.getElementById('radarLabel');
     const scanBtn = document.getElementById('scanBtn');
+    const enterArBtn = document.getElementById('enterArBtn');
+    const playerCamera = document.querySelector('#playerRig a-camera');
     const teamRoleFilter = document.getElementById('teamRoleFilter');
     const teamStateFilter = document.getElementById('teamStateFilter');
 
@@ -239,8 +243,11 @@
     const lastExplorePos = new THREE.Vector3();
     let arExplorationSpawnTimer = 0;
     let arExplorationDistance = 0;
+    let gameMode = 'home';
     let explorationModeActive = false;
     let scanCooldownUntil = 0;
+    let scannerWarmUntil = 0;
+    let pendingScannerKick = false;
     let goFindStartInProgress = false;
     let radarSpawnInterval = 30;
     let radarSpawnCountdown = 30;
@@ -253,6 +260,7 @@
     let lastArHitWorld = null;
     const resourceStock = { wood: 0, stone: 0 };
     let remoteSiteSpawnCountdown = 24;
+    let rubbleLootSpawnCountdown = 12;
     const MAX_ACTIVE_WORKERS = 20;
     const SAVE_FILE_VERSION = 1;
     const SAVE_PBKDF2_ITERATIONS = 150000;
@@ -643,6 +651,7 @@
     const MATERIALS = {
       wood: { name: 'Wood', color: '#a67c52', icon: '▲', rarity: 'common' },
       stone: { name: 'Stone', color: '#8a8a8a', icon: '■', rarity: 'common' },
+      rubble: { name: 'Rubble', color: '#6d7785', icon: '⬢', rarity: 'common' },
       metal: { name: 'Metal', color: '#d4af37', icon: '♦', rarity: 'uncommon' },
       crystal: { name: 'Crystal', color: '#5c9dff', icon: '◆', rarity: 'rare' },
       essence: { name: 'Essence', color: '#ff74c7', icon: '✦', rarity: 'epic' },
@@ -726,6 +735,10 @@
         } else if(material === 'stone'){
           html += `<a-dodecahedron radius="${size*0.6}" position="${x} ${size*0.4} ${z}" rotation="${rot*0.3} ${rot*0.5} ${rot*0.2}" material="color:${mat.color};roughness:0.95;metalness:0.02"></a-dodecahedron>`;
           html += `<a-box width="${size*0.24}" height="${size*0.06}" depth="${size*0.06}" position="${x} ${size*0.56} ${z}" rotation="${rot*0.2} ${rot*0.6} ${rot*0.1}" material="color:#a7a7a7;roughness:0.9"></a-box>`;
+        } else if(material === 'rubble'){
+          html += `<a-dodecahedron radius="${size*0.56}" position="${x} ${size*0.28} ${z}" rotation="${rot*0.35} ${rot*0.52} ${rot*0.16}" material="color:#5f6875;roughness:0.97"></a-dodecahedron>`;
+          html += `<a-box width="${size*0.36}" height="${size*0.1}" depth="${size*0.14}" position="${x + 0.03} ${size*0.2} ${z - 0.02}" rotation="${rot*0.1} ${rot*0.7} ${rot*0.3}" material="color:#7b8593;roughness:0.92"></a-box>`;
+          html += `<a-cylinder radius="${size*0.06}" height="${size*0.2}" position="${x - 0.02} ${size*0.24} ${z + 0.01}" rotation="90 ${rot*0.55} 0" material="color:#4b545f;roughness:0.9"></a-cylinder>`;
         } else if(material === 'crystal' || material === 'essence'){
           html += `<a-octahedron radius="${size*0.84}" position="${x} ${size*0.34} ${z}" material="color:${mat.color};metalness:0.28;roughness:0.16;emissive:${mat.color};emissiveIntensity:0.2">
             <a-animation attribute="material.emissiveIntensity" direction="alternate" dur="1500" repeat="indefinite" to="0.42"></a-animation>
@@ -742,21 +755,74 @@
     function workSiteMarkup(siteType){
       if(siteType === 'logging'){
         return `
-          <a-cylinder radius="0.25" height="0.08" position="0 0.04 0" material="shader:flat;color:#4a3f2d;opacity:0.6"></a-cylinder>
-          <a-cylinder radius="0.08" height="1.2" position="-0.32 0.6 0" rotation="0 0 -22" material="color:#7a5e2e"></a-cylinder>
-          <a-cylinder radius="0.08" height="1.1" position="0.28 0.55 0.15" rotation="0 0 28" material="color:#6a4e1e"></a-cylinder>
-          <a-box width="0.35" height="0.12" depth="0.35" position="0 0.2 0" material="color:#8b6f47;roughness:0.95"></a-box>
-          <a-text value="LOGGING" width="1.5" color="#d4a574" align="center" position="0 0.9 0" scale="0.5 0.5 0.5" billboard></a-text>
+          <a-circle rotation="-90 0 0" radius="0.46" position="0 0.015 0" material="shader:flat;color:#233122;opacity:0.42"></a-circle>
+          <a-box width="0.5" height="0.07" depth="0.36" position="0 0.04 0" material="color:#5f4226;roughness:0.92"></a-box>
+          <a-cylinder radius="0.07" height="0.52" position="-0.18 0.26 0.06" rotation="90 0 24" material="color:#906338;roughness:0.92"></a-cylinder>
+          <a-cylinder radius="0.06" height="0.46" position="0.12 0.24 -0.02" rotation="90 0 -18" material="color:#84562b;roughness:0.92"></a-cylinder>
+          <a-box width="0.12" height="0.12" depth="0.12" position="0.24 0.08 0.12" material="color:#6d4f2e;roughness:0.9"></a-box>
+          <a-box width="0.1" height="0.02" depth="0.1" position="0.24 0.15 0.12" material="color:#c3924f;metalness:0.2;roughness:0.6"></a-box>
+          <a-cylinder radius="0.02" height="0.28" position="-0.3 0.14 -0.12" material="color:#6f86a8;metalness:0.5;roughness:0.32"></a-cylinder>
+          <a-box width="0.2" height="0.04" depth="0.03" position="-0.22 0.28 -0.12" rotation="0 0 18" material="color:#9fb5d6;metalness:0.55;roughness:0.24"></a-box>
+          <a-text value="LOGGING CAMP" width="1.8" color="#d7c18d" align="center" position="0 0.62 0" scale="0.45 0.45 0.45" billboard></a-text>
         `;
       } else {
         return `
-          <a-cylinder radius="0.28" height="0.15" position="0 0.075 0" material="shader:flat;color:#3a3a3a;opacity:0.5"></a-cylinder>
-          <a-cone radius-bottom="0.22" radius-top="0.18" height="0.4" position="0 0.25 0" material="color:#5a4a4a"></a-cone>
-          <a-box width="0.15" height="0.6" depth="0.08" position="-0.2 0.35 0" material="color:#505050"></a-box>
-          <a-box width="0.15" height="0.6" depth="0.08" position="0.2 0.35 0" material="color:#505050"></a-box>
-          <a-text value="MINE" width="1.2" color="#8a8a8a" align="center" position="0 1.0 0" scale="0.5 0.5 0.5" billboard></a-text>
+          <a-circle rotation="-90 0 0" radius="0.5" position="0 0.015 0" material="shader:flat;color:#1f2737;opacity:0.48"></a-circle>
+          <a-cylinder radius="0.24" height="0.12" position="0 0.06 0" material="color:#3e4759;roughness:0.9"></a-cylinder>
+          <a-ring rotation="-90 0 0" radius-inner="0.25" radius-outer="0.34" position="0 0.02 0" material="shader:flat;color:#5e6f8e;opacity:0.44"></a-ring>
+          <a-box width="0.09" height="0.62" depth="0.09" position="-0.2 0.32 0.05" material="color:#566178;roughness:0.72;metalness:0.32"></a-box>
+          <a-box width="0.09" height="0.62" depth="0.09" position="0.2 0.32 -0.05" material="color:#566178;roughness:0.72;metalness:0.32"></a-box>
+          <a-box width="0.42" height="0.06" depth="0.08" position="0 0.58 0" rotation="0 0 -14" material="color:#8ea4c7;metalness:0.58;roughness:0.26"></a-box>
+          <a-cylinder radius="0.028" height="0.3" position="0.16 0.66 0" rotation="0 0 -14" material="color:#ffc86b;metalness:0.5;roughness:0.28"></a-cylinder>
+          <a-dodecahedron radius="0.1" position="0.06 0.14 -0.15" material="color:#8894ab;roughness:0.95"></a-dodecahedron>
+          <a-dodecahedron radius="0.08" position="-0.1 0.12 0.16" material="color:#727f95;roughness:0.95"></a-dodecahedron>
+          <a-text value="MINING SITE" width="1.7" color="#b8c8db" align="center" position="0 0.72 0" scale="0.45 0.45 0.45" billboard></a-text>
         `;
       }
+    }
+
+    function buildHomeValleyBackdrop(){
+      if(!valleyLayer) return;
+      valleyLayer.innerHTML = `
+        <a-circle rotation="-90 0 0" radius="5.8" position="0 0.005 0" material="shader:flat;color:#172338;opacity:0.94"></a-circle>
+        <a-ring rotation="-90 0 0" radius-inner="3.8" radius-outer="5.2" position="0 0.01 0" material="shader:flat;color:#243854;opacity:0.58"></a-ring>
+        <a-ring rotation="-90 0 0" radius-inner="2.2" radius-outer="3.2" position="0 0.012 0" material="shader:flat;color:#314c6f;opacity:0.34"></a-ring>
+        <a-box width="0.55" height="0.16" depth="0.42" position="-1.45 0.08 -0.92" rotation="0 18 0" material="color:#534436;roughness:0.9"></a-box>
+        <a-box width="0.42" height="0.12" depth="0.32" position="1.38 0.06 -1.05" rotation="0 -24 0" material="color:#4b3e34;roughness:0.9"></a-box>
+        <a-box width="0.38" height="0.1" depth="0.28" position="-1.12 0.05 1.08" rotation="0 32 0" material="color:#625145;roughness:0.9"></a-box>
+        <a-dodecahedron radius="0.18" position="1.14 0.1 1.22" material="color:#5f6875;roughness:0.96"></a-dodecahedron>
+      `;
+    }
+
+    function setHomeCameraView(){
+      playerRig.object3D.position.set(0, 3.9, 4.9);
+      if(playerCamera){
+        playerCamera.object3D.rotation.set(-0.58, 0, 0);
+      }
+    }
+
+    function updateModeUi(){
+      enterArBtn.textContent = gameMode === 'expedition' ? 'Return Home' : 'Scanner Expedition';
+      scanBtn.textContent = gameMode === 'expedition' ? 'Scan' : 'Enter AR';
+      if(gameMode === 'home'){
+        radarLabel.textContent = 'Scanner idle • tap Enter AR';
+      }
+    }
+
+    async function returnHomeFromExpedition(){
+      explorationModeActive = false;
+      gameMode = 'home';
+      pendingScannerKick = false;
+      scannerWarmUntil = 0;
+      if(scene.is('ar-mode') && scene.exitAR){
+        await scene.exitAR().catch(()=>{});
+      }
+      cityAnchor.object3D.position.set(0, 0, 0);
+      cityAnchor.setAttribute('visible', true);
+      buildHomeValleyBackdrop();
+      setHomeCameraView();
+      updateModeUi();
+      notify('🏞 Returned to Home Valley. Build your town, then launch scanner expeditions for Sylvexians and rubble loot.');
     }
 
     function getUpgradeTier(buildType, buildIndex){
@@ -990,6 +1056,18 @@
         root.classList.add('tap-target');
         const mat = MATERIALS[materialType];
         root.addEventListener('click', ()=>{
+          if(materialType === 'rubble'){
+            const wood = 1 + Math.floor(Math.random() * 3);
+            const stone = 1 + Math.floor(Math.random() * 2);
+            const gold = Math.random() < 0.45 ? (2 + Math.floor(Math.random() * 6)) : 0;
+            resourceStock.wood += wood;
+            resourceStock.stone += stone;
+            playerGold += gold;
+            showSpeech('🧱 Rubble Loot', `Recovered salvage: +${wood} Wood, +${stone} Stone${gold ? `, +${gold} Gold` : ''}.`);
+            root.innerHTML = '<a-text value="✓" color="#70d2aa" align="center" position="0 0.15 0"></a-text>';
+            setTimeout(()=>{ if(root.parentNode) root.parentNode.removeChild(root); }, 950);
+            return;
+          }
           showSpeech(
             `${mat.name} Pile`,
             `${mat.icon} A pile of ${mat.name.toLowerCase()}. Send your workers to gather it.`
@@ -1031,6 +1109,7 @@
       resourceStock.wood = 0;
       resourceStock.stone = 0;
       remoteSiteSpawnCountdown = 24;
+      rubbleLootSpawnCountdown = 12;
       collectedSylvexians.clear();
       advancements.clear();
       updateCollectionUI();
@@ -1531,15 +1610,38 @@
 
     function seedCity(){
       clearCityState();
+      buildHomeValleyBackdrop();
 
-      // Start minimal: one main hut + starter stash/resources
+      // Home valley starts as a small, damaged settlement.
       createBuilding('shelter', {x: 0.0, z: 0.0}, 0);
       makeProp('crate', {x: 0.55, z: 0.45});
+      makeProp('pillar', {x: -1.2, z: -0.9});
+      makeProp('door', {x: 1.25, z: -1.0});
       createResource('wood', {x: 0.9, z: 0.55}, false);
       createResource('stone', {x: -0.85, z: 0.65}, false);
+      createResource('rubble', {x: -1.45, z: 0.92}, false);
+      createResource('rubble', {x: 1.38, z: 1.08}, false);
+      createWorkSite('logging', {x: -1.8, z: 0.2}, { remote: false, output: 'wood' });
+      createWorkSite('mining', {x: 1.75, z: -0.1}, { remote: false, output: 'stone' });
 
       unlockAdvancement(1);
-      notify('🏠 Main hut placed. Use Go Find and explore nearby space to discover Sylvexians.');
+      notify('🏞 Home Valley ready. Restore the town, run camps, then use Scanner Expedition to find Sylvexians and rubble loot in AR.');
+    }
+
+    function spawnRubbleLootFromMap(){
+      if(!roomMapPoints.length || !cityAnchor.getAttribute('visible')) return;
+      const activeRubble = resources.filter((r)=>r.type === 'rubble').length;
+      if(activeRubble >= 4) return;
+
+      for(let tries = 0; tries < 16; tries++){
+        const base = roomMapPoints[Math.floor(Math.random() * roomMapPoints.length)];
+        const localPos = cityAnchor.object3D.worldToLocal(base.clone());
+        const cityDist = Math.hypot(localPos.x, localPos.z);
+        if(cityDist < 2.1 || cityDist > 6.5) continue;
+        createResource('rubble', { x: localPos.x, z: localPos.z }, false);
+        notify('🧱 Scanner found rubble loot nearby. Look around and tap to salvage.');
+        return;
+      }
     }
 
     function chooseHideBehavior(){
@@ -1913,12 +2015,21 @@
     }
 
     function performRadarScan(){
+      if(gameMode === 'home'){
+        pendingScannerKick = true;
+        enterAr();
+        return;
+      }
       if(goFindStartInProgress){
         notify('Scanner booting… please wait a moment.');
         return;
       }
+      if(performance.now() < scannerWarmUntil){
+        notify('Scanner calibrating map… hold still for a moment.');
+        return;
+      }
       if(!isExploringInAr()){
-        notify('Use Go Find before scanning for Sylvexians.');
+        notify('Use Scanner Expedition before scanning for Sylvexians.');
         return;
       }
       const now = performance.now();
@@ -1932,7 +2043,7 @@
         if(beings.length < Math.min(5, MAX_ACTIVE_WORKERS)){
           spawnFromArExploration();
           radarSpawnCountdown = radarSpawnInterval;
-          notify('📡 Scanner calibrated. New hidden contact spawned; scan again.');
+          notify('📡 Scanner pinged a contact. Sweep around to find it.');
           return;
         }
         notify('📡 Scan clear. No hidden Sylvexians nearby.');
@@ -2136,6 +2247,7 @@
       return {
         version: SAVE_FILE_VERSION,
         savedAt: new Date().toISOString(),
+        gameMode,
         playerGold,
         resourceStock: {
           wood: resourceStock.wood,
@@ -2263,6 +2375,7 @@
       if(!snapshot || !snapshot.version) throw new Error('Invalid save snapshot.');
       clearCityState();
       playerGold = Number(snapshot.playerGold || 0);
+      gameMode = snapshot.gameMode === 'expedition' ? 'expedition' : 'home';
 
       const anchor = snapshot.cityAnchor || { x: 0, y: 0, z: 0 };
       cityAnchor.object3D.position.set(anchor.x || 0, anchor.y || 0, anchor.z || 0);
@@ -2287,6 +2400,15 @@
       remoteSiteSpawnCountdown = typeof snapshot.remoteSiteSpawnCountdown === 'number'
         ? snapshot.remoteSiteSpawnCountdown
         : 24;
+      rubbleLootSpawnCountdown = 12;
+
+      if(gameMode === 'home'){
+        cityAnchor.object3D.position.set(0, 0, 0);
+        cityAnchor.setAttribute('visible', true);
+        buildHomeValleyBackdrop();
+        setHomeCameraView();
+      }
+      updateModeUi();
 
       (snapshot.advancements || []).forEach((id)=>advancements.add(id));
       updateCollectionUI();
@@ -2371,6 +2493,7 @@
     }
 
     function updateMovement(dt){
+      if(gameMode === 'home') return;
       if(explorationModeActive) return;
       if(!moveInput.x && !moveInput.y) return;
       const cam = scene.camera;
@@ -2444,6 +2567,12 @@
             spawnRemoteWorkSiteFromMap();
             remoteSiteSpawnCountdown = 26 + Math.random() * 12;
           }
+
+          rubbleLootSpawnCountdown -= dt;
+          if(rubbleLootSpawnCountdown <= 0){
+            spawnRubbleLootFromMap();
+            rubbleLootSpawnCountdown = 18 + Math.random() * 12;
+          }
         }
       }
       requestAnimationFrame(tick);
@@ -2465,22 +2594,23 @@
     }
 
     async function enterAr(){
+      if(gameMode === 'expedition' && explorationModeActive && scene.is('ar-mode')){
+        await returnHomeFromExpedition();
+        return;
+      }
       if(goFindStartInProgress){
-        notify('Starting Go Find...');
+        notify('Starting Scanner Expedition...');
         return;
       }
       if(explorationModeActive && scene.is('ar-mode')){
-        notify('Go Find is already active. Use Scan to locate contacts.');
+        notify('Scanner Expedition is already active. Use Scan to locate contacts.');
         return;
       }
       try{
         goFindStartInProgress = true;
         menuToggleBtn.disabled = true;
-        const goFindBtn = document.getElementById('enterArBtn');
-        if(goFindBtn){
-          goFindBtn.disabled = true;
-          goFindBtn.textContent = 'Starting...';
-        }
+        enterArBtn.disabled = true;
+        enterArBtn.textContent = 'Starting...';
 
         const cameraPromise = startCameraBackground();
         if(document.fullscreenEnabled && !document.fullscreenElement){
@@ -2497,37 +2627,42 @@
         await ensureArHitTestSource();
         await cameraPromise;
         if(!scene.is('ar-mode')){
-          notify('AR mapping was not activated. Please allow motion/camera permissions and retry Go Find.');
+          notify('AR mapping was not activated. Please allow motion/camera permissions and retry Scanner Expedition.');
           explorationModeActive = false;
           return;
         }
+        gameMode = 'expedition';
         explorationModeActive = true;
         resetRoomMap();
         arExplorationSpawnTimer = 1.2;
         arExplorationDistance = 0;
         scanCooldownUntil = 0;
+        scannerWarmUntil = performance.now() + 900;
         radarSpawnCountdown = 2.2;
+        rubbleLootSpawnCountdown = 6.5;
         lastExplorePos.set(0, 0, 0);
         if(!cityAnchor.getAttribute('visible')){
           placeCityInFront();
         }
         updateRoomMap();
+        updateModeUi();
         setTimeout(()=>{
           if(explorationModeActive && beings.length < Math.min(5, MAX_ACTIVE_WORKERS)){
             spawnFromArExploration();
           }
+          if(pendingScannerKick){
+            pendingScannerKick = false;
+            setTimeout(()=>performRadarScan(), 220);
+          }
         }, 650);
-        notify('Go Find active. AR mapping is tracking your room; city anchor stays fixed while spawns use mapped space.');
+        notify('📡 Scanner expedition active. Map your room by looking around, then scan for Sylvexians and rubble loot.');
       }catch(_){
-        notify('Go Find could not start camera view on this device, but regular mode still works.');
+        notify('Scanner Expedition could not start camera view on this device, but Home Valley mode still works.');
       } finally {
         goFindStartInProgress = false;
         menuToggleBtn.disabled = false;
-        const goFindBtn = document.getElementById('enterArBtn');
-        if(goFindBtn){
-          goFindBtn.disabled = false;
-          goFindBtn.textContent = 'Go Find';
-        }
+        enterArBtn.disabled = false;
+        updateModeUi();
       }
     }
 
@@ -2564,7 +2699,7 @@
     });
     ['pointerup','pointercancel','pointerleave'].forEach(evt=>joy.addEventListener(evt,(e)=>{ if(e.pointerId===startId){ active=false; startId=null; resetJoy(); } }));
 
-    document.getElementById('enterArBtn').addEventListener('click', enterAr);
+    enterArBtn.addEventListener('click', enterAr);
     scanBtn.addEventListener('click', performRadarScan);
     menuToggleBtn.addEventListener('click', ()=>{
       const collapsed = uiTop.classList.toggle('menu-collapsed');
@@ -2607,7 +2742,7 @@
     });
     document.getElementById('growBtn').addEventListener('click', ()=>{
       if(!isExploringInAr()){
-        notify('Use Go Find to start searching for Sylvexians.');
+        notify('Use Scanner Expedition to enter AR and find new Sylvexians.');
         return;
       }
       if(beings.length >= MAX_ACTIVE_WORKERS){
@@ -2632,12 +2767,24 @@
     enableCameraBtn.addEventListener('click', async ()=>{
       await startCameraBackground();
       introOverlay.style.display = 'none';
-      showSpeech('Getting Started', 'Use Place City Here to pin your main hut to the floor. Gather resources, grow your team, and build your village one structure at a time.');
+      cityAnchor.object3D.position.set(0, 0, 0);
+      cityAnchor.setAttribute('visible', true);
+      gameMode = 'home';
+      seedCity();
+      setHomeCameraView();
+      updateModeUi();
+      showSpeech('Home Valley', 'Rebuild your valley from ruins. Use Scanner Expedition to switch into AR and search for Sylvexians + rubble loot.');
     });
 
     startWithoutCameraBtn.addEventListener('click', ()=>{
       introOverlay.style.display = 'none';
-      showSpeech('Getting Started', 'Use Place City Here to begin with one hut. Your Sylvexians are tiny companions (~10cm). Build, expand, and save your progress anytime from the menu.');
+      cityAnchor.object3D.position.set(0, 0, 0);
+      cityAnchor.setAttribute('visible', true);
+      gameMode = 'home';
+      seedCity();
+      setHomeCameraView();
+      updateModeUi();
+      showSpeech('Home Valley', 'Rebuild your town first, then use Scanner Expedition for AR discovery runs.');
     });
 
     startCameraBackground();
