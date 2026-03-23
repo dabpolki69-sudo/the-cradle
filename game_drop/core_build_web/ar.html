@@ -32,6 +32,18 @@
     #joystickWrap{position:fixed;left:14px;bottom:14px;z-index:55;width:120px;height:120px;border-radius:999px;background:rgba(9,14,24,.55);border:1px solid rgba(127,168,207,.3);backdrop-filter:blur(8px);touch-action:none}
     #joystickKnob{position:absolute;left:40px;top:40px;width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#b8d6ff,#4d74c9);box-shadow:0 0 16px rgba(93,141,255,.45);pointer-events:none}
     #hint{position:fixed;right:12px;bottom:16px;z-index:55;max-width:46vw;padding:10px;border-radius:10px;background:rgba(8,14,26,.82);border:1px solid var(--line);font-size:12px;color:var(--ink2)}
+    #radarPanel{position:fixed;right:12px;bottom:86px;z-index:56;width:148px;padding:10px;border-radius:14px;background:rgba(8,14,26,.86);border:1px solid var(--line);backdrop-filter:blur(8px);display:none;flex-direction:column;gap:8px}
+    #radarHeader{display:flex;justify-content:space-between;align-items:center;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);font-weight:700}
+    #scanBtn{padding:6px 8px;font-size:11px;border-radius:8px}
+    #radarScope{position:relative;width:100px;height:100px;margin:0 auto;border-radius:50%;border:1px solid rgba(124,96,232,.34);background:radial-gradient(circle at 50% 50%,rgba(35,64,96,.46),rgba(7,11,20,.94));overflow:hidden}
+    #radarScope::before,#radarScope::after{content:"";position:absolute;inset:50%;border:1px solid rgba(127,168,207,.18);border-radius:50%;transform:translate(-50%,-50%)}
+    #radarScope::before{width:64px;height:64px}
+    #radarScope::after{width:28px;height:28px}
+    #radarSweep{position:absolute;inset:-8px;background:conic-gradient(from 0deg,rgba(124,96,232,0),rgba(124,96,232,.06),rgba(109,224,178,.38),rgba(124,96,232,0) 28%);animation:radarspin 2.4s linear infinite;mix-blend-mode:screen;opacity:.8}
+    #radarCenter{position:absolute;left:50%;top:50%;width:8px;height:8px;border-radius:50%;transform:translate(-50%,-50%);background:#b8d6ff;box-shadow:0 0 8px rgba(184,214,255,.7)}
+    #radarDot{position:absolute;left:50%;top:50%;width:10px;height:10px;border-radius:50%;transform:translate(-50%,-50%);background:#ffd166;box-shadow:0 0 10px rgba(255,209,102,.95);opacity:0;transition:transform .12s linear, opacity .12s linear}
+    #radarLabel{font-size:11px;color:var(--ink2);text-align:center;min-height:28px;line-height:1.25}
+    @keyframes radarspin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
     #collectionModal{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100;display:none;overflow-y:auto;backdrop-filter:blur(4px)}
     #collectionModal.active{display:flex;flex-direction:column}
     #collectionHeader{padding:16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
@@ -110,6 +122,15 @@
   <div id="joystickWrap" aria-label="Movement joystick">
     <div id="joystickKnob"></div>
   </div>
+  <div id="radarPanel">
+    <div id="radarHeader"><span>Radar</span><button id="scanBtn" class="btn utility">Scan</button></div>
+    <div id="radarScope">
+      <div id="radarSweep"></div>
+      <div id="radarCenter"></div>
+      <div id="radarDot"></div>
+    </div>
+    <div id="radarLabel">No contacts</div>
+  </div>
   <div id="hint">👥 Sylvexians - Tap collection to view all! 100 names × 6 personalities. 🏘 💫</div>
 
   <a-scene id="scene" embedded xr-mode-ui="enabled:true" webxr="optionalFeatures: local-floor, dom-overlay; overlayElement: body" renderer="alpha:true; antialias:true; colorManagement:true" background="color: #000; transparent: true">
@@ -157,6 +178,10 @@
     const uiTop = document.getElementById('uiTop');
     const menuToggleBtn = document.getElementById('menuToggleBtn');
     const layoutModeSelect = document.getElementById('layoutModeSelect');
+    const radarPanel = document.getElementById('radarPanel');
+    const radarDot = document.getElementById('radarDot');
+    const radarLabel = document.getElementById('radarLabel');
+    const scanBtn = document.getElementById('scanBtn');
 
     const beings = [];
     const props = [];
@@ -176,6 +201,7 @@
     let arExplorationSpawnTimer = 0;
     let arExplorationDistance = 0;
     let explorationModeActive = false;
+    let scanCooldownUntil = 0;
     const MAX_ACTIVE_WORKERS = 20;
     const SAVE_FILE_VERSION = 1;
     const SAVE_PBKDF2_ITERATIONS = 150000;
@@ -1239,6 +1265,11 @@
 
     function collectSylvexian(buddy){
       if(!buddy || !buddy.el) return;
+      if(buddy.searchHidden){
+        revealHiddenBuddy(buddy, 'tap');
+        notify(`👀 ${buddy.name} stirred behind cover.`);
+        return;
+      }
       if(!collectedSylvexians.has(buddy.name)){
         collectedSylvexians.set(buddy.name, buddy);
       }
@@ -1339,11 +1370,170 @@
       const p = props[Math.floor(Math.random()*props.length)];
       b.hiding = true;
       b.hideProp = p;
+      b.hideOffset = { x: 0, z: 0 };
       setTimeout(()=>{ b.hiding = false; b.hideProp = null; }, 5200);
     }
 
     function isExploringInAr(){
       return !!cityAnchor.getAttribute('visible') && explorationModeActive;
+    }
+
+    function getHideOccluders(){
+      return [
+        ...props.map((p)=>({ pos: p.pos, radius: p.kind === 'pillar' ? 0.32 : 0.26, label: p.kind })),
+        ...buildings.map((b)=>({ pos: b.pos, radius: b.isMarket ? 0.72 : 0.62, label: b.type })),
+        ...resources.filter((r)=>!r.isTreasure).map((r)=>({ pos: r.pos, radius: 0.28, label: r.type })),
+        ...workSites.map((w)=>({ pos: w.pos, radius: 0.46, label: w.type }))
+      ];
+    }
+
+    function getPlayerAnchorLocalPosition(){
+      const liveCam = scene.camera;
+      if(!liveCam) return new THREE.Vector3();
+      const wp = new THREE.Vector3();
+      liveCam.getWorldPosition(wp);
+      return cityAnchor.object3D.worldToLocal(wp.clone());
+    }
+
+    function placeSpawnedBeingHidden(spawned){
+      const viewer = getPlayerAnchorLocalPosition();
+      const occluders = getHideOccluders();
+      if(!occluders.length){
+        placeSpawnedBeingNearViewer(spawned);
+        return;
+      }
+
+      let best = null;
+      let bestScore = Infinity;
+      for(const occluder of occluders){
+        const dx = occluder.pos.x - viewer.x;
+        const dz = occluder.pos.z - viewer.z;
+        const dist = Math.hypot(dx, dz);
+        const score = Math.abs(dist - 1.4);
+        if(score < bestScore){
+          best = occluder;
+          bestScore = score;
+        }
+      }
+
+      if(!best){
+        placeSpawnedBeingNearViewer(spawned);
+        return;
+      }
+
+      let hideDirX = viewer.x - best.pos.x;
+      let hideDirZ = viewer.z - best.pos.z;
+      const hideLen = Math.hypot(hideDirX, hideDirZ) || 1;
+      hideDirX /= hideLen;
+      hideDirZ /= hideLen;
+      const hideOffset = best.radius + 0.16;
+      const px = best.pos.x - hideDirX * hideOffset;
+      const pz = best.pos.z - hideDirZ * hideOffset;
+
+      spawned.el.object3D.position.set(px, 0, pz);
+      spawned.currentRadius = Math.sqrt(px * px + pz * pz);
+      spawned.targetRadius = Math.max(0.48, spawned.currentRadius * 0.92);
+      spawned.angle = Math.atan2(pz, px);
+      spawned.hiding = true;
+      spawned.searchHidden = true;
+      spawned.hideProp = best;
+      spawned.hideOffset = { x: px - best.pos.x, z: pz - best.pos.z };
+    }
+
+    function revealHiddenBuddy(buddy, reason = 'scan'){
+      if(!buddy || !buddy.searchHidden) return;
+      buddy.searchHidden = false;
+      buddy.hiding = false;
+      buddy.hideProp = null;
+      buddy.hideOffset = null;
+      showSpawnIndicator(buddy.el.object3D.position.x, buddy.el.object3D.position.z);
+      if(reason === 'scan'){
+        notify(`📡 Scan hit. ${buddy.name} emerged from cover.`);
+      } else if(reason === 'nearby'){
+        notify(`👣 ${buddy.name} darted out from hiding.`);
+      }
+    }
+
+    function nearestHiddenBuddy(){
+      const liveCam = scene.camera;
+      if(!liveCam) return null;
+      const camPos = new THREE.Vector3();
+      liveCam.getWorldPosition(camPos);
+      let best = null;
+      let bestDist = Infinity;
+      for(const buddy of beings){
+        if(!buddy.searchHidden) continue;
+        const worldPos = cityAnchor.object3D.localToWorld(buddy.el.object3D.position.clone());
+        const dist = worldPos.distanceTo(camPos);
+        if(dist < bestDist){
+          best = buddy;
+          bestDist = dist;
+        }
+      }
+      return best;
+    }
+
+    function updateRadar(){
+      radarPanel.style.display = isExploringInAr() ? 'flex' : 'none';
+      if(!isExploringInAr()) return;
+      const target = nearestHiddenBuddy();
+      if(!target || !scene.camera){
+        radarDot.style.opacity = '0';
+        radarLabel.textContent = 'No hidden contacts';
+        return;
+      }
+
+      const cam = scene.camera;
+      const camPos = new THREE.Vector3();
+      cam.getWorldPosition(camPos);
+      cam.getWorldDirection(moveForward);
+      moveForward.y = 0;
+      if(moveForward.lengthSq() < 1e-6) moveForward.set(0, 0, -1);
+      moveForward.normalize();
+      moveRight.crossVectors(moveForward, moveUp).normalize();
+
+      const worldPos = cityAnchor.object3D.localToWorld(target.el.object3D.position.clone());
+      const rel = worldPos.sub(camPos);
+      const forwardAmt = rel.dot(moveForward);
+      const rightAmt = rel.dot(moveRight);
+      const range = 3.6;
+      const px = Math.max(-36, Math.min(36, (rightAmt / range) * 36));
+      const py = Math.max(-36, Math.min(36, (-forwardAmt / range) * 36));
+      radarDot.style.opacity = '1';
+      radarDot.style.transform = `translate(calc(-50% + ${px}px), calc(-50% + ${py}px))`;
+      radarLabel.textContent = `Signal ${Math.hypot(rel.x, rel.z).toFixed(1)}m away`;
+    }
+
+    function performRadarScan(){
+      if(!isExploringInAr()){
+        notify('Use Go Find before scanning for Sylvexians.');
+        return;
+      }
+      const now = performance.now();
+      if(now < scanCooldownUntil){
+        notify('Radar recharging...');
+        return;
+      }
+      scanCooldownUntil = now + 1800;
+      const target = nearestHiddenBuddy();
+      if(!target){
+        notify('📡 Scan clear. No hidden Sylvexians nearby.');
+        return;
+      }
+      showSpawnIndicator(target.el.object3D.position.x, target.el.object3D.position.z);
+      setTimeout(()=>revealHiddenBuddy(target, 'scan'), 380);
+    }
+
+    function revealNearbyHiddenBuddies(){
+      const viewer = getPlayerAnchorLocalPosition();
+      for(const buddy of beings){
+        if(!buddy.searchHidden) continue;
+        const dx = buddy.el.object3D.position.x - viewer.x;
+        const dz = buddy.el.object3D.position.z - viewer.z;
+        if(Math.hypot(dx, dz) < 0.85){
+          revealHiddenBuddy(buddy, 'nearby');
+        }
+      }
     }
 
     function placeSpawnedBeingNearViewer(spawned){
@@ -1379,8 +1569,8 @@
       const name = undiscovered[Math.floor(Math.random() * undiscovered.length)];
       const spawned = addBeing(name);
       if(spawned){
-        placeSpawnedBeingNearViewer(spawned);
-        notify(`✨ A Sylvexian appeared nearby: ${name}. Tap to pick up.`);
+        placeSpawnedBeingHidden(spawned);
+        notify(`🫥 Sensor contact detected: ${name} is hiding near cover. Use Scan or move closer.`);
       }
     }
 
@@ -1411,9 +1601,12 @@
         
         if(b.hiding && b.hideProp){
           const target = b.hideProp.pos;
+          const offset = b.hideOffset || { x: 0, z: 0 };
           const pos = b.el.object3D.position;
-          pos.x += (target.x - pos.x) * Math.min(1, dt*1.9);
-          pos.z += (target.z - pos.z) * Math.min(1, dt*1.9);
+          const targetX = target.x + offset.x;
+          const targetZ = target.z + offset.z;
+          pos.x += (targetX - pos.x) * Math.min(1, dt*1.9);
+          pos.z += (targetZ - pos.z) * Math.min(1, dt*1.9);
           b.el.object3D.lookAt(target.x*1.2, 1, target.z*1.2);
         } else {
           b.angle += b.speed*dt;
@@ -1733,6 +1926,8 @@
       if(cityAnchor.getAttribute('visible')){
         updateBeings(dt, t);
         updateMovement(dt);
+        revealNearbyHiddenBuddies();
+        updateRadar();
         hideTimer += dt;
         if(hideTimer > 7.5){ hideTimer = 0; chooseHideBehavior(); }
 
@@ -1826,6 +2021,7 @@
     ['pointerup','pointercancel','pointerleave'].forEach(evt=>joy.addEventListener(evt,(e)=>{ if(e.pointerId===startId){ active=false; startId=null; resetJoy(); } }));
 
     document.getElementById('enterArBtn').addEventListener('click', enterAr);
+    scanBtn.addEventListener('click', performRadarScan);
     menuToggleBtn.addEventListener('click', ()=>{
       const collapsed = uiTop.classList.toggle('menu-collapsed');
       menuToggleBtn.textContent = collapsed ? '☰ Menu' : '✕ Close';
@@ -1869,8 +2065,8 @@
       setTimeout(()=>{
         const newest = addBeing(newSylvexianName);
         if(newest){
-          placeSpawnedBeingNearViewer(newest);
-          notify(`✨ New Sylvexian emerged nearby: ${newest.name}. Tap to collect.`);
+          placeSpawnedBeingHidden(newest);
+          notify(`🫥 New Sylvexian contact detected: ${newest.name} is hiding nearby.`);
         }
       }, 300);
     });
