@@ -51,8 +51,11 @@
     #teamModal{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:101;display:none;overflow-y:auto;backdrop-filter:blur(4px)}
     #teamModal.active{display:flex;flex-direction:column}
     #teamHeader{padding:16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+    #teamControls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 16px 0}
+    #teamControls select{border:1px solid rgba(124,96,232,.5);background:rgba(13,20,36,.95);color:var(--ink);padding:7px 8px;border-radius:8px;font-size:12px;font-weight:600}
     #teamGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;padding:16px;flex:1}
-    .teamCard{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;gap:10px;align-items:flex-start}
+    .teamCard{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;gap:10px;align-items:flex-start;cursor:pointer;transition:.18s}
+    .teamCard:hover{border-color:var(--accent);background:rgba(124,96,232,.12)}
     .teamAvatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;border:1px solid rgba(127,168,207,.45);background:rgba(8,14,26,.75)}
     .teamMeta{display:flex;flex-direction:column;gap:3px;min-width:0}
     .teamName{font-size:13px;font-weight:700;color:var(--ink);word-break:break-word}
@@ -60,6 +63,7 @@
     .teamState{font-size:10px;font-weight:700}
     .teamState.hidden{color:#ffd166}
     .teamState.active{color:#70d2aa}
+    .teamHint{font-size:10px;color:var(--ink2);padding:0 16px 8px}
     .sylvexianCard{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px;text-align:center;cursor:pointer;transition:.2s;display:flex;flex-direction:column;gap:6px}
     .sylvexianCard:hover{border-color:var(--accent);background:rgba(124,96,232,.15)}
     .profileWrap{display:flex;justify-content:center;align-items:center;margin-bottom:2px}
@@ -124,6 +128,17 @@
       <h2 id="teamTitle" style="margin:0;font-size:18px">👥 Active Team</h2>
       <button id="closeTeamBtn" class="btn">Close</button>
     </div>
+    <div id="teamControls">
+      <select id="teamRoleFilter">
+        <option value="all">All Roles</option>
+      </select>
+      <select id="teamStateFilter">
+        <option value="all">All States</option>
+        <option value="active">At City</option>
+        <option value="hidden">Hidden Contact</option>
+      </select>
+    </div>
+    <div class="teamHint">Tap a team card to highlight that Sylvexian in the world or ping its hidden location.</div>
     <div id="teamGrid"></div>
   </div>
   <div id="introOverlay">
@@ -204,6 +219,8 @@
     const radarDot = document.getElementById('radarDot');
     const radarLabel = document.getElementById('radarLabel');
     const scanBtn = document.getElementById('scanBtn');
+    const teamRoleFilter = document.getElementById('teamRoleFilter');
+    const teamStateFilter = document.getElementById('teamStateFilter');
 
     const beings = [];
     const props = [];
@@ -227,6 +244,7 @@
     let goFindStartInProgress = false;
     let radarSpawnInterval = 30;
     let radarSpawnCountdown = 30;
+    let lastRadarContactName = null;
     const roomMapPoints = [];
     const mapSampleWorld = new THREE.Vector3();
     let roomMapInitialized = false;
@@ -1421,12 +1439,30 @@
       title.textContent = `👥 Active Team (${beings.length}/${MAX_ACTIVE_WORKERS})`;
       grid.innerHTML = '';
 
+      const roles = Array.from(new Set(beings.map((buddy)=>buddy.role))).sort();
+      const existingRole = teamRoleFilter.value;
+      teamRoleFilter.innerHTML = '<option value="all">All Roles</option>';
+      for(const role of roles){
+        const option = document.createElement('option');
+        option.value = role;
+        option.textContent = role;
+        teamRoleFilter.appendChild(option);
+      }
+      if(roles.includes(existingRole)) teamRoleFilter.value = existingRole;
+      else teamRoleFilter.value = 'all';
+
+      const roleFilter = teamRoleFilter.value;
+      const stateFilter = teamStateFilter.value;
+
       if(!beings.length){
         grid.innerHTML = '<div class="teamSub" style="grid-column:1/-1;font-size:12px">No active Sylvexians at the city yet.</div>';
         return;
       }
 
       for(const buddy of beings){
+        if(roleFilter !== 'all' && buddy.role !== roleFilter) continue;
+        if(stateFilter === 'active' && buddy.searchHidden) continue;
+        if(stateFilter === 'hidden' && !buddy.searchHidden) continue;
         const outfit = resolveClothingForSkin(buddy.skin);
         const state = buddy.searchHidden ? 'Hidden contact' : 'At city';
         const stateClass = buddy.searchHidden ? 'hidden' : 'active';
@@ -1441,8 +1477,36 @@
             <div class="teamState ${stateClass}">${state}</div>
           </div>
         `;
+        card.addEventListener('click', ()=>focusTeamBuddy(buddy));
         grid.appendChild(card);
       }
+
+      if(!grid.children.length){
+        grid.innerHTML = '<div class="teamSub" style="grid-column:1/-1;font-size:12px">No team members match the current filters.</div>';
+      }
+    }
+
+    function focusTeamBuddy(buddy){
+      if(!buddy || !buddy.el) return;
+      if(buddy.searchHidden){
+        showSpawnIndicator(buddy.el.object3D.position.x, buddy.el.object3D.position.z);
+        notify(`📍 Pinged hidden contact: ${buddy.name}. Use Scan or move closer.`);
+        showSpeech('Team Contact', `${buddy.name} is currently hidden in your mapped search area. Radar has been pinged to help you locate them.`);
+      } else {
+        const scale = buddy.el.object3D.scale;
+        const from = `${scale.x} ${scale.y} ${scale.z}`;
+        const to = `${scale.x * 1.18} ${scale.y * 1.18} ${scale.z * 1.18}`;
+        buddy.el.removeAttribute('animation__focuspulse');
+        buddy.el.setAttribute('animation__focuspulse', `property: scale; from: ${from}; to: ${to}; dur: 240; dir: alternate; loop: 3; easing: easeInOutSine`);
+        showSpawnIndicator(buddy.el.object3D.position.x, buddy.el.object3D.position.z);
+        notify(`📍 Highlighted ${buddy.name} at your city.`);
+        showSpeech('Team Member', `${buddy.name}\nRole: ${buddy.role}\nState: At city\nTap nearby to interact or keep exploring to add more.`);
+        setTimeout(()=>buddy.el.removeAttribute('animation__focuspulse'), 1500);
+      }
+    }
+
+    function hiddenContactCount(){
+      return beings.filter((buddy)=>buddy.searchHidden).length;
     }
 
     function nextUndiscoveredSylvexianName(){
@@ -1633,7 +1697,8 @@
       const contact = nearestRadarContact();
       if(!contact || !scene.camera){
         radarDot.style.opacity = '0';
-        radarLabel.textContent = 'No hidden contacts';
+        radarLabel.textContent = `No contacts • next sweep ${Math.max(1, Math.ceil(radarSpawnCountdown))}s`;
+        lastRadarContactName = null;
         return;
       }
       const target = contact.buddy;
@@ -1658,6 +1723,7 @@
       radarDot.style.transform = `translate(calc(-50% + ${px}px), calc(-50% + ${py}px))`;
       const dist = Math.hypot(rel.x, rel.z).toFixed(1);
       radarLabel.textContent = contact.hidden ? `Hidden signal ${dist}m away` : `Contact ${dist}m away`;
+      lastRadarContactName = target.name;
     }
 
     function performRadarScan(){
@@ -2115,6 +2181,10 @@
           arExplorationSpawnTimer += dt;
           radarSpawnCountdown -= dt;
 
+          if(hiddenContactCount() === 0 && beings.length < Math.min(5, MAX_ACTIVE_WORKERS)){
+            radarSpawnCountdown = Math.min(radarSpawnCountdown, 6);
+          }
+
           if(radarSpawnCountdown <= 0){
             radarSpawnCountdown = radarSpawnInterval;
             if(beings.length < Math.min(5, MAX_ACTIVE_WORKERS)){
@@ -2265,6 +2335,8 @@
     document.getElementById('closeTeamBtn').addEventListener('click', ()=>{
       document.getElementById('teamModal').classList.remove('active');
     });
+    teamRoleFilter.addEventListener('change', updateTeamUI);
+    teamStateFilter.addEventListener('change', updateTeamUI);
     document.getElementById('placeCityBtn').addEventListener('click', placeCityInFront);
     document.getElementById('relocateBaseBtn').addEventListener('click', relocateBaseToFront);
     document.getElementById('saveInstanceBtn').addEventListener('click', saveInstanceToFile);
