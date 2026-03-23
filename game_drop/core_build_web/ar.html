@@ -49,6 +49,10 @@
     #radarCenter{position:absolute;left:50%;top:50%;width:8px;height:8px;border-radius:50%;transform:translate(-50%,-50%);background:#b8d6ff;box-shadow:0 0 8px rgba(184,214,255,.7)}
     #radarDot{position:absolute;left:50%;top:50%;width:10px;height:10px;border-radius:50%;transform:translate(-50%,-50%);background:#ffd166;box-shadow:0 0 10px rgba(255,209,102,.95);opacity:0;transition:transform .12s linear, opacity .12s linear}
     #radarLabel{font-size:11px;color:var(--ink2);text-align:center;min-height:28px;line-height:1.25}
+    #scannerWarmWrap{display:none;flex-direction:column;gap:4px}
+    #scannerWarmTrack{height:6px;border-radius:999px;background:rgba(127,168,207,.2);overflow:hidden;border:1px solid rgba(127,168,207,.28)}
+    #scannerWarmBar{height:100%;width:0%;background:linear-gradient(90deg,#5ec4d4,#7c60e8);transition:width .16s linear}
+    #scannerWarmText{font-size:10px;color:var(--ink2);text-align:center}
     @keyframes radarspin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
     #collectionModal{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100;display:none;overflow-y:auto;backdrop-filter:blur(4px)}
     #collectionModal.active{display:flex;flex-direction:column}
@@ -181,6 +185,10 @@
       <div id="radarDot"></div>
     </div>
     <div id="radarLabel">No contacts</div>
+    <div id="scannerWarmWrap">
+      <div id="scannerWarmTrack"><div id="scannerWarmBar"></div></div>
+      <div id="scannerWarmText">Calibrating…</div>
+    </div>
   </div>
   <div id="hint">👥 Sylvexians - Tap collection to view all! 100 names × 6 personalities. 🏘 💫</div>
 
@@ -237,6 +245,9 @@
     const radarPanel = document.getElementById('radarPanel');
     const radarDot = document.getElementById('radarDot');
     const radarLabel = document.getElementById('radarLabel');
+    const scannerWarmWrap = document.getElementById('scannerWarmWrap');
+    const scannerWarmBar = document.getElementById('scannerWarmBar');
+    const scannerWarmText = document.getElementById('scannerWarmText');
     const scanBtn = document.getElementById('scanBtn');
     const enterArBtn = document.getElementById('enterArBtn');
     const playerCamera = document.querySelector('#playerRig a-camera');
@@ -830,7 +841,25 @@
       if(gameMode === 'home'){
         radarLabel.textContent = 'Scanner idle • tap Enter AR';
         if(scannerTutorialEl) scannerTutorialEl.style.display = 'none';
+        if(scannerWarmWrap) scannerWarmWrap.style.display = 'none';
       }
+    }
+
+    function renderScannerWarmup(){
+      if(!scannerWarmWrap || !scannerWarmBar || !scannerWarmText) return false;
+      const remaining = scannerWarmUntil - performance.now();
+      if(remaining <= 0){
+        scannerWarmWrap.style.display = 'none';
+        scannerWarmBar.style.width = '100%';
+        return false;
+      }
+      const total = 900;
+      const elapsed = Math.max(0, total - remaining);
+      const pct = Math.max(3, Math.min(100, (elapsed / total) * 100));
+      scannerWarmWrap.style.display = 'flex';
+      scannerWarmBar.style.width = `${pct.toFixed(0)}%`;
+      scannerWarmText.textContent = `Calibrating ${pct.toFixed(0)}%`;
+      return true;
     }
 
     function showScannerTutorialOnce(){
@@ -855,6 +884,7 @@
       gameMode = 'home';
       pendingScannerKick = false;
       scannerWarmUntil = 0;
+      if(scannerWarmWrap) scannerWarmWrap.style.display = 'none';
       if(scene.is('ar-mode') && scene.exitAR){
         await scene.exitAR().catch(()=>{});
       }
@@ -2023,6 +2053,11 @@
     function updateRadar(){
       radarPanel.style.display = isExploringInAr() ? 'flex' : 'none';
       if(!isExploringInAr()) return;
+      if(renderScannerWarmup()){
+        radarDot.style.opacity = '0';
+        radarLabel.textContent = 'Scanner warming up…';
+        return;
+      }
       const contact = nearestRadarContact();
       if(!contact || !scene.camera){
         radarDot.style.opacity = '0';
@@ -2066,7 +2101,8 @@
         return;
       }
       if(performance.now() < scannerWarmUntil){
-        notify('Scanner calibrating map… hold still for a moment.');
+        const pct = Math.max(3, Math.min(100, ((900 - (scannerWarmUntil - performance.now())) / 900) * 100));
+        notify(`Scanner calibrating map… ${pct.toFixed(0)}%`);
         return;
       }
       if(!isExploringInAr()){
