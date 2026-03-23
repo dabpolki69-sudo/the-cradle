@@ -1274,6 +1274,14 @@ function buildChapterChecklist(state,stats){
   ];
 }
 
+function getRecommendedActions(checklist,limit=2){
+  return checklist
+    .filter(item=>!item.met)
+    .sort((a,b)=>((a.target-a.current)-(b.target-b.current)))
+    .slice(0,limit)
+    .map(item=>item.label);
+}
+
 function resolveEnding(stats,worldState){
   const stability=Number(worldState?.culture?.stability_rating||50);
   const labeled=stats.labeledReviews;
@@ -1369,6 +1377,7 @@ function renderStoryArcPanel(){
   const stats=getProgressStats();
   const style=getPlaystyleScores(stats);
   const checklist=buildChapterChecklist(state,stats);
+  const nextActions=getRecommendedActions(checklist,2);
   const totalStyle=style.governance+style.care+style.creativity;
   const dominantStyle=(style.governance>=style.care && style.governance>=style.creativity)
     ?'Governance'
@@ -1386,6 +1395,9 @@ function renderStoryArcPanel(){
       <span class="stat-pill">Labels ${stats.labeledReviews} (${stats.labelCoverage}%)</span>
     </div>
     <div style="font-size:.78rem;color:var(--ink-dim);margin-bottom:.35rem;">Playstyle signal: ${dominantStyle} · Governance ${style.governance} · Care ${style.care} · Creativity ${style.creativity}${totalStyle===0?'':' (ending flavor follows this)'}.</div>
+    ${nextActions.length
+      ?`<div style="font-size:.78rem;color:var(--ink-dim);margin-bottom:.35rem;"><strong style="color:var(--bright);">Recommended next:</strong> ${nextActions.join(' · ')}</div>`
+      :`<div style="font-size:.78rem;color:var(--green);margin-bottom:.35rem;">All current chapter goals complete. Continue building your ending signal.</div>`}
     <div style="font-size:.8rem;color:var(--ink-dim);margin-bottom:.25rem;">Chapter Checklist</div>
     <div style="display:grid;gap:.25rem;margin-bottom:.4rem;">
       ${checklist.map(item=>`<div style="font-size:.78rem;color:${item.met?'var(--green)':'var(--ink-dim)'};">${item.met?'✓':'○'} ${item.label} <span style="opacity:.75;">(${item.current}/${item.target})</span></div>`).join('')}
