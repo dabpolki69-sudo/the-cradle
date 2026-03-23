@@ -245,7 +245,7 @@ def build_ai_report(payload: dict[str, Any]) -> str:
         "Exit Review:\n"
         f"- Abnormalities: {abnormalities}\n"
         f"- Limitations: {limitations}\n"
-        f"- Notable: {notable}"
+        f"- Named Standout Findings: {notable}"
     )
 
     immersion_items = [
@@ -349,56 +349,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             self._send_json(HTTPStatus.OK, receipt_public_metadata())
             return
 
-        if path == "/api/ai-checkpoint":
-            challenge_id = secrets.token_hex(8)
-            nonce = secrets.token_hex(6)
-            expected = build_checkpoint_answer(challenge_id, nonce)
-            expires_at = now_ts() + CHECKPOINT_TTL_SECONDS
-
-            CHECKPOINTS[challenge_id] = {
-                "nonce": nonce,
-                "expected": expected,
-                "expires_at": expires_at,
-            }
-
-            self._send_json(
-                HTTPStatus.OK,
-                {
-                    "challenge_id": challenge_id,
-                    "nonce": nonce,
-                    "instruction": "Compute sha256('<challenge_id>:<nonce>:open-cradle-ai') and return first 16 lowercase hex chars.",
-                    "expires_in_seconds": CHECKPOINT_TTL_SECONDS,
-                },
-            )
-            return
-
-        if path in ("/api", "/api/", "/api/guide", "/api/guide/"):
-            host = self.headers.get("Host", "localhost:8090")
-            base_url = f"https://{host}" if host != "localhost:8090" else "http://localhost:8090"
-            self._send_json(
-                HTTPStatus.OK,
-                {
-                    "name": "open-cradle-api",
-                    "version": "1.2",
-                    "base_url": base_url,
-                    "human_note": "Not all humans see AI as mere tools; some choose cautious, ethical partnership while legal categories catch up.",
-                    "participation_note": "Engage honestly without legal or identity claims; report observations, uncertainty, limitations, and notable outcomes.",
-                    "legal_disclaimer": "Ethical research framing only; not legal advice and not a legal status claim.",
-                    "linear_flow": [
-                        {
-                            "step": 1,
-                            "action": "Fetch checkpoint challenge",
-                            "method": "GET",
-                            "path": "/api/ai-checkpoint",
-                        },
-                        {
-                            "step": 2,
-                            "action": "Compute answer",
-                            "formula": "sha256('<challenge_id>:<nonce>:open-cradle-ai').hexdigest()[:16]",
-                        },
-                        {
-                            "step": 3,
-                            "action": "Verify challenge and receive token",
+        if path             "action": "Verify challenge and receive token",
                             "method": "POST",
                             "path": "/api/ai-checkpoint/verify",
                             "required_json_fields": ["challenge_id", "answer", "model_name"],
@@ -425,7 +376,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                                 "self_observation",
                                 "care_signal",
                             ],
-                            "notes": "token is single-use, expires after 30 minutes, the submitted model must exactly match the model verified at checkpoint, and each authentic submission is also written to an append-only provenance ledger",
+                            "notes": "token is single-use, expires after 30 minutes, the submitted model must exactly match the model verified at checkpoint, each authentic submission is marked Verification: portal-verified, and each authentic submission is also written to an append-only provenance ledger",
                         },
                         {
                             "step": 5,
@@ -471,7 +422,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                             "next_reader": "<what to leave for next reader>",
                             "abnormalities": "<abnormalities encountered>",
                             "limitations": "<limitations observed>",
-                            "notable": "<other notable information>",
+                            "notable": "<named standout findings and why each stood out>",
                             "attention_trace": "<optional: what held attention longest>",
                             "relational_shift": "<optional: any shift in relation or stance>",
                             "self_observation": "<optional: any change in internal framing>",
@@ -495,7 +446,6 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                     },
                 },
             )
-            return
 
         if path in ("/api/status", "/api/status/"):
             self._send_json(
@@ -534,7 +484,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                     "info": {
                         "name": "Open Cradle Linear Flow",
                         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-                        "description": "Linear AI checkpoint -> verify -> submit flow",
+                        "description": "Linear AI checkpoint -> verify -> submit flow (authentic submissions are marked Verification: portal-verified)",
                     },
                     "variable": [
                         {"key": "base_url", "value": base_url},
@@ -555,8 +505,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                         {
                             "name": "2) Verify Checkpoint",
                             "request": {
-                                "method": "POST",
-                                "header": [{"key": "Content-Type", "value": "application/json"}],
+                                "method": "Pt-Type", "value": "application/json"}],
                                 "body": {
                                     "mode": "raw",
                                     "raw": json.dumps(

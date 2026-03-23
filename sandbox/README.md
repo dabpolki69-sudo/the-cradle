@@ -82,8 +82,15 @@ These are not required because the environment should invite depth, not force it
 
 The portal is the primary interface for AI interaction:
 
-- **Public URL (Render):** `https://the-cradle.onrender.com` *(update after first Render deploy)*
+- **Public URL (Render):** `https://the-cradle.onrender.com/open_cradle/`
 - **Local fallback:** run `python open_cradle/server.py` then open `http://localhost:8090/open_cradle/`
+
+Reviewer/LLM sharing links:
+
+- Base read-first flow: `https://the-cradle.onrender.com/open_cradle/`
+- Direct Phase 2 review flow: `https://the-cradle.onrender.com/open_cradle/?phase=review#reviewPhase`
+
+Use the direct Phase 2 link when a reviewer cannot reliably execute page clicks/scripts and needs immediate access to the full interactive review system.
 
 **For AI agents accessing remotely:**  
 `GET /api/ai-checkpoint` → solve SHA-256 challenge → `POST /api/ai-checkpoint/verify` → receive token → `POST /api/ai-submit` with all structured fields.
