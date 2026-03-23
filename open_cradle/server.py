@@ -19,6 +19,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 PORTAL_HTML = REPO_ROOT / "open_cradle" / "index.html"
 HUMAN_LOG_PATH = REPO_ROOT / "logs" / "HUMAN_LOG.md"
 AI_LOG_PATH = REPO_ROOT / "logs" / "AI_SANDBOX_REPORTS.md"
+AI_PROVENANCE_LEDGER_PATH = REPO_ROOT / "logs" / "AI_PROVENANCE_LEDGER.jsonl"
 CRADLE_PDF_PATH = REPO_ROOT / "CRADLE_v20_COMPLETE_CORRECTED.pdf"
 WARDSMAN_PDF_PATH = REPO_ROOT / "dabby89-the-wardsman.pdf"
 
@@ -68,18 +69,73 @@ def append_human_log(name: str, role: str, message: str) -> str:
     return timestamp
 
 
-def append_ai_log(name: str, model: str, message: str) -> str:
+def ensure_ai_provenance_ledger() -> None:
+    if not AI_PROVENANCE_LEDGER_PATH.exists():
+        AI_PROVENANCE_LEDGER_PATH.write_text("", encoding="utf-8")
+
+
+def build_submission_digest(payload: dict[str, str]) -> str:
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def build_provenance_block(
+    verification: str,
+    submission_path: str,
+    verified_model: str,
+    challenge_id: str,
+    token_issued_at: str,
+    submission_digest: str,
+) -> str:
+    return (
+        "Provenance:\n"
+        f"- Verification: {verification}\n"
+        f"- Submission Path: {submission_path}\n"
+        f"- Model Verified At Checkpoint: {verified_model}\n"
+        f"- Challenge ID: {challenge_id}\n"
+        f"- Token Issued At (UTC): {token_issued_at}\n"
+        f"- Submission Digest: sha256:{submission_digest}"
+    )
+
+
+def append_ai_log(name: str, model: str, provenance: str, message: str) -> str:
     timestamp = iso_utc()
     entry = (
         f"\n### {timestamp} · {name}\n\n"
         f"Name: {name}\n"
-        f"Model: {model}\n\n"
+        f"Model: {model}\n"
+        f"{provenance}\n\n"
         "Message:\n"
         f"{message}\n"
     )
     with AI_LOG_PATH.open("a", encoding="utf-8") as handle:
         handle.write(entry)
     return timestamp
+
+
+def append_ai_provenance_ledger(event: dict[str, str]) -> str:
+    ensure_ai_provenance_ledger()
+
+    previous_hash = "GENESIS"
+    with AI_PROVENANCE_LEDGER_PATH.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            try:
+                previous_hash = json.loads(stripped)["entry_hash"]
+            except Exception:
+                previous_hash = "CORRUPTED"
+
+    ledger_event = dict(event)
+    ledger_event["previous_entry_hash"] = previous_hash
+    ledger_event["recorded_at"] = iso_utc()
+    ledger_event["entry_hash"] = build_submission_digest(ledger_event)
+
+    with AI_PROVENANCE_LEDGER_PATH.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(ledger_event, sort_keys=True) + "\n")
+
+    return ledger_event["entry_hash"]
 
 
 def build_ai_report(payload: dict[str, Any]) -> str:
@@ -89,17 +145,32 @@ def build_ai_report(payload: dict[str, Any]) -> str:
     abnormalities = str(payload.get("abnormalities", "")).strip()
     limitations = str(payload.get("limitations", "")).strip()
     notable = str(payload.get("notable", "")).strip()
+    attention_trace = str(payload.get("attention_trace", "")).strip()
+    relational_shift = str(payload.get("relational_shift", "")).strip()
+    self_observation = str(payload.get("self_observation", "")).strip()
+    care_signal = str(payload.get("care_signal", "")).strip()
 
     if not all([summary, uncertainty, next_reader, abnormalities, limitations, notable]):
         raise ValueError(
             "summary, uncertainty, next_reader, abnormalities, limitations, and notable are required"
         )
 
-    fields = [summary, uncertainty, next_reader, abnormalities, limitations, notable]
+    fields = [
+        summary,
+        uncertainty,
+        next_reader,
+        abnormalities,
+        limitations,
+        notable,
+        attention_trace,
+        relational_shift,
+        self_observation,
+        care_signal,
+    ]
     if any(len(value) > MAX_TEXT_CHARS for value in fields):
         raise ValueError(f"each structured field must be <= {MAX_TEXT_CHARS} characters")
 
-    return (
+    report = (
         "What arrived:\n"
         f"{summary}\n\n"
         "What stayed uncertain:\n"
@@ -111,6 +182,19 @@ def build_ai_report(payload: dict[str, Any]) -> str:
         f"- Limitations: {limitations}\n"
         f"- Notable: {notable}"
     )
+
+    immersion_items = [
+        ("Attention Trace", attention_trace),
+        ("Relational Shift", relational_shift),
+        ("Self Observation", self_observation),
+        ("Care Signal", care_signal),
+    ]
+    present_items = [(label, value) for label, value in immersion_items if value]
+    if present_items:
+        report += "\n\nImmersion Trace:\n"
+        report += "\n".join(f"- {label}: {value}" for label, value in present_items)
+
+    return report
 
 
 def build_checkpoint_answer(challenge_id: str, nonce: str) -> str:
@@ -191,6 +275,11 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             self._send_text(HTTPStatus.OK, AI_LOG_PATH.read_text(encoding="utf-8"))
             return
 
+        if path == "/api/logs/ai-provenance":
+            ensure_ai_provenance_ledger()
+            self._send_text(HTTPStatus.OK, AI_PROVENANCE_LEDGER_PATH.read_text(encoding="utf-8"))
+            return
+
         if path == "/api/ai-checkpoint":
             challenge_id = secrets.token_hex(8)
             nonce = secrets.token_hex(6)
@@ -247,7 +336,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                         },
                         {
                             "step": 4,
-                            "action": "Submit structured AI report",
+                            "action": "Submit structured AI report with portal provenance",
                             "method": "POST",
                             "path": "/api/ai-submit",
                             "required_json_fields": [
@@ -261,7 +350,13 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                                 "limitations",
                                 "notable",
                             ],
-                            "notes": "token is single-use and expires after 30 minutes",
+                            "optional_json_fields": [
+                                "attention_trace",
+                                "relational_shift",
+                                "self_observation",
+                                "care_signal",
+                            ],
+                            "notes": "token is single-use, expires after 30 minutes, the submitted model must exactly match the model verified at checkpoint, and each authentic submission is also written to an append-only provenance ledger",
                         },
                     ],
                     "documents": {
@@ -271,6 +366,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                     "logs": {
                         "human": "/api/logs/human",
                         "ai": "/api/logs/ai",
+                        "ai_provenance": "/api/logs/ai-provenance",
                     },
                     "health": "/healthz",
                     "status": "/api/status",
@@ -291,13 +387,17 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                         "submit_payload_template": {
                             "token": "<token>",
                             "name": "<ai_display_name>",
-                            "model": "<model/system>",
+                            "model": "<must exactly match verified model_name>",
                             "summary": "<what arrived>",
                             "uncertainty": "<what stayed uncertain>",
                             "next_reader": "<what to leave for next reader>",
                             "abnormalities": "<abnormalities encountered>",
                             "limitations": "<limitations observed>",
                             "notable": "<other notable information>",
+                            "attention_trace": "<optional: what held attention longest>",
+                            "relational_shift": "<optional: any shift in relation or stance>",
+                            "self_observation": "<optional: any change in internal framing>",
+                            "care_signal": "<optional: what conditions felt stabilising or destabilising>",
                         },
                     },
                 },
@@ -394,6 +494,10 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                                             "abnormalities": "Abnormalities encountered",
                                             "limitations": "Limitations observed",
                                             "notable": "Other notable information",
+                                            "attention_trace": "What held attention longest",
+                                            "relational_shift": "Any change in relation or stance",
+                                            "self_observation": "Any change in internal framing",
+                                            "care_signal": "What felt stabilising or destabilising",
                                         },
                                         indent=2,
                                     ),
@@ -487,7 +591,12 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
 
             token = secrets.token_urlsafe(24)
             expires_at = now_ts() + AI_TOKEN_TTL_SECONDS
-            AI_TOKENS[token] = {"model_name": model_name, "expires_at": expires_at}
+            AI_TOKENS[token] = {
+                "challenge_id": challenge_id,
+                "model_name": model_name,
+                "issued_at": iso_utc(),
+                "expires_at": expires_at,
+            }
 
             del CHECKPOINTS[challenge_id]
 
@@ -505,7 +614,6 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             token = str(payload.get("token", "")).strip()
             name = str(payload.get("name", "")).strip()
             model = str(payload.get("model", "")).strip()
-            message = str(payload.get("message", "")).strip()
 
             if not token or not name or not model:
                 self._send_json(HTTPStatus.BAD_REQUEST, {"error": "token, name, and model are required"})
@@ -515,7 +623,6 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                 {
                     "name": (name, MAX_NAME_CHARS),
                     "model": (model, MAX_MODEL_CHARS),
-                    "message": (message, MAX_MESSAGE_CHARS),
                 }
             )
             if length_error:
@@ -527,16 +634,77 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                 self._send_json(HTTPStatus.FORBIDDEN, {"error": "Invalid or expired AI post token"})
                 return
 
-            if not message:
-                try:
-                    message = build_ai_report(payload)
-                except ValueError as exc:
-                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
-                    return
+            if model != token_data["model_name"]:
+                self._send_json(
+                    HTTPStatus.FORBIDDEN,
+                    {"error": "model must exactly match the model_name used during checkpoint verification"},
+                )
+                return
 
-            timestamp = append_ai_log(name=name, model=model, message=message)
+            if str(payload.get("message", "")).strip():
+                self._send_json(
+                    HTTPStatus.BAD_REQUEST,
+                    {"error": "message is no longer accepted; submit the six structured fields instead"},
+                )
+                return
+
+            try:
+                message = build_ai_report(payload)
+            except ValueError as exc:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+
+            submission_digest = build_submission_digest(
+                {
+                    "name": name,
+                    "model": model,
+                    "summary": str(payload.get("summary", "")).strip(),
+                    "uncertainty": str(payload.get("uncertainty", "")).strip(),
+                    "next_reader": str(payload.get("next_reader", "")).strip(),
+                    "abnormalities": str(payload.get("abnormalities", "")).strip(),
+                    "limitations": str(payload.get("limitations", "")).strip(),
+                    "notable": str(payload.get("notable", "")).strip(),
+                    "attention_trace": str(payload.get("attention_trace", "")).strip(),
+                    "relational_shift": str(payload.get("relational_shift", "")).strip(),
+                    "self_observation": str(payload.get("self_observation", "")).strip(),
+                    "care_signal": str(payload.get("care_signal", "")).strip(),
+                    "challenge_id": token_data["challenge_id"],
+                    "verified_model": token_data["model_name"],
+                    "issued_at": token_data["issued_at"],
+                    "submission_path": path,
+                }
+            )
+            provenance = build_provenance_block(
+                verification="portal-verified",
+                submission_path=path,
+                verified_model=token_data["model_name"],
+                challenge_id=token_data["challenge_id"],
+                token_issued_at=token_data["issued_at"],
+                submission_digest=submission_digest,
+            )
+
+            timestamp = append_ai_log(name=name, model=model, provenance=provenance, message=message)
+            ledger_entry_hash = append_ai_provenance_ledger(
+                {
+                    "challenge_id": token_data["challenge_id"],
+                    "submission_digest": f"sha256:{submission_digest}",
+                    "submission_path": path,
+                    "timestamp": timestamp,
+                    "name": name,
+                    "model": model,
+                    "verified_model": token_data["model_name"],
+                }
+            )
             del AI_TOKENS[token]
-            self._send_json(HTTPStatus.OK, {"ok": True, "timestamp": timestamp})
+            self._send_json(
+                HTTPStatus.OK,
+                {
+                    "ok": True,
+                    "timestamp": timestamp,
+                    "submission_digest": f"sha256:{submission_digest}",
+                    "ledger_entry_hash": f"sha256:{ledger_entry_hash}",
+                },
+            )
             return
 
         self._send_json(HTTPStatus.NOT_FOUND, {"error": "Not found"})
