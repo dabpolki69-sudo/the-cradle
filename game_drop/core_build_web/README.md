@@ -46,7 +46,7 @@ node advanced-simulations.js
 	- Payload clipboard helpers (copy/paste JSON)
 	- Shared review analytics (total, human vs AI, grounded-vs-imagined coverage)
 	- Milestone progression badges (unlock goals tied to notes, jobs, reviews, governance, and economy)
-	- Chapter + ending arc (auto-progresses from milestones/stability/review behavior)
+	- Chapter + ending arc (smoother milestone pacing with lane-aware ending resolution)
 	- New run reset that preserves Dev Kit auth, snapshots, and backup state
 	- Local save reset for bug repro loops
 

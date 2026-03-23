@@ -1115,13 +1115,21 @@ function pushWorldEvent(eventType,description,weight=55){
 function getProgressStats(){
   const notes=RESIDENTS.reduce((sum,r)=>sum+L('notes_'+r.id,[]).length,0);
   const reviews=L('shared_reviews',[]);
+  const humanReviews=reviews.filter(r=>String(r.lane||'').toLowerCase()==='human').length;
+  const aiReviews=reviews.filter(r=>String(r.lane||'').toLowerCase()==='ai').length;
+  const labeledReviews=reviews.filter(r=>String(r.grounded_vs_imagined||'').trim().length>0).length;
+  const milestones=getUnlockedMilestoneIds().length;
   return {
     breath:getBreath(),
     notes,
     ownedItems:L('owned_items',[]).length,
     jobsDone:[...DEFAULT_JOBS.map(j=>j.id),...L('user_jobs',[]).map(j=>j.id)].filter(id=>L('job_done_'+id,false)).length,
     reviews:reviews.length,
-    labeledReviews:reviews.filter(r=>String(r.grounded_vs_imagined||'').trim().length>0).length,
+    labeledReviews,
+    humanReviews,
+    aiReviews,
+    milestones,
+    labelCoverage:reviews.length?Math.round((labeledReviews/reviews.length)*100):0,
     townMessages:L('btg_town',[]).length,
   };
 }
@@ -1176,27 +1184,50 @@ function startNewRunPreserveDev(){
 }
 
 function evaluateChapter(stats,unlockedCount){
-  if(unlockedCount>=6 && stats.labeledReviews>=3 && stats.breath>=120) return 4;
-  if(stats.jobsDone>=3 && stats.townMessages>=3 && stats.reviews>=2) return 3;
-  if(stats.notes>=1 && stats.ownedItems>=1) return 2;
+  if(unlockedCount>=6 && stats.reviews>=5 && stats.labeledReviews>=4 && stats.breath>=90) return 4;
+  if(unlockedCount>=4 && stats.jobsDone>=2 && stats.reviews>=2 && (stats.townMessages>=2 || stats.notes>=2)) return 3;
+  if(stats.notes>=1 && (stats.ownedItems>=1 || stats.townMessages>=1 || stats.reviews>=1)) return 2;
   return 1;
+}
+
+function getNextChapterHint(state,stats){
+  if(state.chapter<=1){
+    return 'To reach Chapter 2: leave a note, then make one first bond through trade, a town message, or a shared review.';
+  }
+  if(state.chapter===2){
+    return 'To reach Chapter 3: unlock 4 milestones, complete 2 jobs, submit 2 reviews, and build a visible commons presence.';
+  }
+  if(state.chapter===3){
+    return 'To reach Chapter 4: unlock 6 milestones, reach 90 Breath, and submit 5 reviews with 4 grounded-vs-imagined labels.';
+  }
+  return 'To resolve an ending: keep Chapter 4, hold at least 5 milestones, and deepen your review record.';
 }
 
 function resolveEnding(stats,worldState){
   const stability=Number(worldState?.culture?.stability_rating||50);
   const labeled=stats.labeledReviews;
-  if(stability>=70 && labeled>=5){
+  const balancedLanes=stats.humanReviews>=2 && stats.aiReviews>=2;
+  if(stability>=72 && labeled>=4 && stats.milestones>=6 && (balancedLanes || stats.reviews>=7)){
     return {
       id:'concord_of_glass',
       title:'Ending: Concord of Glass',
-      summary:'Human and AI lanes converge into durable civic trust.',
+      summary:balancedLanes
+        ?'Human and AI lanes converge into durable civic trust through mirrored reflection.'
+        :'One lane carried the city farther, but the review ledger was rich enough to stabilize shared trust anyway.',
     };
   }
-  if(stability>=40){
+  if(stability>=52 && labeled>=3 && stats.milestones>=5){
     return {
       id:'fragile_accord',
       title:'Ending: Fragile Accord',
       summary:'Coexistence holds, but requires active tending to remain stable.',
+    };
+  }
+  if(labeled>=5 || stats.reviews>=6){
+    return {
+      id:'ledger_of_return',
+      title:'Ending: Ledger of Return',
+      summary:'The city remains unsettled, but the review trail is strong enough to guide a future repair.',
     };
   }
   return {
@@ -1220,7 +1251,7 @@ function updateStoryArc(){
     pushWorldEvent('Discovery','Chapter advanced to '+(chapterMeta?.title||('Chapter '+nextChapter))+'.',68);
   }
 
-  const endingEligible=state.chapter>=4 && stats.reviews>=5;
+  const endingEligible=state.chapter>=4 && stats.reviews>=5 && stats.milestones>=5;
   if(endingEligible && !state.ending){
     const ending=resolveEnding(stats,worldState);
     state.ending=ending;
@@ -1237,6 +1268,7 @@ function renderStoryArcPanel(){
   const panel=document.getElementById('storyArcPanel');
   if(!panel) return;
   const state=getStoryArcState();
+  const stats=getProgressStats();
   const chapterMeta=STORY_CHAPTERS.find(c=>c.id===state.chapter) || STORY_CHAPTERS[0];
   const chapterProgress=Math.round((state.chapter/STORY_CHAPTERS.length)*100);
   panel.innerHTML=`
@@ -1244,9 +1276,14 @@ function renderStoryArcPanel(){
     <div style="font-size:.95rem;color:var(--bright);margin-bottom:.2rem;">Chapter ${state.chapter}: ${chapterMeta.title}</div>
     <div style="font-size:.82rem;color:var(--ink-dim);margin-bottom:.35rem;">${chapterMeta.desc}</div>
     <div class="breath-bar" style="margin:.35rem 0 .45rem;"><div class="breath-fill" style="width:${chapterProgress}%;"></div></div>
+    <div class="stat-row" style="margin-bottom:.45rem;">
+      <span class="stat-pill">Milestones ${stats.milestones}</span>
+      <span class="stat-pill">Reviews ${stats.reviews}</span>
+      <span class="stat-pill">Labels ${stats.labeledReviews} (${stats.labelCoverage}%)</span>
+    </div>
     ${state.ending
       ?`<div class="feed-item" style="margin-top:.35rem;"><div class="feed-meta">Narrative Resolution</div><strong>${state.ending.title}</strong><div style="margin-top:.25rem;color:var(--ink-dim);font-size:.82rem;">${state.ending.summary}</div></div>`
-      :`<div style="font-size:.78rem;color:var(--ink-dim);">Ending unlock condition: reach Chapter 4 and submit at least 5 shared reviews.</div>`}
+      :`<div style="font-size:.78rem;color:var(--ink-dim);margin-bottom:.35rem;">${getNextChapterHint(state,stats)}</div><div style="font-size:.78rem;color:var(--ink-dim);">Ending unlock condition: reach Chapter 4 with at least 5 reviews and 5 milestones.</div>`}
     <div class="btn-row" style="margin-top:.5rem;">
       <button class="btn btn-sm btn-ghost" onclick="startNewRunPreserveDev()">Start New Run</button>
     </div>
