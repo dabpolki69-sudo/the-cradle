@@ -43,6 +43,7 @@ node advanced-simulations.js
 	- Auto-backup restore for quick recovery after risky test actions
 	- Unreal payload import/export via `WorldStateAdapter`
 	- Payload clipboard helpers (copy/paste JSON)
+	- Shared review analytics (total, human vs AI, grounded-vs-imagined coverage)
 	- Local save reset for bug repro loops
 
 ## Why this is the baseline

@@ -722,6 +722,7 @@ textarea.input{resize:vertical;min-height:75px;}
         <button class="btn btn-sm btn-green" onclick="submitSharedReview()">Submit Shared Review</button>
       </div>
       <div class="status" id="reviewStatus"></div>
+      <div class="card-sm" id="reviewAnalytics" style="margin-top:.6rem;"></div>
       <div id="reviewFeed" class="feed" style="margin-top:.6rem;"></div>
     </div>
 
@@ -1564,10 +1565,30 @@ function submitSharedReview(){
   clearReviewForm();
   renderSharedReviews();
 }
+function renderReviewAnalytics(records){
+  const panel=document.getElementById('reviewAnalytics');
+  if(!panel) return;
+  const all=Array.isArray(records)?records:[];
+  const total=all.length;
+  const human=all.filter(r=>String(r.lane||'').toLowerCase()==='human').length;
+  const ai=all.filter(r=>String(r.lane||'').toLowerCase()==='ai').length;
+  const labeled=all.filter(r=>String(r.grounded_vs_imagined||'').trim().length>0).length;
+  const pct=total?Math.round((labeled/total)*100):0;
+  panel.innerHTML=`
+    <div class="eyebrow" style="margin-bottom:.4rem;">Review Analytics</div>
+    <div class="stat-row" style="margin-bottom:.4rem;">
+      <span class="stat-pill">Total ${total}</span>
+      <span class="stat-pill">Human ${human}</span>
+      <span class="stat-pill">AI ${ai}</span>
+      <span class="stat-pill">Grounded Label ${labeled} (${pct}%)</span>
+    </div>
+  `;
+}
 function renderSharedReviews(){
   const feed=document.getElementById('reviewFeed');
   if(!feed) return;
   const records=L('shared_reviews',[]);
+  renderReviewAnalytics(records);
   if(!records.length){
     feed.innerHTML='<div class="feed-item" style="font-style:italic;">No shared reviews yet.</div>';
     return;
