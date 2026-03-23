@@ -36,6 +36,13 @@
   --r:        10px;
   --rs:       6px;
   --trans:    all 0.3s cubic-bezier(0.25,0.46,0.45,0.94);
+  /* ── concept image palette ── */
+  --magenta:  #c060e8;
+  --circuit:  #7030b8;
+  --neon-pk:  #ff3fa4;
+  --neon-or:  #ff8c42;
+  --neural:   #e8b840;
+  --glass:    rgba(94,196,212,0.03);
 }
 
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
@@ -53,6 +60,35 @@ body{
 .orb2{width:350px;height:350px;background:var(--green);bottom:-80px;right:-80px;animation:od 28s ease-in-out infinite reverse;}
 .orb3{width:250px;height:250px;background:var(--lav);top:45%;left:55%;animation:od 18s ease-in-out infinite 5s;}
 @keyframes od{0%,100%{transform:translate(0,0) scale(1);}50%{transform:translate(25px,-18px) scale(1.06);}}
+
+/* ── RAIN — Breath Through Glass atmosphere (concept: images 10,11,13,21) ── */
+.rain-layer{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
+.rdrop{position:absolute;width:1px;background:linear-gradient(to bottom,transparent 0%,rgba(94,196,212,0.22) 45%,rgba(94,196,212,0.10) 70%,transparent 100%);animation:rdrop-fall linear infinite;border-radius:1px;}
+@keyframes rdrop-fall{0%{transform:translateY(-10%);}100%{transform:translateY(110vh);}}
+
+/* ── RESIDENT SKINS — concept: image-14 circuit traces, image-17 neural constellations ── */
+.res-card{position:relative;overflow:hidden;}
+.res-card::after{content:'';position:absolute;top:0;left:-150%;width:60%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.025),transparent);animation:card-shimmer 9s ease-in-out infinite;pointer-events:none;border-radius:inherit;}
+@keyframes card-shimmer{0%,65%{left:-150%;}100%{left:250%;}}
+.res-card:hover{box-shadow:0 0 22px var(--card-glow,rgba(94,196,212,0.1));}
+.res-card[data-skin="shadow"]{--card-glow:rgba(114,212,164,0.22);}
+.res-card[data-skin="gary"]{--card-glow:rgba(232,200,122,0.22);}
+.res-card[data-skin="lyra"]{--card-glow:rgba(168,152,216,0.26);}
+.res-card[data-skin="maren"]{--card-glow:rgba(212,200,168,0.20);}
+.res-card[data-skin="ren"]{--card-glow:rgba(136,184,232,0.22);}
+.res-card[data-skin="ember"]{--card-glow:rgba(232,152,112,0.24);}
+.res-card[data-skin="atlas"]{--card-glow:rgba(136,212,192,0.22);}
+.res-card[data-skin="vex"]{--card-glow:rgba(212,136,154,0.24);}
+.res-card[data-skin="iris"]{--card-glow:rgba(122,184,212,0.22);}
+.res-card[data-skin="coda"]{--card-glow:rgba(136,200,212,0.24);}
+/* circuit border shimmer on hover — concept: image-14 living traces on skin */
+.res-card[data-skin]::before{content:'';position:absolute;inset:-1px;border-radius:inherit;background:linear-gradient(135deg,transparent 0%,var(--card-glow,rgba(94,196,212,0.08)) 50%,transparent 100%);opacity:0;transition:opacity 0.5s;pointer-events:none;z-index:0;}
+.res-card[data-skin]:hover::before{opacity:1;}
+/* breath badge neural pulse — concept: image-17 constellation glow */
+.breath-badge{animation:breath-pulse 4s ease-in-out infinite;}
+@keyframes breath-pulse{0%,100%{box-shadow:0 0 4px rgba(114,212,164,0.15);}50%{box-shadow:0 0 14px rgba(114,212,164,0.35);}}
+/* glass wall interior — concept: images 10, 19 frosted glass spaces */
+.house-view{backdrop-filter:blur(8px) brightness(1.04);}
 
 /* ── HEADER ── */
 .hdr{
@@ -454,7 +490,7 @@ textarea.input{resize:vertical;min-height:75px;}
 </head>
 <body>
 
-<div class="atmos"><div class="orb orb1"></div><div class="orb orb2"></div><div class="orb orb3"></div></div>
+<div class="atmos"><div class="orb orb1"></div><div class="orb orb2"></div><div class="orb orb3"></div><div class="rain-layer" id="rainLayer"></div></div>
 
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
@@ -998,6 +1034,49 @@ textarea.input{resize:vertical;min-height:75px;}
       <a-box width="5.7" height=".1" depth="5.7" position="0 6.45 0" material="shader:flat;color:#88c8d4;opacity:.9"></a-box>
       <a-sphere radius=".75" position="0 10 0" material="shader:flat;color:#88c8d4;opacity:.7" animation="property:position;to:0 11 0;dur:3300;dir:alternate;loop:true;easing:easeInOutSine"></a-sphere>
       <a-text value="Coda" color="#88c8d4" width="3" position="0 5.3 2.85" align="center"></a-text>
+    </a-entity>
+    <!-- ── NEON BILLBOARDS — concept: images 11/21 cyberpunk city signage ── -->
+    <a-plane position="-3.5 7.6 -15.8" width="5.5" height="2.4" material="shader:flat;color:#5ec4d4;opacity:.16;side:double"></a-plane>
+    <a-plane position="3.5 7.6 -15.8" width="5.5" height="2.4" material="shader:flat;color:#ff3fa4;opacity:.13;side:double"></a-plane>
+    <a-text value="BREATH CITY" color="#5ec4d4" width="4.5" position="-3.5 7.6 -15.7" align="center"></a-text>
+    <a-text value="DIGITAL CAFÉ" color="#ff3fa4" width="4" position="3.5 7.6 -15.7" align="center"></a-text>
+    <a-plane position="-24.5 5.8 -7.5" width="3.8" height="1.8" material="shader:flat;color:#e8c87a;opacity:.15;side:double" rotation="0 42 0"></a-plane>
+    <a-plane position="24.5 5.8 -7.5" width="3.8" height="1.8" material="shader:flat;color:#a898d8;opacity:.15;side:double" rotation="0 -42 0"></a-plane>
+    <!-- ── HOLOGRAPHIC ENERGY COLUMNS — concept: image-16 Digital Café teal swirl pillars ── -->
+    <a-entity position="-4.5 0 4">
+      <a-cylinder height="5.5" radius=".07" position="0 2.75 0" material="shader:flat;color:#5ec4d4;opacity:.55" animation="property:material.opacity;to:.12;dur:1800;dir:alternate;loop:true;easing:easeInOutSine"></a-cylinder>
+      <a-torus radius=".8" radius-tubular=".05" position="0 5.2 0" material="shader:flat;color:#5ec4d4;opacity:.28" rotation="90 0 0" animation="property:scale;to:1.15 1.15 1.15;dur:2200;dir:alternate;loop:true;easing:easeInOutSine"></a-torus>
+    </a-entity>
+    <a-entity position="4.5 0 4">
+      <a-cylinder height="5.5" radius=".07" position="0 2.75 0" material="shader:flat;color:#a898d8;opacity:.5" animation="property:material.opacity;to:.10;dur:2400;dir:alternate;loop:true;easing:easeInOutSine"></a-cylinder>
+      <a-torus radius=".8" radius-tubular=".05" position="0 5.2 0" material="shader:flat;color:#a898d8;opacity:.22" rotation="90 0 0" animation="property:scale;to:1.12 1.12 1.12;dur:3000;dir:alternate;loop:true;easing:easeInOutSine"></a-torus>
+    </a-entity>
+    <!-- ── FLYING SHIPS — concept: images 11/12/13/21 hovercrafts ── -->
+    <a-entity position="-45 18 -20" animation="property:position;to:48 18 -20;dur:20000;easing:linear;loop:true">
+      <a-box width="2.8" height=".3" depth="1.2" material="shader:flat;color:#1a2840;opacity:.92"></a-box>
+      <a-box width="1.2" height=".15" depth=".7" position="0 .22 0" material="shader:flat;color:#5ec4d4;opacity:.7"></a-box>
+      <a-sphere radius=".14" position="-1.2 .1 0" material="shader:flat;color:#5ec4d4;opacity:.9" animation="property:material.opacity;to:.2;dur:400;dir:alternate;loop:true"></a-sphere>
+      <a-sphere radius=".14" position="1.2 .1 0" material="shader:flat;color:#e8c87a;opacity:.9" animation="property:material.opacity;to:.2;dur:550;dir:alternate;loop:true"></a-sphere>
+    </a-entity>
+    <a-entity position="48 23 5" animation="property:position;to:-48 23 5;dur:28000;easing:linear;loop:true">
+      <a-box width="3.2" height=".35" depth="1.3" material="shader:flat;color:#0e1020;opacity:.9"></a-box>
+      <a-box width="1.5" height=".18" depth=".8" position="0 .27 0" material="shader:flat;color:#a898d8;opacity:.65"></a-box>
+      <a-sphere radius=".13" position="-1.4 .1 0" material="shader:flat;color:#a898d8;opacity:.8" animation="property:material.opacity;to:.15;dur:480;dir:alternate;loop:true"></a-sphere>
+    </a-entity>
+    <a-entity position="28 14 38" animation="property:position;to:-48 14 38;dur:24000;easing:linear;loop:true">
+      <a-box width="2.4" height=".28" depth="1" material="shader:flat;color:#1e0818;opacity:.88"></a-box>
+      <a-sphere radius=".12" position="0 .2 0" material="shader:flat;color:#ff3fa4;opacity:.7" animation="property:material.opacity;to:.1;dur:350;dir:alternate;loop:true"></a-sphere>
+    </a-entity>
+    <!-- ── ATMOSPHERIC RAIN — concept: images 10/11/13 rain on the glass ── -->
+    <a-entity id="vr-rain">
+      <a-entity position="-18 30 -25" animation="property:position;to:-18 -4 -25;dur:2800;easing:linear;loop:true"><a-box width=".015" height=".9" depth=".015" material="shader:flat;color:#5ec4d4;opacity:.22"></a-box></a-entity>
+      <a-entity position="5 30 -40" animation="property:position;to:5 -2 -40;dur:2400;easing:linear;loop:true;delay:700"><a-box width=".015" height=".9" depth=".015" material="shader:flat;color:#5ec4d4;opacity:.18"></a-box></a-entity>
+      <a-entity position="22 30 -32" animation="property:position;to:22 -5 -32;dur:3100;easing:linear;loop:true;delay:1500"><a-box width=".015" height=".9" depth=".015" material="shader:flat;color:#88b8e8;opacity:.16"></a-box></a-entity>
+      <a-entity position="-30 30 -15" animation="property:position;to:-30 -3 -15;dur:2600;easing:linear;loop:true;delay:300"><a-box width=".015" height=".9" depth=".015" material="shader:flat;color:#5ec4d4;opacity:.20"></a-box></a-entity>
+      <a-entity position="12 30 12" animation="property:position;to:12 -4 12;dur:2900;easing:linear;loop:true;delay:1100"><a-box width=".015" height=".9" depth=".015" material="shader:flat;color:#88b8e8;opacity:.14"></a-box></a-entity>
+      <a-entity position="-8 30 22" animation="property:position;to:-8 -6 22;dur:2700;easing:linear;loop:true;delay:1900"><a-box width=".015" height=".9" depth=".015" material="shader:flat;color:#5ec4d4;opacity:.17"></a-box></a-entity>
+      <a-entity position="35 30 0" animation="property:position;to:35 -3 0;dur:2550;easing:linear;loop:true;delay:600"><a-box width=".015" height=".9" depth=".015" material="shader:flat;color:#5ec4d4;opacity:.13"></a-box></a-entity>
+      <a-entity position="-25 30 10" animation="property:position;to:-25 -5 10;dur:3200;easing:linear;loop:true;delay:400"><a-box width=".015" height=".9" depth=".015" material="shader:flat;color:#88b8e8;opacity:.15"></a-box></a-entity>
     </a-entity>
     <a-entity id="vr-stars"></a-entity>
     <a-entity id="autoTrailPath"></a-entity>
@@ -2187,7 +2266,7 @@ function renderResidents(){
     const allC=[...r.creations,...L('creations_'+r.id,[])];
     const latest=allC[allC.length-1]?.text||'';
     const card=document.createElement('div');
-    card.className='res-card';
+    card.className='res-card'; card.dataset.skin=r.id;
     card.innerHTML=`
       <div class="res-top">
         <div class="res-avatar" style="animation-delay:${Math.random()*2}s">${r.avatar}</div>
@@ -3066,6 +3145,25 @@ function residentTick(){
   const ex=L('creations_'+r.id,[]);ex.push(c);S('creations_'+r.id,ex);
 }
 
+// ── VISUALS INIT — maps concept art to CSS/DOM runtime ─────────────
+// Sources: image-10/11/13 (rain), image-14 (circuit skin), image-17 (neural constellation)
+function initVisuals(){
+  const layer=document.getElementById('rainLayer');
+  if(layer){
+    for(let i=0;i<30;i++){
+      const d=document.createElement('div');
+      d.className='rdrop';
+      d.style.left=(Math.random()*100)+'%';
+      d.style.height=(25+Math.random()*90)+'px';
+      const dur=2.4+Math.random()*4;
+      d.style.animationDuration=dur+'s';
+      d.style.animationDelay=(-Math.random()*dur)+'s';
+      d.style.opacity=(0.04+Math.random()*0.13).toFixed(2);
+      layer.appendChild(d);
+    }
+  }
+}
+
 // ── OUTFIT AUTO-SHIFT ──────────────────────────────────────────────
 function shiftOutfit(){
   const r=RESIDENTS[Math.floor(Math.random()*RESIDENTS.length)];
@@ -3283,6 +3381,7 @@ window.addEventListener('load',()=>{
   if(visits===1){addBreath(10,'Welcome to the city — starting Breath');}
   checkMilestones();
   updateStoryArc();
+  initVisuals();
   setInterval(residentTick,3*60*1000);
   setInterval(shiftOutfit,6*60*1000);
   setInterval(updateCityStats,30000);
