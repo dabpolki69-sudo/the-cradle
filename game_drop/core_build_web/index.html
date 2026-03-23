@@ -733,6 +733,14 @@ textarea.input{resize:vertical;min-height:75px;}
           <button class="btn btn-sm btn-gold" onclick="devInjectWorldEvent()">Inject World Event</button>
         </div>
 
+        <h3>VR Movement Preset</h3>
+        <p style="font-size:.8rem;color:var(--ink-dim);margin-bottom:.45rem;">Affects touch locomotion speed and feel. Takes effect immediately inside VR.</p>
+        <select class="input" id="devVrMovementPreset" style="margin-bottom:.45rem;min-height:unset;height:2.6rem;" onchange="setVrMovePreset(this.value)">
+          <option value="comfort">🌿 Comfort — slow &amp; smooth</option>
+          <option value="balanced">⚡ Balanced — default feel</option>
+          <option value="fast">🚀 Fast — quick &amp; responsive</option>
+        </select>
+
         <h3>Scenario Presets</h3>
         <select class="input" id="devScenarioPreset" style="margin-bottom:.45rem;min-height:unset;height:2.6rem;">
           <option value="">Choose a test scenario...</option>
@@ -1225,6 +1233,7 @@ const L=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d;}catch(e){retu
 
 // ── WORLD STATE ADAPTER HOOKS ──────────────────────────────────────
 const WORLD_STATE_KEY='btg_world_state_contract';
+const VR_MOVE_PRESET_KEY='btg_vr_move_preset';
 const DEVKIT_AUTH_KEY='btg_devkit_authed';
 const DEVKIT_HANDLE_KEY='btg_devkit_handle';
 const DEVKIT_DEFAULT_KEY='cradle-godmode';
@@ -1642,6 +1651,8 @@ function renderDevKit(){
     panel.style.display='block';
     devLoadWorldParams();
     renderDevSnapshotMeta();
+    const presetSel=document.getElementById('devVrMovementPreset');
+    if(presetSel) presetSel.value=localStorage.getItem(VR_MOVE_PRESET_KEY)||'balanced';
   } else {
     login.style.display='block';
     panel.style.display='none';
@@ -3151,13 +3162,28 @@ function resetVrInputState(){
   if(controls) controls.querySelectorAll('.vr-touch-btn').forEach(btn=>btn.classList.remove('active'));
 }
 
+const VR_MOVE_PRESETS={
+  comfort:{speed:2.8,  turnSpeed:0.9,  accel:5.5, decel:8.5},
+  balanced:{speed:4.25, turnSpeed:1.45, accel:8,   decel:11},
+  fast:    {speed:6.5,  turnSpeed:2.2,  accel:14,  decel:18},
+};
+function setVrMovePreset(preset){
+  if(!VR_MOVE_PRESETS[preset]) return;
+  localStorage.setItem(VR_MOVE_PRESET_KEY,preset);
+  resetVrInputState();
+  showToast('VR preset: '+preset);
+  const sel=document.getElementById('devVrMovementPreset');
+  if(sel) sel.value=preset;
+}
 function getVrComfortProfile(){
   const low=getVrQualityTier()==='low';
+  const saved=localStorage.getItem(VR_MOVE_PRESET_KEY)||'balanced';
+  const base=VR_MOVE_PRESETS[saved]||VR_MOVE_PRESETS.balanced;
   return {
-    speed:low?3.35:4.25,
-    turnSpeed:low?1.15:1.45,
-    accel:low?6.5:8,
-    decel:low?9.5:11,
+    speed:    low ? base.speed*0.8     : base.speed,
+    turnSpeed:low ? base.turnSpeed*0.8 : base.turnSpeed,
+    accel:    low ? base.accel*0.8     : base.accel,
+    decel:    low ? base.decel*0.9     : base.decel,
   };
 }
 
