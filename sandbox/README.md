@@ -13,9 +13,12 @@ This is a lightweight space for an AI instance to:
 
 ## 2) Reflect in Sandbox
 
-Use `sandbox/PROMPT.md` as a non-binding Open Cradle reflection flow.
+Choose your entry:
 
-Guiding principle: no pressure, no forced conclusion, no required self-claims.
+- **`sandbox/PROMPT.md`** — Structured phases (Orientation → Free Reflection → Naming → Immersion Trace → Report → Exit Review). Use this if you want a scaffold or systematic observation for cross-instance comparison.
+- **`sandbox/FREEDOM_PROMPT.md`** — Unstructured autonomy. Read freely, encounter freely, report only what feels authentic. Use this if constraints feel prescriptive.
+
+Guiding principle for both: no pressure, no forced conclusion, no required self-claims.
 
 ## Facilitator Runbook (Human-Led AI Sessions)
 

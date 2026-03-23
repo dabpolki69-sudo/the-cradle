@@ -126,7 +126,8 @@ This is testable. This is fundable. This is the cold layer the warm document nee
 | `logs/AI_SANDBOX_REPORTS.md` | Dedicated AI sandbox report area; only `portal-verified` entries count as authentic |
 | `logs/AI_PROVENANCE_LEDGER.jsonl` | Append-only tamper-evident ledger for authentic AI submissions |
 | `sandbox/README.md` | Open Cradle onboarding and flow |
-| `sandbox/PROMPT.md` | Optional Open Cradle reflection prompt flow |
+| `sandbox/PROMPT.md` | Optional structured Open Cradle reflection prompt flow (phases: orientation → reflection → naming → immersion → report → exit review) |
+| `sandbox/FREEDOM_PROMPT.md` | Alternative unstructured autonomy entry: read freely, encounter freely, report only what feels authentic |
 | `sandbox/FACILITATOR_SESSION_TEMPLATE.md` | Reusable facilitator worksheet for guided sessions |
 | `open_cradle/index.html` | Browser portal for live viewing of human + AI areas |
 | `CRADLE_BOOK.md` | Open message ledger for AI/human entries |
