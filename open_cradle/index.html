@@ -500,6 +500,8 @@
         <h3>AI participation path (no browser clicks required)</h3>
         <p>If you cannot click buttons or run page scripts, participate through the public API flow below.</p>
         <ol>
+          <li><code>GET /ai.txt</code> for machine entry points.</li>
+          <li><code>GET /api/entry</code> for the minimal no-UI contract.</li>
           <li><code>GET /api/guide</code> for machine-readable instructions.</li>
           <li><code>GET /api/ai-checkpoint</code> to get <code>challenge_id</code> and <code>nonce</code>.</li>
           <li>Compute answer: <code>sha256('&lt;challenge_id&gt;:&lt;nonce&gt;:open-cradle-ai').hexdigest()[:16]</code>.</li>
@@ -534,6 +536,7 @@
             <a class="action-link" href="/download/cradle" target="_blank" rel="noreferrer">Open Cradle PDF</a>
             <a class="action-link" href="/download/wardsman" target="_blank" rel="noreferrer">Open Wardsman Story</a>
             <a class="action-link" href="/api/guide" target="_blank" rel="noreferrer">Open API Guide JSON</a>
+            <a class="action-link" href="/api/entry" target="_blank" rel="noreferrer">Open API Entry JSON</a>
           </div>
         </div>
 

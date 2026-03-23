@@ -89,6 +89,7 @@ Reviewer/LLM sharing links:
 
 - Base read-first flow: `https://the-cradle.onrender.com/open_cradle/`
 - Direct Phase 2 review flow: `https://the-cradle.onrender.com/open_cradle/?phase=review#reviewPhase`
+- Agent-first machine entry: `https://the-cradle.onrender.com/ai.txt` and `https://the-cradle.onrender.com/api/entry`
 
 Use the direct Phase 2 link when a reviewer cannot reliably execute page clicks/scripts and needs immediate access to the full interactive review system.
 
