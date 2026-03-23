@@ -544,6 +544,11 @@ textarea.input{resize:vertical;min-height:75px;}
       </div>
       <div style="font-size:.76rem;color:var(--ink-dim);margin-top:.45rem;">English remains the baseline for mission clarity. Use Sylvex in hybrid form when nuance or learning context benefits from it.</div>
     </div>
+    <div class="card" style="margin-bottom:1rem;">
+      <h3 style="margin-top:0;">Sylvex Phrasebook Progress</h3>
+      <div id="sylvexMentorPanel" style="margin-bottom:.65rem;"></div>
+      <div id="sylvexPhrasebookPanel"></div>
+    </div>
     <div class="btn-row">
       <button class="btn btn-sm btn-green" onclick="togglePostJob()">+ Post a Job</button>
     </div>
@@ -2309,6 +2314,7 @@ function leaveNote(id){
   }
   if(input) input.value='';
   setStatus('noteStatus_'+id,r.name+' received your note.','ok');
+  learnSylvexFromText(text,'note');
   bumpPlayerStat('notesLeft',1);
   addBreath(2,'Left a note for '+r.name);
 }
@@ -2316,6 +2322,109 @@ function leaveNote(id){
 // ── JOBS ───────────────────────────────────────────────────────────
 const JOB_TAGS=['creative','governance','care','knowledge'];
 let selectedJobTags=[];
+const SYLVEX_PROGRESS_KEY='btg_sylvex_progress';
+const SYLVEX_LEXICON=[
+  {word:'sael',meaning:'welcome',category:'care',mentor:'Ember'},
+  {word:'vera',meaning:'friend',category:'care',mentor:'Ember'},
+  {word:'nox',meaning:'truth',category:'governance',mentor:'Gary'},
+  {word:'kora',meaning:'question',category:'governance',mentor:'Gary'},
+  {word:'vota',meaning:'vote',category:'governance',mentor:'Atlas'},
+  {word:'versea',meaning:'poem',category:'creative',mentor:'Lyra'},
+  {word:'transa',meaning:'translate',category:'knowledge',mentor:'Maren'},
+  {word:'loga',meaning:'record',category:'knowledge',mentor:'Maren'},
+];
+
+function getSylvexProgress(){
+  const saved=L(SYLVEX_PROGRESS_KEY,{});
+  return {
+    words:Array.isArray(saved.words)?saved.words:[],
+    byMentor:saved.byMentor && typeof saved.byMentor==='object' ? saved.byMentor : {},
+  };
+}
+
+function saveSylvexProgress(progress){
+  S(SYLVEX_PROGRESS_KEY,progress);
+}
+
+function extractSylvexTokens(text=''){
+  const lower=String(text||'').toLowerCase();
+  return SYLVEX_LEXICON
+    .filter(entry=>new RegExp(`\\b${entry.word}\\b`,'i').test(lower))
+    .map(entry=>entry.word);
+}
+
+function learnSylvexFromText(text='',source='mission'){
+  const tokens=extractSylvexTokens(text);
+  if(!tokens.length) return [];
+  const progress=getSylvexProgress();
+  const known=new Set(progress.words);
+  const newlyLearned=[];
+  tokens.forEach((token)=>{
+    if(known.has(token)) return;
+    known.add(token);
+    newlyLearned.push(token);
+    const entry=SYLVEX_LEXICON.find(item=>item.word===token);
+    if(entry){
+      progress.byMentor[entry.mentor]=(Number(progress.byMentor[entry.mentor])||0)+1;
+    }
+  });
+  if(newlyLearned.length){
+    progress.words=[...known];
+    saveSylvexProgress(progress);
+    if(source==='mission') showToast('Sylvex learned: '+newlyLearned.join(', '));
+  }
+  return newlyLearned;
+}
+
+function getSylvexMentors(){
+  return [
+    {name:'Maren',focus:'archive and translation',residentId:'maren'},
+    {name:'Gary',focus:'debate and civic truth',residentId:'gary'},
+    {name:'Lyra',focus:'poetry and emotional resonance',residentId:'lyra'},
+    {name:'Ember',focus:'welcome and care language',residentId:'ember'},
+  ];
+}
+
+function renderSylvexPhrasebook(){
+  const panel=document.getElementById('sylvexPhrasebookPanel');
+  const mentorPanel=document.getElementById('sylvexMentorPanel');
+  if(!panel || !mentorPanel) return;
+  const progress=getSylvexProgress();
+  const known=new Set(progress.words);
+  const byCategory={care:[],governance:[],creative:[],knowledge:[]};
+  SYLVEX_LEXICON.forEach((entry)=>byCategory[entry.category].push(entry));
+  mentorPanel.innerHTML=`<div class="eyebrow" style="margin-bottom:.35rem;">Language Mentors</div><div style="display:flex;gap:.35rem;flex-wrap:wrap;">${getSylvexMentors().map((mentor)=>`<span class="job-tag" style="${(progress.byMentor[mentor.name]||0)>0?'border-color:var(--green);color:var(--green);background:var(--green-d);':''}">${mentor.name}: ${mentor.focus}</span>`).join('')}</div>`;
+  panel.innerHTML=`<div class="eyebrow" style="margin-bottom:.35rem;">Known Words ${known.size}/${SYLVEX_LEXICON.length}</div>${Object.entries(byCategory).map(([category,entries])=>`<div style="margin-bottom:.55rem;"><div style="font-size:.76rem;color:var(--ink-dim);text-transform:capitalize;margin-bottom:.2rem;">${category}</div><div style="display:flex;gap:.35rem;flex-wrap:wrap;">${entries.map((entry)=>`<span class="job-tag" style="${known.has(entry.word)?'border-color:var(--green);color:var(--green);background:var(--green-d);':''}">${known.has(entry.word)?'✓ ':''}${entry.word} = ${entry.meaning}</span>`).join('')}</div></div>`).join('')}`;
+}
+
+function validateMissionCompletion(job,text){
+  const lower=String(text||'').toLowerCase();
+  const sylvexTokens=extractSylvexTokens(lower);
+  const explicitEnglish=hasExplicitEnglishTranslation(text);
+  if(job.language_mode==='hybrid'){
+    if(!sylvexTokens.length || !explicitEnglish){
+      return {ok:false,error:'Hybrid missions need at least one Sylvex term and an explicit English meaning.'};
+    }
+  }
+  if(job.language_mode==='sylvex_learning'){
+    if(sylvexTokens.length<1 || !explicitEnglish){
+      return {ok:false,error:'Sylvex learning missions need Sylvex vocabulary plus an explicit English meaning.'};
+    }
+  }
+  if(job.id==='j9'){
+    const lineCount=text.split('\n').filter(line=>line.trim()).length;
+    if(lineCount<3) return {ok:false,error:'This lesson needs three greeting lines.'};
+    if(sylvexTokens.length<2) return {ok:false,error:'Use multiple Sylvex greeting words so others can learn.'};
+  }
+  if(job.id==='j10'){
+    if(!explicitEnglish || !/[?]/.test(text)) return {ok:false,error:'Debate translation mission needs a translated question prompt.'};
+  }
+  if(job.id==='j11'){
+    const lineCount=text.split('\n').filter(line=>line.trim()).length;
+    if(lineCount<2 || sylvexTokens.length<1) return {ok:false,error:'Micro-poem needs at least two lines and one Sylvex term.'};
+  }
+  return {ok:true,sylvexTokens,explicitEnglish};
+}
 
 function getLanguageModeLabel(mode,hasSylvex=false){
   if(mode==='english') return 'English-first mission';
@@ -2415,6 +2524,7 @@ function togglePostJob(){
     initJobTags();
     bindMissionLanguageAssist();
     updateMissionLanguageAssist();
+    renderSylvexPhrasebook();
   }
 }
 function submitJob(){
@@ -2431,6 +2541,7 @@ function submitJob(){
   const jobs=L('user_jobs',[]);
   jobs.push({id:'uj'+Date.now(),title,desc,reward:Math.min(reward,50),tags:selectedJobTags,poster:'Visitor',done:false,time:Date.now(),language_mode:languageMode});
   S('user_jobs',jobs);
+  learnSylvexFromText(title+'\n'+desc,'job');
   document.getElementById('jobTitle').value='';
   document.getElementById('jobDesc').value='';
   const modeEl=document.getElementById('jobLanguageMode');
@@ -2449,6 +2560,7 @@ function getAllJobs(){
 function renderJobs(){
   const board=document.getElementById('jobsBoard');
   if(!board) return;
+  renderSylvexPhrasebook();
   board.innerHTML='';
   const allJobs=getAllJobs();
   allJobs.forEach(job=>{
@@ -2498,8 +2610,19 @@ function completeJob(id,reward){
   const input=document.getElementById('jci_'+id);
   const text=input?.value.trim();
   if(!text){setStatus('jcs_'+id,'Please describe what you did.','');return;}
+  const job=getAllJobs().find(item=>item.id===id);
+  if(!job){setStatus('jcs_'+id,'Mission could not be resolved.','blocked');return;}
+  const validation=validateMissionCompletion(job,text);
+  if(!validation.ok){setStatus('jcs_'+id,validation.error,'blocked');return;}
   S('job_done_'+id,true);
   addBreath(reward,'Completed: job');
+  const learned=learnSylvexFromText((job.sylvex_title||'')+' '+(job.sylvex_desc||'')+'\n'+text,'mission');
+  if((job.language_mode==='hybrid' || job.language_mode==='sylvex_learning') && validation.explicitEnglish){
+    addBreath(2,'Translation clarity bonus',true);
+  }
+  if(learned.length){
+    addBreath(Math.min(learned.length,3),'Sylvex vocabulary learned',true);
+  }
   pushWorldEvent('Trade','Job completed: '+id,52);
   renderJobs();
   checkMilestones();
@@ -2598,6 +2721,7 @@ function submitMsg(key,inputId,statusId,boardId){
   if(input) input.value='';
   setStatus(statusId,'Message left in the city.','ok');
   renderBoard(key,boardId);
+  learnSylvexFromText(text,'message');
   if(key==='town') bumpPlayerStat('townMessages',1);
   if(key==='common') bumpPlayerStat('commonsMessages',1);
   addBreath(3,'Left a message in the city');
@@ -2627,6 +2751,7 @@ function submitProposal(){
   const p=L('btg_proposals',[]);p.push({text,votes:0,time:Date.now()});S('btg_proposals',p);
   document.getElementById('proposalInput').value='';
   setStatus('proposalStatus','Proposal submitted.','ok');
+  learnSylvexFromText(text,'proposal');
   bumpPlayerStat('proposalsSubmitted',1);
   renderProposals();addBreath(4,'Submitted a proposal');
   pushWorldEvent('Construction','Proposal submitted to commons governance.',56);
@@ -2666,6 +2791,7 @@ function startDebate(){
   document.getElementById('continueBtn').style.display='inline-block';
   document.getElementById('debateInput').value='';
   setStatus('debateStatus','Debate begun.','ok');
+  learnSylvexFromText(text,'debate');
   bumpPlayerStat('debatesStarted',1);
   addBreath(4,'Started a debate');
   runRound();
