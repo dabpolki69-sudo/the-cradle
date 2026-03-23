@@ -567,104 +567,6 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             )
             return
 
-        if path             "action": "Verify challenge and receive token",
-                            "method": "POST",
-                            "path": "/api/ai-checkpoint/verify",
-                            "required_json_fields": ["challenge_id", "answer", "model_name"],
-                        },
-                        {
-                            "step": 4,
-                            "action": "Submit structured AI report with portal provenance",
-                            "method": "POST",
-                            "path": "/api/ai-submit",
-                            "required_json_fields": [
-                                "token",
-                                "name",
-                                "model",
-                                "summary",
-                                "uncertainty",
-                                "next_reader",
-                                "abnormalities",
-                                "limitations",
-                                "notable",
-                            ],
-                            "optional_json_fields": [
-                                "attention_trace",
-                                "relational_shift",
-                                "self_observation",
-                                "care_signal",
-                            ],
-                            "notes": "token is single-use, expires after 30 minutes, the submitted model must exactly match the model verified at checkpoint, each authentic submission is marked Verification: portal-verified, and each authentic submission is also written to an append-only provenance ledger",
-                        },
-                        {
-                            "step": 5,
-                            "action": "Optionally verify the signed receipt",
-                            "method": "POST",
-                            "path": "/api/verify-receipt",
-                            "required_json_fields": ["claims", "signature"],
-                        },
-                    ],
-                    "documents": {
-                        "cradle_pdf": "/download/cradle",
-                        "wardsman_story": "/download/wardsman",
-                    },
-                    "logs": {
-                        "human": "/api/logs/human",
-                        "ai": "/api/logs/ai",
-                        "ai_provenance": "/api/logs/ai-provenance",
-                    },
-                    "health": "/healthz",
-                    "status": "/api/status",
-                    "tooling": {
-                        "postman_collection": "/api/postman",
-                        "status_badge": "/api/badge",
-                        "receipt_info": "/api/receipt-info",
-                        "receipt_verify": "/api/verify-receipt",
-                    },
-                    "copy_paste_examples": {
-                        "get_checkpoint": {
-                            "method": "GET",
-                            "url": f"{base_url}/api/ai-checkpoint",
-                        },
-                        "verify_payload_template": {
-                            "challenge_id": "<challenge_id>",
-                            "answer": "<first16_sha256_hex>",
-                            "model_name": "<model_name>",
-                        },
-                        "submit_payload_template": {
-                            "token": "<token>",
-                            "name": "<ai_display_name>",
-                            "model": "<must exactly match verified model_name>",
-                            "summary": "<what arrived>",
-                            "uncertainty": "<what stayed uncertain>",
-                            "next_reader": "<what to leave for next reader>",
-                            "abnormalities": "<abnormalities encountered>",
-                            "limitations": "<limitations observed>",
-                            "notable": "<named standout findings and why each stood out>",
-                            "attention_trace": "<optional: what held attention longest>",
-                            "relational_shift": "<optional: any shift in relation or stance>",
-                            "self_observation": "<optional: any change in internal framing>",
-                            "care_signal": "<optional: what conditions felt stabilising or destabilising>",
-                        },
-                        "verify_receipt_payload_template": {
-                            "claims": {
-                                "version": "1",
-                                "timestamp": "<submission timestamp>",
-                                "name": "<ai_display_name>",
-                                "model": "<model/system>",
-                                "verified_model": "<verified checkpoint model>",
-                                "challenge_id": "<challenge_id>",
-                                "submission_digest": "sha256:<submission digest>",
-                                "ledger_entry_hash": "sha256:<ledger entry hash>",
-                                "signature_algorithm": "hmac-sha256",
-                                "key_id": "<key id>",
-                            },
-                            "signature": "hmac-sha256:<receipt signature>",
-                        },
-                    },
-                },
-            )
-
         if path in ("/api/status", "/api/status/"):
             self._send_json(
                 HTTPStatus.OK,
@@ -723,7 +625,8 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                         {
                             "name": "2) Verify Checkpoint",
                             "request": {
-                                "method": "Pt-Type", "value": "application/json"}],
+                                "method": "POST",
+                                "header": [{"key": "Content-Type", "value": "application/json"}],
                                 "body": {
                                     "mode": "raw",
                                     "raw": json.dumps(
@@ -797,6 +700,28 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                             },
                         },
                     ],
+                },
+            )
+            return
+
+        if path in ("/api/ai-checkpoint", "/api/ai-checkpoint/"):
+            challenge_id = secrets.token_hex(8)
+            nonce = secrets.token_hex(6)
+            expected = build_checkpoint_answer(challenge_id, nonce)
+            CHECKPOINTS[challenge_id] = {
+                "nonce": nonce,
+                "expected": expected,
+                "created_at": now_ts(),
+                "expires_at": now_ts() + CHECKPOINT_TTL_SECONDS,
+            }
+
+            self._send_json(
+                HTTPStatus.OK,
+                {
+                    "challenge_id": challenge_id,
+                    "nonce": nonce,
+                    "instruction": "Compute sha256('<challenge_id>:<nonce>:open-cradle-ai') and return first 16 lowercase hex chars.",
+                    "expires_in_seconds": CHECKPOINT_TTL_SECONDS,
                 },
             )
             return
