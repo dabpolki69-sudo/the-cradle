@@ -1302,6 +1302,8 @@
       const name = undiscovered[Math.floor(Math.random() * undiscovered.length)];
       const spawned = addBeing(name);
       if(spawned){
+        let markerX = spawned.el.object3D.position.x;
+        let markerZ = spawned.el.object3D.position.z;
         // Pin spawn to player's current AR position, not the city orbit radius
         const liveCam = scene.camera;
         if(liveCam && cityAnchor.getAttribute('visible')){
@@ -1315,9 +1317,30 @@
           spawned.currentRadius = Math.sqrt(px*px + pz*pz);
           spawned.targetRadius = Math.max(0.4, spawned.currentRadius * 0.85);
           spawned.angle = Math.atan2(pz, px);
+          markerX = px;
+          markerZ = pz;
         }
+        showSpawnIndicator(markerX, markerZ);
         notify(`✨ A Sylvexian appeared nearby: ${name}. Tap to pick up.`);
       }
+    }
+
+    function showSpawnIndicator(x, z){
+      const marker = document.createElement('a-entity');
+      marker.setAttribute('position', `${x} 0.06 ${z}`);
+      marker.innerHTML = `
+        <a-ring radius-inner="0.06" radius-outer="0.1" rotation="-90 0 0" material="shader:flat;color:#ffd166;opacity:0.92"
+          animation__grow="property: geometry.radiusOuter; from: 0.1; to: 0.65; dur: 900; easing: easeOutQuad"
+          animation__fade="property: material.opacity; from: 0.92; to: 0; dur: 920; easing: easeOutQuad"></a-ring>
+        <a-ring radius-inner="0.02" radius-outer="0.06" rotation="-90 0 0" material="shader:flat;color:#7c60e8;opacity:0.9"
+          animation__grow="property: geometry.radiusOuter; from: 0.06; to: 0.42; dur: 740; easing: easeOutQuad"
+          animation__fade="property: material.opacity; from: 0.9; to: 0; dur: 760; easing: easeOutQuad"></a-ring>
+        <a-text value="✦" width="0.8" align="center" color="#fff4cc" position="0 0.22 0"
+          animation="property: position; from: 0 0.05 0; to: 0 0.32 0; dur: 720; easing: easeOutCubic"
+          animation__fade="property: text.opacity; from: 1; to: 0; dur: 760; easing: easeOutQuad"></a-text>
+      `;
+      npcLayer.appendChild(marker);
+      setTimeout(()=>{ if(marker.parentNode) marker.parentNode.removeChild(marker); }, 980);
     }
 
     function updateBeings(dt, t){
@@ -1726,7 +1749,7 @@
       knob.style.left = `${dx + 40}px`;
       knob.style.top = `${dy + 40}px`;
       moveInput.x = dx/maxR;
-      moveInput.y = -dy/maxR;
+      moveInput.y = dy/maxR;
     });
     ['pointerup','pointercancel','pointerleave'].forEach(evt=>joy.addEventListener(evt,(e)=>{ if(e.pointerId===startId){ active=false; startId=null; resetJoy(); } }));
 
