@@ -1,0 +1,646 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>Breath through glass Game — AR Living Room Beta</title>
+  <style>
+    :root{--bg:#070b14;--card:rgba(10,16,30,.82);--line:rgba(127,168,207,.32);--ink:#d7e7f8;--ink2:#93b4cc;--accent:#7c60e8;--ok:#6de0b2}
+    *{box-sizing:border-box}
+    html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+    #uiTop{position:fixed;top:10px;left:10px;right:10px;z-index:50;display:flex;gap:8px;flex-wrap:wrap}
+    .btn{border:1px solid rgba(124,96,232,.5);background:linear-gradient(180deg,rgba(26,36,64,.95),rgba(13,20,36,.95));color:var(--ink);padding:9px 12px;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer}
+    .btn.primary{background:linear-gradient(135deg,#4f46e5,#7c3aed);border-color:transparent;color:#fff}
+    .btn.ok{border-color:rgba(109,224,178,.55)}
+    #status{position:fixed;top:58px;left:10px;right:10px;z-index:50;padding:8px 10px;background:var(--card);border:1px solid var(--line);border-radius:10px;color:var(--ink2);font-size:13px;backdrop-filter:blur(8px)}
+    #speech{position:fixed;bottom:96px;left:50%;transform:translateX(-50%);z-index:60;max-width:min(680px,92vw);padding:10px 14px;border-radius:12px;background:rgba(8,14,26,.92);border:1px solid rgba(124,96,232,.5);display:none}
+    #speech strong{display:block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#b6a8ff;margin-bottom:4px}
+    #joystickWrap{position:fixed;left:14px;bottom:14px;z-index:55;width:120px;height:120px;border-radius:999px;background:rgba(9,14,24,.55);border:1px solid rgba(127,168,207,.3);backdrop-filter:blur(8px);touch-action:none}
+    #joystickKnob{position:absolute;left:40px;top:40px;width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#b8d6ff,#4d74c9);box-shadow:0 0 16px rgba(93,141,255,.45);pointer-events:none}
+    #hint{position:fixed;right:12px;bottom:16px;z-index:55;max-width:46vw;padding:10px;border-radius:10px;background:rgba(8,14,26,.82);border:1px solid var(--line);font-size:12px;color:var(--ink2)}
+    a{color:#b7a9ff}
+    .hidden{display:none}
+    a-scene{position:fixed;inset:0;z-index:1}
+    @media (max-width:700px){#hint{max-width:56vw}}
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.4.2/aframe.min.js"></script>
+</head>
+<body>
+  <div id="uiTop">
+    <button id="enterArBtn" class="btn primary">Enter AR</button>
+    <button id="fullscreenBtn" class="btn">Fullscreen</button>
+    <button id="placeCityBtn" class="btn">Place City Here</button>
+    <button id="growBtn" class="btn ok">Grow City</button>
+    <a class="btn" href="/game/">Back to game</a>
+  </div>
+  <div id="status">Explore your living room city. Tap buildings, resources, and work sites. Assign buddies to harvest and build.</div>
+  <div id="speech"><strong id="speechName"></strong><span id="speechText"></span></div>
+
+  <div id="joystickWrap" aria-label="Movement joystick">
+    <div id="joystickKnob"></div>
+  </div>
+  <div id="hint">🏘 Buildings (tap to view). 📦 Resources scattered about. ⛏ Work sites for harvesting. 👥 Buddies with unique skills. Walk around and build your world!</div>
+
+  <a-scene id="scene" embedded xr-mode-ui="enabled:true" webxr="optionalFeatures: local-floor, dom-overlay; overlayElement: body" renderer="alpha:true; antialias:true; colorManagement:true" background="color: #050913">
+    <a-entity light="type:ambient;intensity:0.7;color:#c3d7ff"></a-entity>
+    <a-entity light="type:point;intensity:0.9;color:#7c60e8" position="0 5 0"></a-entity>
+
+    <a-entity id="cityAnchor" visible="false">
+      <a-circle rotation="-90 0 0" radius="1.2" position="0 0.01 0" material="shader:flat;color:#233347;opacity:0.7"></a-circle>
+      <a-ring rotation="-90 0 0" radius-inner="1.35" radius-outer="1.43" material="shader:flat;color:#5ec4d4;opacity:0.55"></a-ring>
+      <a-entity id="buildingLayer"></a-entity>
+      <a-entity id="resourceLayer"></a-entity>
+      <a-entity id="workSiteLayer"></a-entity>
+      <a-entity id="propLayer"></a-entity>
+      <a-entity id="npcLayer"></a-entity>
+      <a-entity id="advancementMarkerLayer"></a-entity>
+    </a-entity>
+
+    <a-entity id="playerRig" position="0 1.6 2.8">
+      <a-camera look-controls="pointerLockEnabled:false;touchEnabled:true">
+        <a-entity cursor="rayOrigin: mouse; fuse: false" raycaster="objects: .tap-target"></a-entity>
+      </a-camera>
+    </a-entity>
+  </a-scene>
+
+  <script>
+    const scene = document.getElementById('scene');
+    const cityAnchor = document.getElementById('cityAnchor');
+    const npcLayer = document.getElementById('npcLayer');
+    const propLayer = document.getElementById('propLayer');
+    const buildingLayer = document.getElementById('buildingLayer');
+    const resourceLayer = document.getElementById('resourceLayer');
+    const workSiteLayer = document.getElementById('workSiteLayer');
+    const advancementMarkerLayer = document.getElementById('advancementMarkerLayer');
+    const playerRig = document.getElementById('playerRig');
+    const statusEl = document.getElementById('status');
+    const speechBox = document.getElementById('speech');
+    const speechName = document.getElementById('speechName');
+    const speechText = document.getElementById('speechText');
+
+    const beings = [];
+    const props = [];
+    const buildings = [];
+    const resources = [];
+    const workSites = [];
+    const advancements = new Set();
+    let hideTimer = 0;
+    let lastTs = 0;
+    const moveInput = {x:0, y:0};
+
+    const lines = [
+      "You found me. I was testing if curiosity could be mapped.",
+      "I hide to learn your search pattern, not to avoid you.",
+      "Room by room, this city remembers where we met.",
+      "You can stop at discovery, or stay and build with us.",
+      "Doors and corners are where shy minds first appear."
+    ];
+
+    const RARITY_TABLE = [
+      { key: 'common', weight: 54 },
+      { key: 'uncommon', weight: 24 },
+      { key: 'rare', weight: 12 },
+      { key: 'epic', weight: 6 },
+      { key: 'legendary', weight: 3 },
+      { key: 'mythic', weight: 1 }
+    ];
+
+    const ROLE_ABILITIES = {
+      builder: { title: 'Builder', bonus: 'Build speed +20%', speedMul: 1.04, hideAffinity: 0.8 },
+      medic: { title: 'Medic', bonus: 'Heal aura +18%', speedMul: 0.98, hideAffinity: 0.95 },
+      engineer: { title: 'Engineer', bonus: 'Upgrade efficiency +22%', speedMul: 1.02, hideAffinity: 1.0 },
+      scavenger: { title: 'Scavenger', bonus: 'Loot find chance +25%', speedMul: 1.08, hideAffinity: 1.15 },
+      guardian: { title: 'Guardian', bonus: 'Structure durability +20%', speedMul: 0.96, hideAffinity: 0.7 },
+      farmer: { title: 'Grower', bonus: 'Supply growth +16%', speedMul: 1.0, hideAffinity: 1.0 },
+      artisan: { title: 'Artisan', bonus: 'Craft quality +19%', speedMul: 1.01, hideAffinity: 0.9 },
+      courier: { title: 'Courier', bonus: 'Delivery speed +24%', speedMul: 1.12, hideAffinity: 1.1 },
+      planner: { title: 'Planner', bonus: 'City layout bonus +17%', speedMul: 0.99, hideAffinity: 0.92 },
+      architect: { title: 'Architect', bonus: 'Major build unlock +1 tier', speedMul: 1.03, hideAffinity: 0.85 }
+    };
+
+    const ROLE_KEYS = Object.keys(ROLE_ABILITIES);
+
+    const NAME_A = ['Aster','Nova','Kairo','Lyric','Juno','Mira','Riven','Ember','Orin','Sable'];
+    const NAME_B = ['Vale','Rune','Quill','Hearth','Forge','Bloom','Pulse','Drift','Warden','Gleam'];
+
+    // ===== BUILDING SYSTEM =====
+    const BUILDING_TYPES = {
+      shelter: { name: 'Shelter', color: '#8b6f47', roofColor: '#5a4a2e', tiers: 3 },
+      house: { name: 'House', color: '#c89666', roofColor: '#a67c52', tiers: 4 },
+      workshop: { name: 'Workshop', color: '#7a7a7a', roofColor: '#4a4a4a', tiers: 3 },
+      tower: { name: 'Tower', color: '#6b8e9f', roofColor: '#4a6a7f', tiers: 5 },
+      market: { name: 'Market', color: '#d4a574', roofColor: '#a68449', tiers: 3 }
+    };
+
+    const MATERIALS = {
+      wood: { name: 'Wood', color: '#a67c52', icon: '▲', rarity: 'common' },
+      stone: { name: 'Stone', color: '#8a8a8a', icon: '■', rarity: 'common' },
+      metal: { name: 'Metal', color: '#d4af37', icon: '♦', rarity: 'uncommon' },
+      crystal: { name: 'Crystal', color: '#5c9dff', icon: '◆', rarity: 'rare' },
+      essence: { name: 'Essence', color: '#ff74c7', icon: '✦', rarity: 'epic' }
+    };
+
+    const ADVANCEMENTS = [
+      { id: 1, name: 'First Shelter', icon: '🏠', desc: 'Built a shelter' },
+      { id: 2, name: 'Settlement', icon: '🏘', desc: 'Built 5+ structures' },
+      { id: 3, name: 'Carpenter', icon: '🪵', desc: 'Harvested 100 wood' },
+      { id: 4, name: 'Stoneworker', icon: '⛏', desc: 'Harvested 100 stone' },
+      { id: 5, name: 'Architect', icon: '🏗', desc: 'Completed a tower' },
+      { id: 6, name: 'City Planner', icon: '⚜', desc: 'Built 20+ structures' },
+      { id: 7, name: 'Industrialist', icon: '⚙', desc: 'Unlocked advanced materials' }
+    ];
+
+    function buildingMarkup(buildType, tier){
+      const building = BUILDING_TYPES[buildType] || BUILDING_TYPES.shelter;
+      const h = 0.4 + tier * 0.3;
+      const w = 0.3 + tier * 0.15;
+      const d = 0.3 + tier * 0.15;
+      const windowGap = tier > 1 ? 0.15 : 0;
+      
+      let html = `
+        <a-box width="${w}" height="${h * 0.6}" depth="${d}" position="0 ${h*0.3} 0" material="color:${building.color};roughness:0.8"></a-box>
+        <a-box width="${w}" height="${h * 0.4}" depth="${d}" position="0 ${h*0.8} 0" material="color:${building.roofColor};roughness:0.9"></a-box>
+        <a-cone radius-bottom="${w/2 + 0.05}" radius-top="0.02" height="${h*0.35}" position="0 ${h*1.08} 0" material="color:${building.roofColor}"></a-cone>
+      `;
+      
+      if(tier >= 2){
+        html += `<a-box width="0.06" height="0.08" depth="0.02" position="${w/2-0.05} ${h*0.5} ${d/2+0.02}" material="color:#4da6ff;emissive:#2080ff;emissive-intensity:0.5"></a-box>`;
+        html += `<a-box width="0.06" height="0.08" depth="0.02" position="${-w/2+0.05} ${h*0.5} ${d/2+0.02}" material="color:#4da6ff;emissive:#2080ff;emissive-intensity:0.5"></a-box>`;
+      }
+      
+      if(tier >= 3){
+        html += `<a-box width="0.06" height="0.08" depth="0.02" position="${w/2-0.05} ${h*0.72} ${d/2+0.02}" material="color:#4da6ff;emissive:#2080ff;emissive-intensity:0.5"></a-box>`;
+        html += `<a-box width="0.06" height="0.08" depth="0.02" position="${-w/2+0.05} ${h*0.72} ${d/2+0.02}" material="color:#4da6ff;emissive:#2080ff;emissive-intensity:0.5"></a-box>`;
+      }
+      
+      if(tier >= 4){
+        html += `<a-cone radius-bottom="${w/4}" radius-top="0.01" height="${h*0.25}" position="0 ${h*1.25} 0" material="color:#ffd166;emissive:#ffa500"></a-cone>`;
+      }
+      
+      return html;
+    }
+
+    function resourcePileMarkup(material){
+      const mat = MATERIALS[material] || MATERIALS.wood;
+      const size = 0.12 + Math.random() * 0.08;
+      let html = '';
+      const count = 3 + Math.floor(Math.random() * 4);
+      for(let i = 0; i < count; i++){
+        const x = (Math.random() - 0.5) * 0.3;
+        const z = (Math.random() - 0.5) * 0.3;
+        const rot = Math.random() * 360;
+        if(material === 'wood'){
+          html += `<a-cylinder radius="${size*0.12}" height="${size*0.4}" position="${x} ${size*0.2} ${z}" rotation="0 0 ${rot*0.7}" material="color:${mat.color};roughness:0.9"></a-cylinder>`;
+        } else if(material === 'stone'){
+          html += `<a-box width="${size}" height="${size*0.8}" depth="${size}" position="${x} ${size*0.4} ${z}" rotation="${rot*0.3} ${rot*0.5} ${rot*0.2}" material="color:${mat.color};roughness:0.95"></a-box>`;
+        } else {
+          html += `<a-octahedron radius="${size*0.8}" position="${x} ${size*0.3} ${z}" material="color:${mat.color};metalness:0.8;roughness:0.4"></a-octahedron>`;
+        }
+      }
+      html += `<a-ring rotation="90 0 0" radius-inner="0.2" radius-outer="0.27" position="0 0.02 0" material="shader:flat;color:${mat.color};opacity:0.3"></a-ring>`;
+      return html;
+    }
+
+    function workSiteMarkup(siteType){
+      if(siteType === 'logging'){
+        return `
+          <a-cylinder radius="0.25" height="0.08" position="0 0.04 0" material="shader:flat;color:#4a3f2d;opacity:0.6"></a-cylinder>
+          <a-cylinder radius="0.08" height="1.2" position="-0.32 0.6 0" rotation="0 0 -22" material="color:#7a5e2e"></a-cylinder>
+          <a-cylinder radius="0.08" height="1.1" position="0.28 0.55 0.15" rotation="0 0 28" material="color:#6a4e1e"></a-cylinder>
+          <a-box width="0.35" height="0.12" depth="0.35" position="0 0.2 0" material="color:#8b6f47;roughness:0.95"></a-box>
+          <a-text value="LOGGING" width="1.5" color="#d4a574" align="center" position="0 0.9 0" scale="0.5 0.5 0.5" billboard></a-text>
+        `;
+      } else {
+        return `
+          <a-cylinder radius="0.28" height="0.15" position="0 0.075 0" material="shader:flat;color:#3a3a3a;opacity:0.5"></a-cylinder>
+          <a-cone radius-bottom="0.22" radius-top="0.18" height="0.4" position="0 0.25 0" material="color:#5a4a4a"></a-cone>
+          <a-box width="0.15" height="0.6" depth="0.08" position="-0.2 0.35 0" material="color:#505050"></a-box>
+          <a-box width="0.15" height="0.6" depth="0.08" position="0.2 0.35 0" material="color:#505050"></a-box>
+          <a-text value="MINE" width="1.2" color="#8a8a8a" align="center" position="0 1.0 0" scale="0.5 0.5 0.5" billboard></a-text>
+        `;
+      }
+    }
+
+    function getUpgradeTier(buildType, buildIndex){
+      return Math.min(5, 1 + Math.floor(buildIndex / 4));
+    }
+
+    function pickWeighted(items, weightKey = 'weight'){
+      const total = items.reduce((sum, item)=>sum + item[weightKey], 0);
+      let roll = Math.random() * total;
+      for(const item of items){
+        roll -= item[weightKey];
+        if(roll <= 0) return item;
+      }
+      return items[items.length - 1];
+    }
+
+    function rarityToBadge(rarity){
+      const badge = {
+        common: 'C',
+        uncommon: 'U',
+        rare: 'R',
+        epic: 'E',
+        legendary: 'L',
+        mythic: 'M'
+      };
+      return badge[rarity] || 'C';
+    }
+
+    function roleForIndex(index, rarity){
+      if(rarity === 'mythic' || rarity === 'legendary'){
+        const highTier = ['architect','engineer','planner','guardian'];
+        return highTier[index % highTier.length];
+      }
+      return ROLE_KEYS[index % ROLE_KEYS.length];
+    }
+
+    function createSkinCatalog(){
+      const list = [];
+      for(let index = 0; index < 100; index++){
+        const hue = (index * 31) % 360;
+        const accentHue = (hue + 72 + (index % 5) * 7) % 360;
+        const trimHue = (hue + 170 + (index % 4) * 5) % 360;
+        const rarity = pickWeighted(RARITY_TABLE, 'weight').key;
+        const role = roleForIndex(index, rarity);
+        const bodyHeight = 0.5 + (index % 4) * 0.04;
+        const armTilt = 12 + (index % 5) * 4;
+        const legHeight = 0.4 + (index % 3) * 0.05;
+        const crestType = index % 4;
+        const visorType = index % 3;
+        const displayName = `${NAME_A[index % NAME_A.length]} ${NAME_B[(index * 3) % NAME_B.length]} ${String(index + 1).padStart(3, '0')}`;
+        list.push({
+          id: index + 1,
+          displayName,
+          rarity,
+          role,
+          bodyColor: `hsl(${hue} 56% 52%)`,
+          accentColor: `hsl(${accentHue} 72% 64%)`,
+          trimColor: `hsl(${trimHue} 62% 68%)`,
+          headColor: `hsl(${(hue + 220) % 360} 34% 88%)`,
+          bodyHeight,
+          armTilt,
+          legHeight,
+          crestType,
+          visorType
+        });
+      }
+      return list;
+    }
+
+    const skinCatalog = createSkinCatalog();
+
+    function randomSkinRoll(){
+      const rarity = pickWeighted(RARITY_TABLE, 'weight').key;
+      const pool = skinCatalog.filter((skin)=>skin.rarity === rarity);
+      if(pool.length) return pool[Math.floor(Math.random() * pool.length)];
+      return skinCatalog[Math.floor(Math.random() * skinCatalog.length)];
+    }
+
+    function randomBeingName(){
+      const first = NAME_A[Math.floor(Math.random() * NAME_A.length)];
+      const second = NAME_B[Math.floor(Math.random() * NAME_B.length)];
+      return `${first} ${second}`;
+    }
+
+    function notify(msg){statusEl.textContent = msg;}
+
+    function showSpeech(name, text){
+      speechName.textContent = name;
+      speechText.textContent = text;
+      speechBox.style.display = 'block';
+      clearTimeout(showSpeech._t);
+      showSpeech._t = setTimeout(()=>speechBox.style.display='none', 4200);
+    }
+
+    function makeProp(kind, pos){
+      const root = document.createElement('a-entity');
+      root.object3D.position.set(pos.x, 0, pos.z);
+      if(kind === 'door'){
+        root.innerHTML = `<a-box width="0.8" height="1.9" depth="0.08" position="0 0.95 0" material="color:#3a4b66;metalness:0.2;roughness:0.7"></a-box>`;
+      }else if(kind === 'pillar'){
+        root.innerHTML = `<a-cylinder radius="0.18" height="1.9" position="0 0.95 0" material="color:#2e3c52;metalness:0.18"></a-cylinder>`;
+      }else{
+        root.innerHTML = `<a-box width="0.45" height="0.45" depth="0.45" position="0 0.23 0" material="color:#2a354a"></a-box>`;
+      }
+      propLayer.appendChild(root);
+      props.push({el:root, pos});
+    }
+
+    function createBuilding(buildType, pos, index){
+      const tier = getUpgradeTier(buildType, index);
+      const root = document.createElement('a-entity');
+      root.object3D.position.set(pos.x, 0, pos.z);
+      root.innerHTML = buildingMarkup(buildType, tier);
+      root.classList.add('tap-target');
+      root.addEventListener('click', ()=>{
+        const building = BUILDING_TYPES[buildType];
+        showSpeech(
+          `${building.name} (Tier ${tier})`,
+          `A well-crafted structure. Upgrade it by bringing resources with your buddies!`
+        );
+      });
+      buildingLayer.appendChild(root);
+      buildings.push({type: buildType, el: root, pos, tier, index});
+      return root;
+    }
+
+    function createResource(materialType, pos){
+      const root = document.createElement('a-entity');
+      root.object3D.position.set(pos.x, 0, pos.z);
+      root.innerHTML = resourcePileMarkup(materialType);
+      root.classList.add('tap-target');
+      const mat = MATERIALS[materialType];
+      root.addEventListener('click', ()=>{
+        showSpeech(
+          `${mat.name} Pile`,
+          `${mat.icon} A pile of ${mat.name.toLowerCase()}. Send your workers to gather it.`
+        );
+      });
+      resourceLayer.appendChild(root);
+      resources.push({type: materialType, el: root, pos});
+      return root;
+    }
+
+    function createWorkSite(siteType, pos){
+      const root = document.createElement('a-entity');
+      root.object3D.position.set(pos.x, 0, pos.z);
+      root.innerHTML = workSiteMarkup(siteType);
+      root.classList.add('tap-target');
+      root.addEventListener('click', ()=>{
+        const output = siteType === 'logging' ? 'Wood' : 'Stone';
+        showSpeech(
+          `${siteType.toUpperCase()} Site`,
+          `Active extraction site. Post your workers here to harvest ${output}.`
+        );
+      });
+      workSiteLayer.appendChild(root);
+      workSites.push({type: siteType, el: root, pos});
+      return root;
+    }
+
+    function unlockAdvancement(advancementId){
+      if(!advancements.has(advancementId)){
+        advancements.add(advancementId);
+        const adv = ADVANCEMENTS.find(a => a.id === advancementId);
+        if(adv){
+          const root = document.createElement('a-entity');
+          root.object3D.position.set(0, 1.5, 0);
+          root.innerHTML = `<a-text value="${adv.icon}" width="1" align="center" position="0 0 0" scale="1.5 1.5 1.5"></a-text>`;
+          advancementMarkerLayer.appendChild(root);
+          notify(`🎉 Achievement: ${adv.name}!`);
+          setTimeout(()=>advancementMarkerLayer.removeChild(root), 3000);
+        }
+      }
+    }
+
+    function humanoidMarkup(skin){
+      const rarityGlow = {
+        common: '#8aa6c8',
+        uncommon: '#70d2aa',
+        rare: '#5c9dff',
+        epic: '#9c6bff',
+        legendary: '#ffd166',
+        mythic: '#ff74c7'
+      };
+      const glow = rarityGlow[skin.rarity] || '#8aa6c8';
+      const crest = skin.crestType === 0
+        ? `<a-cone radius-bottom="0.08" radius-top="0.01" height="0.15" position="0 1.56 0" material="color:${skin.trimColor}"></a-cone>`
+        : skin.crestType === 1
+          ? `<a-torus radius="0.11" radius-tubular="0.02" position="0 1.48 0" rotation="90 0 0" material="color:${skin.trimColor}"></a-torus>`
+          : skin.crestType === 2
+            ? `<a-box width="0.18" height="0.04" depth="0.08" position="0 1.51 0" material="color:${skin.trimColor}"></a-box>`
+            : `<a-sphere radius="0.045" position="0 1.53 0" material="color:${skin.trimColor}"></a-sphere>`;
+      const visor = skin.visorType === 0
+        ? `<a-box width="0.14" height="0.03" depth="0.08" position="0 1.38 0.1" material="color:${skin.accentColor}"></a-box>`
+        : skin.visorType === 1
+          ? `<a-cylinder radius="0.05" height="0.03" position="0 1.38 0.1" rotation="90 0 0" material="color:${skin.accentColor}"></a-cylinder>`
+          : `<a-sphere radius="0.035" position="0 1.38 0.12" material="color:${skin.accentColor}"></a-sphere>`;
+      return `
+        <a-cylinder radius="0.13" height="${skin.bodyHeight}" position="0 1.02 0" material="color:${skin.bodyColor};metalness:0.2"></a-cylinder>
+        <a-sphere radius="0.14" position="0 1.38 0" material="color:${skin.headColor}"></a-sphere>
+        ${visor}
+        ${crest}
+        <a-cylinder radius="0.04" height="0.4" position="-0.17 1.02 0" rotation="0 0 ${skin.armTilt}" material="color:${skin.bodyColor}"></a-cylinder>
+        <a-cylinder radius="0.04" height="0.4" position="0.17 1.02 0" rotation="0 0 -${skin.armTilt}" material="color:${skin.bodyColor}"></a-cylinder>
+        <a-cylinder radius="0.05" height="${skin.legHeight}" position="-0.07 0.56 0" material="color:${skin.accentColor}"></a-cylinder>
+        <a-cylinder radius="0.05" height="${skin.legHeight}" position="0.07 0.56 0" material="color:${skin.accentColor}"></a-cylinder>
+        <a-ring rotation="90 0 0" radius-inner="0.18" radius-outer="0.22" position="0 1.1 0" material="shader:flat;color:${glow};opacity:0.45"></a-ring>
+        <a-text value="${rarityToBadge(skin.rarity)}" width="0.5" color="${skin.trimColor}" align="center" position="0 1.62 0" billboard></a-text>
+      `;
+    }
+
+    function addBeing(name){
+      const skin = randomSkinRoll();
+      const roleAbility = ROLE_ABILITIES[skin.role] || ROLE_ABILITIES.builder;
+      const root = document.createElement('a-entity');
+      const i = beings.length;
+      const radius = 1.8 + Math.random()*1.4;
+      const angle = (Math.PI*2*(i+1))/Math.max(4,i+2);
+      root.innerHTML = humanoidMarkup(skin);
+      root.classList.add('tap-target');
+      root.object3D.position.set(Math.cos(angle)*radius, 0, Math.sin(angle)*radius);
+      root.addEventListener('click', ()=>{
+        const line = lines[Math.floor(Math.random()*lines.length)];
+        showSpeech(
+          `${name} • ${roleAbility.title}`,
+          `${line} | Skin ${skin.id}/100 • ${skin.rarity.toUpperCase()} • ${roleAbility.bonus}`
+        );
+      });
+      npcLayer.appendChild(root);
+      beings.push({
+        name,
+        skin,
+        role: roleAbility.title,
+        roleBonus: roleAbility.bonus,
+        el: root,
+        radius,
+        angle,
+        speed: (0.2 + Math.random()*0.18) * roleAbility.speedMul,
+        bob: Math.random()*6,
+        hideAffinity: roleAbility.hideAffinity,
+        hiding: false,
+        hideProp: null
+      });
+    }
+
+    function seedCity(){
+      while(propLayer.firstChild) propLayer.removeChild(propLayer.firstChild);
+      while(npcLayer.firstChild) npcLayer.removeChild(npcLayer.firstChild);
+      while(buildingLayer.firstChild) buildingLayer.removeChild(buildingLayer.firstChild);
+      while(resourceLayer.firstChild) resourceLayer.removeChild(resourceLayer.firstChild);
+      while(workSiteLayer.firstChild) workSiteLayer.removeChild(workSiteLayer.firstChild);
+      props.length = 0;
+      beings.length = 0;
+      buildings.length = 0;
+      resources.length = 0;
+      workSites.length = 0;
+
+      // Structural props
+      makeProp('door', {x: 1.4, z: -1.1});
+      makeProp('pillar', {x: -1.7, z: 0.8});
+      makeProp('crate', {x: 0.9, z: 1.7});
+
+      // Buildings arranged in a settlement pattern
+      const buildTypes = ['shelter', 'house', 'workshop', 'market', 'tower'];
+      const buildPositions = [
+        {x: 0.3, z: -0.5}, {x: -0.4, z: -0.8}, {x: 0.6, z: 0.2},
+        {x: -0.6, z: 0.3}, {x: 0.1, z: 0.7}
+      ];
+      buildPositions.forEach((pos, i) => {
+        const buildType = buildTypes[i % buildTypes.length];
+        createBuilding(buildType, pos, i);
+      });
+
+      // Resource piles scattered around
+      const resourcePositions = [
+        {x: 1.0, z: 0.9, type: 'wood'},
+        {x: -0.9, z: 1.2, type: 'stone'},
+        {x: 1.1, z: -0.9, type: 'metal'},
+        {x: -1.2, z: -0.5, type: 'crystal'}
+      ];
+      resourcePositions.forEach(rpos => {
+        createResource(rpos.type, {x: rpos.x, z: rpos.z});
+      });
+
+      // Work sites
+      createWorkSite('logging', {x: 0.0, z: -1.4});
+      createWorkSite('mining', {x: -0.5, z: 1.5});
+
+      // NPCs with diverse roles
+      ['Shadow','Lyra','Maren','Ren','Ember'].forEach(addBeing);
+      
+      unlockAdvancement(1); // First Shelter
+      notify('🏘 City established! Buildings, resources, and work sites await.');
+    }
+
+    function chooseHideBehavior(){
+      if(!beings.length || !props.length) return;
+      const pickPool = beings.map((b)=>({ b, weight: Math.max(0.2, b.hideAffinity || 1) }));
+      const b = pickWeighted(pickPool, 'weight').b;
+      const p = props[Math.floor(Math.random()*props.length)];
+      b.hiding = true;
+      b.hideProp = p;
+      setTimeout(()=>{ b.hiding = false; b.hideProp = null; }, 5200);
+    }
+
+    function updateBeings(dt, t){
+      for(const b of beings){
+        if(b.hiding && b.hideProp){
+          const target = b.hideProp.pos;
+          const pos = b.el.object3D.position;
+          pos.x += (target.x - pos.x) * Math.min(1, dt*1.9);
+          pos.z += (target.z - pos.z) * Math.min(1, dt*1.9);
+          b.el.object3D.lookAt(target.x*1.2, 1, target.z*1.2);
+        } else {
+          b.angle += b.speed*dt;
+          b.el.object3D.position.x = Math.cos(b.angle)*b.radius;
+          b.el.object3D.position.z = Math.sin(b.angle)*b.radius;
+          b.el.object3D.rotation.y = -b.angle + Math.PI/2;
+        }
+        b.el.object3D.position.y = 0.02 + Math.sin(t*1.8 + b.bob) * 0.04;
+      }
+    }
+
+    function updateMovement(dt){
+      if(!moveInput.x && !moveInput.y) return;
+      const cam = scene.camera;
+      if(!cam) return;
+      const yaw = cam.rotation.y;
+      const fwdX = -Math.sin(yaw), fwdZ = -Math.cos(yaw);
+      const rightX = Math.cos(yaw), rightZ = -Math.sin(yaw);
+      const speed = 1.9;
+      const vx = (fwdX * moveInput.y + rightX * moveInput.x) * speed * dt;
+      const vz = (fwdZ * moveInput.y + rightZ * moveInput.x) * speed * dt;
+      const p = playerRig.object3D.position;
+      p.x += vx; p.z += vz;
+    }
+
+    function tick(ts){
+      const t = ts/1000;
+      const dt = Math.min(0.05, ((ts - (lastTs||ts))/1000));
+      lastTs = ts;
+
+      if(cityAnchor.getAttribute('visible')){
+        updateBeings(dt, t);
+        updateMovement(dt);
+        hideTimer += dt;
+        if(hideTimer > 7.5){ hideTimer = 0; chooseHideBehavior(); }
+      }
+      requestAnimationFrame(tick);
+    }
+
+    function placeCityInFront(){
+      const camObj = document.querySelector('#playerRig a-camera').object3D;
+      const worldPos = new THREE.Vector3();
+      const dir = new THREE.Vector3();
+      camObj.getWorldPosition(worldPos);
+      camObj.getWorldDirection(dir);
+      const place = worldPos.clone().add(dir.multiplyScalar(2.2));
+      place.y = Math.max(0, worldPos.y - 1.55);
+      cityAnchor.object3D.position.copy(place);
+      cityAnchor.setAttribute('visible', true);
+      seedCity();
+      notify('City placed. Walk around and tap beings to inspect rarity + skills.');
+    }
+
+    async function enterAr(){
+      try{
+        if(document.fullscreenEnabled && !document.fullscreenElement){
+          await document.documentElement.requestFullscreen().catch(()=>{});
+        }
+        if(scene.enterAR){
+          await scene.enterAR();
+          notify('AR mode active (if supported). Place city and explore.');
+        } else {
+          notify('AR not available in this browser. Using normal 3D mode.');
+        }
+      }catch(_){ notify('AR entry failed on this device/browser. Normal mode still works.'); }
+    }
+
+    async function enterFullscreen(){
+      if(document.fullscreenEnabled && !document.fullscreenElement){
+        await document.documentElement.requestFullscreen().catch(()=>{});
+      }
+    }
+
+    // joystick
+    const joy = document.getElementById('joystickWrap');
+    const knob = document.getElementById('joystickKnob');
+    let active = false, startId = null;
+    const center = {x:60,y:60};
+    const maxR = 34;
+
+    function resetJoy(){
+      moveInput.x = 0; moveInput.y = 0;
+      knob.style.left = '40px'; knob.style.top = '40px';
+    }
+
+    joy.addEventListener('pointerdown', (e)=>{ active=true; startId=e.pointerId; joy.setPointerCapture(startId); });
+    joy.addEventListener('pointermove', (e)=>{
+      if(!active || e.pointerId!==startId) return;
+      const r = joy.getBoundingClientRect();
+      let dx = e.clientX - r.left - center.x;
+      let dy = e.clientY - r.top - center.y;
+      const len = Math.hypot(dx,dy) || 1;
+      if(len > maxR){ dx = dx/len*maxR; dy = dy/len*maxR; }
+      knob.style.left = `${dx + 40}px`;
+      knob.style.top = `${dy + 40}px`;
+      moveInput.x = dx/maxR;
+      moveInput.y = -dy/maxR;
+    });
+    ['pointerup','pointercancel','pointerleave'].forEach(evt=>joy.addEventListener(evt,(e)=>{ if(e.pointerId===startId){ active=false; startId=null; resetJoy(); } }));
+
+    document.getElementById('enterArBtn').addEventListener('click', enterAr);
+    document.getElementById('fullscreenBtn').addEventListener('click', enterFullscreen);
+    document.getElementById('placeCityBtn').addEventListener('click', placeCityInFront);
+    document.getElementById('growBtn').addEventListener('click', ()=>{
+      addBeing(randomBeingName());
+      const newest = beings[beings.length - 1];
+      notify(`City grew. ${newest.name} joined as ${newest.role} (${newest.skin.rarity.toUpperCase()}).`);
+    });
+
+    requestAnimationFrame(tick);
+  </script>
+</body>
+</html>

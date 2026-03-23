@@ -436,6 +436,16 @@ textarea.input{resize:vertical;min-height:75px;}
   backdrop-filter:blur(12px);
 }
 .vr-float:hover{background:var(--teal-d);box-shadow:0 0 16px rgba(94,196,212,0.2);}
+.ar-float{
+  position:fixed;bottom:7.4rem;right:1rem;z-index:150;
+  font-family:'Space Mono',monospace;font-size:0.46rem;
+  letter-spacing:0.12em;text-transform:uppercase;
+  padding:0.5rem 0.9rem;border-radius:var(--rs);
+  background:rgba(5,9,15,0.95);border:1px solid rgba(124,96,232,0.42);
+  color:#cbb8ff;cursor:pointer;transition:var(--trans);
+  backdrop-filter:blur(12px);text-decoration:none;
+}
+.ar-float:hover{background:rgba(124,96,232,0.14);box-shadow:0 0 16px rgba(124,96,232,0.22);}
 
 /* ── VR MODE ── */
 #vrMode{display:none;position:fixed;inset:0;z-index:9000;}
@@ -525,6 +535,7 @@ textarea.input{resize:vertical;min-height:75px;}
 
 <!-- VR FLOAT BTN -->
 <button class="vr-float" onclick="toggleVR()">🥽 VR City</button>
+<a class="ar-float" href="/game/ar.html">📱 AR Living Room</a>
 
 <!-- ════════════════════════
      HEADER
