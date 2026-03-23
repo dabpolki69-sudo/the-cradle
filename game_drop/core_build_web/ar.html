@@ -50,6 +50,8 @@
     #collectionGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;padding:16px;flex:1}
     .sylvexianCard{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px;text-align:center;cursor:pointer;transition:.2s;display:flex;flex-direction:column;gap:6px}
     .sylvexianCard:hover{border-color:var(--accent);background:rgba(124,96,232,.15)}
+    .profileWrap{display:flex;justify-content:center;align-items:center;margin-bottom:2px}
+    .profilePic{width:46px;height:46px;border-radius:50%;border:1px solid rgba(127,168,207,.45);background:rgba(8,14,26,.75);box-shadow:0 0 12px rgba(92,157,255,.2)}
     .sylvexianCard .name{font-weight:700;font-size:13px;color:var(--ink);word-break:break-word}
     .sylvexianCard .translation{font-size:11px;color:var(--ink2);font-style:italic}
     .sylvexianCard .rarity{display:inline-block;font-size:10px;padding:2px 6px;border-radius:4px;margin-top:4px;background:rgba(124,96,232,.3);border:1px solid var(--accent)}
@@ -784,7 +786,7 @@
         const bodyHeight = 0.5 + (index % 4) * 0.04;
         const armTilt = 12 + (index % 5) * 4;
         const legHeight = 0.4 + (index % 3) * 0.05;
-        const scale = 0.085 + (index % 5) * 0.006;
+        const scale = 0.17 + (index % 5) * 0.012;
         const crestType = index % 4;
         const visorType = index % 3;
         const clothingId = ((index * 37) % CLOTHING_CATALOG.length) + 1;
@@ -1288,6 +1290,43 @@
       if(!grid) return;
       grid.innerHTML = '';
 
+      function profileImageDataUri(skin, personality, isUnknown = false){
+        const headColor = isUnknown ? '#9aa7b7' : (skin?.headColor || '#d7e7f8');
+        const visorColor = isUnknown ? '#72859a' : (skin?.accentColor || '#7c60e8');
+        const trimColor = isUnknown ? '#7f8ea1' : (skin?.trimColor || '#93b4cc');
+        const bgColor = isUnknown ? '#1f2b3b' : (skin?.bodyColor || '#2a3e5f');
+        const crestType = Number.isFinite(skin?.crestType) ? skin.crestType : 0;
+        const personalityMark = isUnknown ? '?' : (personality?.icon || '•');
+        const crest = crestType === 0
+          ? `<polygon points="32,8 27,16 37,16" fill="${trimColor}"/>`
+          : crestType === 1
+            ? `<circle cx="32" cy="12" r="4" fill="none" stroke="${trimColor}" stroke-width="2"/>`
+            : crestType === 2
+              ? `<rect x="26" y="9" width="12" height="6" rx="2" fill="${trimColor}"/>`
+              : `<circle cx="32" cy="12" r="3" fill="${trimColor}"/>`;
+
+        const svg = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+            <defs>
+              <radialGradient id="g" cx="50%" cy="38%" r="72%">
+                <stop offset="0%" stop-color="${bgColor}"/>
+                <stop offset="100%" stop-color="#0f1828"/>
+              </radialGradient>
+            </defs>
+            <rect width="64" height="64" rx="32" fill="url(#g)"/>
+            ${crest}
+            <circle cx="32" cy="35" r="14" fill="${headColor}"/>
+            <rect x="19" y="31" width="26" height="7" rx="3" fill="${visorColor}" opacity="0.95"/>
+            <circle cx="26" cy="34.5" r="1.7" fill="#e4f3ff"/>
+            <circle cx="38" cy="34.5" r="1.7" fill="#e4f3ff"/>
+            <rect x="23" y="43" width="18" height="5" rx="2" fill="${trimColor}" opacity="0.9"/>
+            <text x="32" y="58" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#dbe9f8">${personalityMark}</text>
+          </svg>
+        `;
+
+        return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+      }
+
       const rarityColor = {
         common:'#8aa6c8',
         uncommon:'#70d2aa',
@@ -1310,7 +1349,9 @@
             ? `${buddy.name} Prime`
             : `${buddy.personality.name} Variant`;
           const outfit = resolveClothingForSkin(buddy.skin);
+          const profileSrc = profileImageDataUri(buddy.skin, buddy.personality, false);
           card.innerHTML = `
+            <div class="profileWrap"><img class="profilePic" src="${profileSrc}" alt="${buddy.name} profile" /></div>
             <div class="roleIcon">${buddy.personality.icon}</div>
             <div class="name">${buddy.name}</div>
             <div class="translation">${translatedName}</div>
@@ -1329,7 +1370,9 @@
           });
         } else {
           card.style.opacity = '0.72';
+          const profileSrc = profileImageDataUri(null, null, true);
           card.innerHTML = `
+            <div class="profileWrap"><img class="profilePic" src="${profileSrc}" alt="Unknown Sylvexian profile" /></div>
             <div class="roleIcon">❔</div>
             <div class="name">Unknown Sylvexian</div>
             <div class="translation">${name}</div>
