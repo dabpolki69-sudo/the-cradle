@@ -2312,13 +2312,16 @@ function submitJob(){
   togglePostJob();
   renderJobs();
 }
+function getAllJobs(){
+  const defaultJobs=DEFAULT_JOBS.map(j=>({...j,done:L('job_done_'+j.id,false)}));
+  const userJobs=L('user_jobs',[]).map(j=>({...j,done:L('job_done_'+j.id,false)}));
+  return [...defaultJobs,...userJobs];
+}
 function renderJobs(){
   const board=document.getElementById('jobsBoard');
   if(!board) return;
   board.innerHTML='';
-  const defaultJobs=DEFAULT_JOBS.map(j=>({...j,done:L('job_done_'+j.id,false)}));
-  const userJobs=L('user_jobs',[]).map(j=>({...j,done:L('job_done_'+j.id,false)}));
-  const allJobs=[...defaultJobs,...userJobs];
+  const allJobs=getAllJobs();
   allJobs.forEach(job=>{
     const card=document.createElement('div');
     card.className='job-card';
@@ -2336,7 +2339,10 @@ function renderJobs(){
         ${job.done?'<span class="job-tag job-done">✓ Completed</span>':''}
       </div>
       ${!job.done?`
-        <button class="btn btn-sm btn-green" onclick="showCompleteJob('${job.id}',this)">Complete Job</button>
+        <div class="btn-row" style="margin-bottom:.4rem;">
+          <button class="btn btn-sm btn-ghost" onclick="startMissionTrail('${job.id}')">Auto Trail</button>
+          <button class="btn btn-sm btn-green" onclick="showCompleteJob('${job.id}',this)">Complete Job</button>
+        </div>
         <div class="job-complete-area" id="jca_${job.id}">
           <p style="font-size:.82rem;color:var(--ink-dim);margin-bottom:.5rem;">Describe what you did to complete this job:</p>
           <textarea class="input" id="jci_${job.id}" placeholder="What did you do?" style="min-height:55px;margin-bottom:.5rem;"></textarea>
@@ -2549,11 +2555,120 @@ function togglePhi(el){const b=el.querySelector('.phi-body');b.style.display=b.s
 
 // ── VR ─────────────────────────────────────────────────────────────
 let vrActive=false;
+let autoTrailState={active:false,timer:null,jobId:'',target:null,label:''};
+
+const MISSION_TRAIL_POINTS={
+  town_hall:{x:0,z:-20,label:'Town Hall'},
+  shadow:{x:-19,z:-13,label:'Shadow House'},
+  gary:{x:19,z:-13,label:'Gary House'},
+  lyra:{x:-25,z:2,label:'Lyra House'},
+  maren:{x:25,z:2,label:'Maren House'},
+  ren:{x:-17,z:15,label:'Ren House'},
+  ember:{x:0,z:22,label:'Ember House'},
+  atlas:{x:17,z:15,label:'Atlas House'},
+  vex:{x:-30,z:-3,label:'Vex House'},
+  iris:{x:30,z:-3,label:'Iris House'},
+  coda:{x:0,z:-36,label:'Coda House'},
+};
+
+function getPlayerPosition(){
+  const player=document.getElementById('player');
+  if(!player) return null;
+  const p=player.getAttribute('position');
+  if(!p) return null;
+  return {x:Number(p.x)||0,y:Number(p.y)||1.6,z:Number(p.z)||0};
+}
+
+function setPlayerPosition(pos){
+  const player=document.getElementById('player');
+  if(!player) return;
+  player.setAttribute('position',`${pos.x.toFixed(2)} ${pos.y.toFixed(2)} ${pos.z.toFixed(2)}`);
+}
+
+function stopAutoTrail(reason='stopped',quiet=false){
+  if(autoTrailState.timer){
+    clearInterval(autoTrailState.timer);
+    autoTrailState.timer=null;
+  }
+  const wasActive=autoTrailState.active;
+  autoTrailState.active=false;
+  autoTrailState.jobId='';
+  autoTrailState.target=null;
+  autoTrailState.label='';
+  if(!wasActive || quiet) return;
+  if(reason==='manual') showToast('Auto trail canceled by movement.');
+  else if(reason==='arrived') showToast('Auto trail arrived.');
+  else showToast('Auto trail stopped.');
+}
+
+function stepAutoTrail(){
+  if(!autoTrailState.active || !autoTrailState.target) return;
+  const current=getPlayerPosition();
+  if(!current) return stopAutoTrail('stopped',true);
+  const target=autoTrailState.target;
+  const dx=target.x-current.x;
+  const dz=target.z-current.z;
+  const dist=Math.sqrt(dx*dx+dz*dz);
+  if(dist<=1.4){
+    const label=autoTrailState.label;
+    stopAutoTrail('arrived');
+    vrB('Guide','Arrived near '+label+'.');
+    return;
+  }
+  const speed=0.3;
+  const nx=current.x+(dx/dist)*Math.min(speed,dist);
+  const nz=current.z+(dz/dist)*Math.min(speed,dist);
+  setPlayerPosition({x:nx,y:current.y,z:nz});
+}
+
+function getMissionTrailPoint(job){
+  if(!job) return MISSION_TRAIL_POINTS.town_hall;
+  const poster=String(job.poster||'').toLowerCase();
+  const tags=Array.isArray(job.tags)?job.tags:[];
+  if(MISSION_TRAIL_POINTS[poster]) return MISSION_TRAIL_POINTS[poster];
+  if(tags.includes('governance')) return MISSION_TRAIL_POINTS.town_hall;
+  if(tags.includes('care')) return MISSION_TRAIL_POINTS.ember;
+  if(tags.includes('creative')) return MISSION_TRAIL_POINTS.lyra;
+  if(tags.includes('knowledge')) return MISSION_TRAIL_POINTS.gary;
+  return MISSION_TRAIL_POINTS.town_hall;
+}
+
+function startMissionTrail(jobId){
+  const job=getAllJobs().find(j=>j.id===jobId);
+  if(!job || job.done) return;
+  if(!vrActive){
+    setStatus('postJobStatus','Auto trail requires VR mode. Open VR City first.','');
+    showToast('Open VR City to start mission trail.');
+    return;
+  }
+  const point=getMissionTrailPoint(job);
+  stopAutoTrail('stopped',true);
+  autoTrailState.active=true;
+  autoTrailState.jobId=job.id;
+  autoTrailState.target={x:point.x,z:point.z};
+  autoTrailState.label=point.label;
+  autoTrailState.timer=setInterval(stepAutoTrail,50);
+  showToast('Auto trail: '+job.title+' → '+point.label+'. Move to cancel.');
+}
+
+function bindAutoTrailMovementCancel(){
+  if(window.__autoTrailCancelBound) return;
+  window.__autoTrailCancelBound=true;
+  const movementKeys=new Set(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright']);
+  window.addEventListener('keydown',(e)=>{
+    if(autoTrailState.active && movementKeys.has(String(e.key||'').toLowerCase())) stopAutoTrail('manual');
+  });
+  window.addEventListener('mousemove',()=>{if(autoTrailState.active && vrActive) stopAutoTrail('manual');},{passive:true});
+  window.addEventListener('touchmove',()=>{if(autoTrailState.active) stopAutoTrail('manual');},{passive:true});
+  window.addEventListener('wheel',()=>{if(autoTrailState.active) stopAutoTrail('manual');},{passive:true});
+}
+
 function toggleVR(){
   vrActive=!vrActive;
   document.getElementById('vrMode').classList.toggle('active',vrActive);
   document.getElementById('cityMode') && (document.getElementById('cityMode').style.display=vrActive?'none':'block');
   document.querySelector('.vr-float').textContent=vrActive?'← Exit VR':'🥽 VR City';
+  if(!vrActive) stopAutoTrail('stopped',true);
   if(vrActive){
     buildVRStars();
     setTimeout(()=>vrB('Shadow','Welcome. The orbs are residents. Walk close and click to meet them.'),1500);
@@ -2808,6 +2923,7 @@ function renderInhabitants(){
 
 // ── STARTUP ────────────────────────────────────────────────────────
 window.addEventListener('load',()=>{
+  bindAutoTrailMovementCancel();
   ensureContractState();
   renderDevKit();
   const visits=L('visits',0)+1;S('visits',visits);

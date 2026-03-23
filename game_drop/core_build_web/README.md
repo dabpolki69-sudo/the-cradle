@@ -50,6 +50,7 @@ node advanced-simulations.js
 	- Live chapter requirement checklist with progress counters in Story Arc panel
 	- Breath reward pacing tuned to align chapter progression with civic/review actions
 	- Playstyle-weighted ending variants (governance, care, creativity)
+	- Mission Auto Trail in VR: tap a job to auto-walk toward relevant city landmarks; any manual movement cancels trail
 	- New run reset that preserves Dev Kit auth, snapshots, and backup state
 	- Local save reset for bug repro loops
 
