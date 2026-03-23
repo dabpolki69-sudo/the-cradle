@@ -436,11 +436,19 @@ textarea.input{resize:vertical;min-height:75px;}
 }
 .lane-choice-grid{display:grid;grid-template-columns:1fr;gap:0.7rem;margin-top:0.8rem;}
 
+#devPanel .btn-row .btn{flex:1 1 46%;}
+#devPanel .card-sm{background:rgba(0,0,0,0.14);}
+
 @media(min-width:600px){
   .market-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));}
   .wardrobe-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));}
   .page-wrap{padding:1.5rem 1.5rem 5.5rem;}
   .lane-choice-grid{grid-template-columns:1fr 1fr;}
+}
+
+@media(max-width:520px){
+  #devPanel .btn-row .btn{flex:1 1 100%;}
+  #devPanel .card-sm{padding:.55rem;}
 }
 </style>
 </head>
@@ -654,7 +662,10 @@ textarea.input{resize:vertical;min-height:75px;}
               <button class="btn btn-sm" onclick="devSaveSnapshot(1)">Save</button>
               <button class="btn btn-sm btn-green" onclick="devLoadSnapshot(1)">Load</button>
               <button class="btn btn-sm btn-ghost" onclick="devDeleteSnapshot(1)">Delete</button>
+              <button class="btn btn-sm btn-ghost" onclick="devExportSnapshotFile(1)">Export</button>
+              <button class="btn btn-sm btn-ghost" onclick="devImportSnapshotFilePrompt(1)">Import</button>
             </div>
+            <input type="file" id="devSnapshotFile1" accept="application/json" style="display:none;" onchange="devImportSnapshotFile(1,event)">
           </div>
         </div>
         <div class="card-sm" style="margin-bottom:.45rem;">
@@ -666,7 +677,10 @@ textarea.input{resize:vertical;min-height:75px;}
               <button class="btn btn-sm" onclick="devSaveSnapshot(2)">Save</button>
               <button class="btn btn-sm btn-green" onclick="devLoadSnapshot(2)">Load</button>
               <button class="btn btn-sm btn-ghost" onclick="devDeleteSnapshot(2)">Delete</button>
+              <button class="btn btn-sm btn-ghost" onclick="devExportSnapshotFile(2)">Export</button>
+              <button class="btn btn-sm btn-ghost" onclick="devImportSnapshotFilePrompt(2)">Import</button>
             </div>
+            <input type="file" id="devSnapshotFile2" accept="application/json" style="display:none;" onchange="devImportSnapshotFile(2,event)">
           </div>
         </div>
         <div class="card-sm" style="margin-bottom:.45rem;">
@@ -678,7 +692,10 @@ textarea.input{resize:vertical;min-height:75px;}
               <button class="btn btn-sm" onclick="devSaveSnapshot(3)">Save</button>
               <button class="btn btn-sm btn-green" onclick="devLoadSnapshot(3)">Load</button>
               <button class="btn btn-sm btn-ghost" onclick="devDeleteSnapshot(3)">Delete</button>
+              <button class="btn btn-sm btn-ghost" onclick="devExportSnapshotFile(3)">Export</button>
+              <button class="btn btn-sm btn-ghost" onclick="devImportSnapshotFilePrompt(3)">Import</button>
             </div>
+            <input type="file" id="devSnapshotFile3" accept="application/json" style="display:none;" onchange="devImportSnapshotFile(3,event)">
           </div>
         </div>
         <div class="btn-row">
@@ -696,6 +713,7 @@ textarea.input{resize:vertical;min-height:75px;}
 
         <h3>Hard Reset</h3>
         <div class="btn-row">
+          <button class="btn btn-sm btn-ghost" onclick="startNewRunPreserveDev()">New Run (Keep Dev Tools)</button>
           <button class="btn btn-sm" style="border-color:var(--danger);color:var(--danger);" onclick="devResetAllLocalData()">Reset Local Save</button>
         </div>
       </div>
@@ -1127,6 +1145,36 @@ function saveStoryArcState(state){
   S(STORY_ARC_KEY,state);
 }
 
+function getDevPreservedEntries(){
+  const keep={};
+  for(let i=0;i<localStorage.length;i++){
+    const key=localStorage.key(i);
+    if(!key) continue;
+    if(
+      key===DEVKIT_AUTH_KEY ||
+      key===DEVKIT_HANDLE_KEY ||
+      key===DEVKIT_AUTO_BACKUP_KEY ||
+      key.startsWith(DEVKIT_SNAPSHOT_PREFIX)
+    ){
+      keep[key]=localStorage.getItem(key);
+    }
+  }
+  return keep;
+}
+
+function startNewRunPreserveDev(){
+  const ok=window.confirm('Start a fresh run and clear gameplay progress while keeping Dev Kit tools and snapshots?');
+  if(!ok) return;
+  const keep=getDevPreservedEntries();
+  localStorage.clear();
+  Object.entries(keep).forEach(([key,val])=>{
+    if(val!==null) localStorage.setItem(key,val);
+  });
+  localStorage.setItem(DEVKIT_AUTH_KEY,JSON.stringify(true));
+  showToast('New run started. Dev tools preserved.');
+  setTimeout(()=>window.location.reload(),180);
+}
+
 function evaluateChapter(stats,unlockedCount){
   if(unlockedCount>=6 && stats.labeledReviews>=3 && stats.breath>=120) return 4;
   if(stats.jobsDone>=3 && stats.townMessages>=3 && stats.reviews>=2) return 3;
@@ -1199,6 +1247,9 @@ function renderStoryArcPanel(){
     ${state.ending
       ?`<div class="feed-item" style="margin-top:.35rem;"><div class="feed-meta">Narrative Resolution</div><strong>${state.ending.title}</strong><div style="margin-top:.25rem;color:var(--ink-dim);font-size:.82rem;">${state.ending.summary}</div></div>`
       :`<div style="font-size:.78rem;color:var(--ink-dim);">Ending unlock condition: reach Chapter 4 and submit at least 5 shared reviews.</div>`}
+    <div class="btn-row" style="margin-top:.5rem;">
+      <button class="btn btn-sm btn-ghost" onclick="startNewRunPreserveDev()">Start New Run</button>
+    </div>
   `;
 }
 
@@ -1394,6 +1445,64 @@ function devDeleteSnapshot(slot){
   if(input) input.value='';
   renderDevSnapshotMeta();
   devStatus('Deleted snapshot slot '+slot+'.','ok');
+}
+function devExportSnapshotFile(slot){
+  if(!isDevAuthed()) return devStatus('Unlock Dev Kit first.','blocked');
+  const snap=readSnapshot(slot);
+  if(!snap) return devStatus('Snapshot slot '+slot+' is empty.','blocked');
+  try{
+    const blob=new Blob([JSON.stringify(snap,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    const label=(snap.label||('slot'+slot)).toString().replace(/[^a-z0-9_-]+/gi,'_');
+    a.href=url;
+    a.download='btg_snapshot_slot'+slot+'_'+label+'.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    devStatus('Exported snapshot slot '+slot+'.','ok');
+  }catch(e){
+    devStatus('Failed to export snapshot file.','blocked');
+  }
+}
+function devImportSnapshotFilePrompt(slot){
+  if(!isDevAuthed()) return devStatus('Unlock Dev Kit first.','blocked');
+  const input=document.getElementById('devSnapshotFile'+slot);
+  if(input){
+    input.value='';
+    input.click();
+  }
+}
+function devImportSnapshotFile(slot,event){
+  if(!isDevAuthed()) return devStatus('Unlock Dev Kit first.','blocked');
+  const file=event?.target?.files?.[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const parsed=JSON.parse(String(reader.result||'{}'));
+      if(!parsed || typeof parsed!=='object' || !parsed.state || typeof parsed.state!=='object'){
+        return devStatus('Invalid snapshot file format.','blocked');
+      }
+      const normalized={
+        slot:Number(slot),
+        created_at:String(parsed.created_at||new Date().toISOString()),
+        handle:String(parsed.handle||L(DEVKIT_HANDLE_KEY,'dev')),
+        label:String(parsed.label||''),
+        state:parsed.state,
+      };
+      localStorage.setItem(getSnapshotKey(slot),JSON.stringify(normalized));
+      const labelInput=document.getElementById('devSnapshotLabel'+slot);
+      if(labelInput) labelInput.value=normalized.label;
+      renderDevSnapshotMeta();
+      devStatus('Imported snapshot into slot '+slot+'.','ok');
+    }catch(e){
+      devStatus('Could not parse snapshot JSON file.','blocked');
+    }
+  };
+  reader.onerror=()=>devStatus('Failed to read snapshot file.','blocked');
+  reader.readAsText(file);
 }
 function devRestoreAutoBackup(){
   if(!isDevAuthed()) return devStatus('Unlock Dev Kit first.','blocked');

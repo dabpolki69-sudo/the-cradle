@@ -40,12 +40,14 @@ node advanced-simulations.js
 	- Simulation triggers (resident tick, outfit shift, event injection)
 	- One-click scenario presets (economy collapse, food crisis, unstable culture, high-growth boom)
 	- Snapshot slots with labels (save/load/delete 3 full local-state snapshots)
+	- Snapshot file export/import per slot (portable JSON test states)
 	- Auto-backup restore for quick recovery after risky test actions
 	- Unreal payload import/export via `WorldStateAdapter`
 	- Payload clipboard helpers (copy/paste JSON)
 	- Shared review analytics (total, human vs AI, grounded-vs-imagined coverage)
 	- Milestone progression badges (unlock goals tied to notes, jobs, reviews, governance, and economy)
 	- Chapter + ending arc (auto-progresses from milestones/stability/review behavior)
+	- New run reset that preserves Dev Kit auth, snapshots, and backup state
 	- Local save reset for bug repro loops
 
 ## Why this is the baseline
