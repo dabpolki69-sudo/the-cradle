@@ -47,6 +47,9 @@ node advanced-simulations.js
 	- Shared review analytics (total, human vs AI, grounded-vs-imagined coverage)
 	- Milestone progression badges (unlock goals tied to notes, jobs, reviews, governance, and economy)
 	- Chapter + ending arc (smoother milestone pacing with lane-aware ending resolution)
+	- Live chapter requirement checklist with progress counters in Story Arc panel
+	- Breath reward pacing tuned to align chapter progression with civic/review actions
+	- Playstyle-weighted ending variants (governance, care, creativity)
 	- New run reset that preserves Dev Kit auth, snapshots, and backup state
 	- Local save reset for bug repro loops
 

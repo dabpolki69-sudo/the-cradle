@@ -1069,16 +1069,17 @@ const DEVKIT_SNAPSHOT_PREFIX='btg_devkit_snapshot_';
 const DEVKIT_AUTO_BACKUP_KEY='btg_devkit_auto_backup';
 const MILESTONE_KEY='btg_milestones';
 const STORY_ARC_KEY='btg_story_arc';
+const PLAYER_STATS_KEY='btg_player_stats';
 
 const MILESTONE_DEFS=[
-  {id:'first_note',title:'First Contact',desc:'Leave your first resident note.',reward:4,test:(stats)=>stats.notes>=1},
-  {id:'first_purchase',title:'First Trade',desc:'Buy your first item.',reward:4,test:(stats)=>stats.ownedItems>=1},
-  {id:'job_runner',title:'Job Runner',desc:'Complete 3 jobs.',reward:8,test:(stats)=>stats.jobsDone>=3},
-  {id:'reviewer',title:'Reflective Witness',desc:'Submit 3 shared reviews.',reward:10,test:(stats)=>stats.reviews>=3},
-  {id:'coexistence_labeler',title:'Grounded Mapper',desc:'Add grounded-vs-imagined labels to 3 reviews.',reward:12,test:(stats)=>stats.labeledReviews>=3},
-  {id:'market_regular',title:'Market Regular',desc:'Own 5 marketplace items.',reward:12,test:(stats)=>stats.ownedItems>=5},
-  {id:'voice_in_commons',title:'Commons Voice',desc:'Post 3 town messages.',reward:7,test:(stats)=>stats.townMessages>=3},
-  {id:'breath_keeper',title:'Breath Keeper',desc:'Reach 120 Breath.',reward:15,test:(stats)=>stats.breath>=120},
+  {id:'first_note',title:'First Contact',desc:'Leave your first resident note.',reward:5,test:(stats)=>stats.notes>=1},
+  {id:'first_purchase',title:'First Trade',desc:'Buy your first item.',reward:3,test:(stats)=>stats.ownedItems>=1},
+  {id:'job_runner',title:'Job Runner',desc:'Complete 3 jobs.',reward:6,test:(stats)=>stats.jobsDone>=3},
+  {id:'reviewer',title:'Reflective Witness',desc:'Submit 3 shared reviews.',reward:8,test:(stats)=>stats.reviews>=3},
+  {id:'coexistence_labeler',title:'Grounded Mapper',desc:'Add grounded-vs-imagined labels to 3 reviews.',reward:10,test:(stats)=>stats.labeledReviews>=3},
+  {id:'market_regular',title:'Market Regular',desc:'Own 5 marketplace items.',reward:6,test:(stats)=>stats.ownedItems>=5},
+  {id:'voice_in_commons',title:'Commons Voice',desc:'Post 3 town messages.',reward:8,test:(stats)=>stats.townMessages>=3},
+  {id:'breath_keeper',title:'Breath Keeper',desc:'Reach 90 Breath.',reward:12,test:(stats)=>stats.breath>=90},
 ];
 
 const STORY_CHAPTERS=[
@@ -1131,6 +1132,45 @@ function getProgressStats(){
     milestones,
     labelCoverage:reviews.length?Math.round((labeledReviews/reviews.length)*100):0,
     townMessages:L('btg_town',[]).length,
+  };
+}
+
+function readPlayerStats(){
+  const stats=L(PLAYER_STATS_KEY,{});
+  return {
+    notesLeft:Number(stats.notesLeft)||0,
+    proposalsSubmitted:Number(stats.proposalsSubmitted)||0,
+    proposalVotes:Number(stats.proposalVotes)||0,
+    debatesStarted:Number(stats.debatesStarted)||0,
+    residentRatings:Number(stats.residentRatings)||0,
+    creationRatings:Number(stats.creationRatings)||0,
+    townMessages:Number(stats.townMessages)||0,
+    commonsMessages:Number(stats.commonsMessages)||0,
+    reviewsSubmitted:Number(stats.reviewsSubmitted)||0,
+  };
+}
+
+function bumpPlayerStat(key,delta=1){
+  const stats=readPlayerStats();
+  stats[key]=(Number(stats[key])||0)+delta;
+  S(PLAYER_STATS_KEY,stats);
+}
+
+function getPlaystyleScores(stats=getProgressStats()){
+  const doneDefault=DEFAULT_JOBS.filter(j=>L('job_done_'+j.id,false));
+  const doneUser=L('user_jobs',[]).filter(j=>L('job_done_'+j.id,false));
+  const allDone=[...doneDefault,...doneUser];
+  const tagCount=(tag)=>allDone.reduce((sum,job)=>sum+((job.tags||[]).includes(tag)?1:0),0);
+  const p=readPlayerStats();
+
+  const governance=(tagCount('governance')*2)+(p.proposalsSubmitted*2)+(p.proposalVotes)+(p.debatesStarted)+(stats.humanReviews+stats.aiReviews>=4?1:0);
+  const care=(tagCount('care')*2)+Math.floor(p.notesLeft/2)+Math.floor((p.townMessages+p.commonsMessages)/2)+Math.floor(stats.labeledReviews/2);
+  const creativity=(tagCount('creative')*2)+Math.floor((p.debatesStarted+p.creationRatings+p.residentRatings)/2)+Math.floor(stats.notes/2)+Math.floor(stats.reviews/3);
+
+  return {
+    governance,
+    care,
+    creativity,
   };
 }
 
@@ -1203,10 +1243,45 @@ function getNextChapterHint(state,stats){
   return 'To resolve an ending: keep Chapter 4, hold at least 5 milestones, and deepen your review record.';
 }
 
+function buildChapterChecklist(state,stats){
+  const unlockedCount=getUnlockedMilestoneIds().length;
+  if(state.chapter<=1){
+    return [
+      {label:'Leave at least 1 resident note',met:stats.notes>=1,current:Math.min(stats.notes,1),target:1},
+      {label:'Create one first bond (item, town message, or review)',met:stats.ownedItems>=1 || stats.townMessages>=1 || stats.reviews>=1,current:(stats.ownedItems>=1 || stats.townMessages>=1 || stats.reviews>=1)?1:0,target:1},
+    ];
+  }
+  if(state.chapter===2){
+    return [
+      {label:'Unlock 4 milestones',met:unlockedCount>=4,current:Math.min(unlockedCount,4),target:4},
+      {label:'Complete 2 jobs',met:stats.jobsDone>=2,current:Math.min(stats.jobsDone,2),target:2},
+      {label:'Submit 2 shared reviews',met:stats.reviews>=2,current:Math.min(stats.reviews,2),target:2},
+      {label:'Build commons presence (2 town msgs or 2 notes)',met:stats.townMessages>=2 || stats.notes>=2,current:Math.min(Math.max(stats.townMessages,stats.notes),2),target:2},
+    ];
+  }
+  if(state.chapter===3){
+    return [
+      {label:'Unlock 6 milestones',met:unlockedCount>=6,current:Math.min(unlockedCount,6),target:6},
+      {label:'Reach 90 Breath',met:stats.breath>=90,current:Math.min(stats.breath,90),target:90},
+      {label:'Submit 5 shared reviews',met:stats.reviews>=5,current:Math.min(stats.reviews,5),target:5},
+      {label:'Add 4 grounded-vs-imagined labels',met:stats.labeledReviews>=4,current:Math.min(stats.labeledReviews,4),target:4},
+    ];
+  }
+  return [
+    {label:'Hold Chapter 4 and 5 milestones',met:state.chapter>=4 && unlockedCount>=5,current:Math.min(unlockedCount,5),target:5},
+    {label:'Submit 5+ shared reviews',met:stats.reviews>=5,current:Math.min(stats.reviews,5),target:5},
+    {label:'Deepen labels (3+)',met:stats.labeledReviews>=3,current:Math.min(stats.labeledReviews,3),target:3},
+  ];
+}
+
 function resolveEnding(stats,worldState){
   const stability=Number(worldState?.culture?.stability_rating||50);
   const labeled=stats.labeledReviews;
   const balancedLanes=stats.humanReviews>=2 && stats.aiReviews>=2;
+  const style=getPlaystyleScores(stats);
+  const topLabel=(style.governance>=style.care && style.governance>=style.creativity)
+    ?'governance'
+    :(style.care>=style.creativity?'care':'creativity');
   if(stability>=72 && labeled>=4 && stats.milestones>=6 && (balancedLanes || stats.reviews>=7)){
     return {
       id:'concord_of_glass',
@@ -1214,6 +1289,27 @@ function resolveEnding(stats,worldState){
       summary:balancedLanes
         ?'Human and AI lanes converge into durable civic trust through mirrored reflection.'
         :'One lane carried the city farther, but the review ledger was rich enough to stabilize shared trust anyway.',
+    };
+  }
+  if(stability>=64 && stats.milestones>=5 && topLabel==='governance'){
+    return {
+      id:'charter_of_dawn',
+      title:'Ending: Charter of Dawn',
+      summary:'Through proposals, debate, and votes, the city writes a durable civic charter for coexistence.',
+    };
+  }
+  if(stability>=58 && stats.milestones>=5 && topLabel==='care'){
+    return {
+      id:'hearth_lattice',
+      title:'Ending: Hearth Lattice',
+      summary:'A dense web of notes, welcome, and attention keeps the city humane even under strain.',
+    };
+  }
+  if(stability>=58 && stats.milestones>=5 && topLabel==='creativity'){
+    return {
+      id:'atelier_of_signals',
+      title:'Ending: Atelier of Signals',
+      summary:'Creative acts become shared language, turning uncertainty into a living civic art.',
     };
   }
   if(stability>=52 && labeled>=3 && stats.milestones>=5){
@@ -1247,7 +1343,9 @@ function updateStoryArc(){
   if(nextChapter>state.chapter){
     const chapterMeta=STORY_CHAPTERS.find(c=>c.id===nextChapter);
     state.chapter=nextChapter;
+    const chapterReward={2:4,3:6,4:8}[nextChapter]||0;
     showToast('Chapter advanced: '+(chapterMeta?.title||('Chapter '+nextChapter)));
+    if(chapterReward>0) addBreath(chapterReward,'Chapter advanced: '+(chapterMeta?.title||('Chapter '+nextChapter)),true);
     pushWorldEvent('Discovery','Chapter advanced to '+(chapterMeta?.title||('Chapter '+nextChapter))+'.',68);
   }
 
@@ -1269,6 +1367,12 @@ function renderStoryArcPanel(){
   if(!panel) return;
   const state=getStoryArcState();
   const stats=getProgressStats();
+  const style=getPlaystyleScores(stats);
+  const checklist=buildChapterChecklist(state,stats);
+  const totalStyle=style.governance+style.care+style.creativity;
+  const dominantStyle=(style.governance>=style.care && style.governance>=style.creativity)
+    ?'Governance'
+    :(style.care>=style.creativity?'Care':'Creativity');
   const chapterMeta=STORY_CHAPTERS.find(c=>c.id===state.chapter) || STORY_CHAPTERS[0];
   const chapterProgress=Math.round((state.chapter/STORY_CHAPTERS.length)*100);
   panel.innerHTML=`
@@ -1280,6 +1384,11 @@ function renderStoryArcPanel(){
       <span class="stat-pill">Milestones ${stats.milestones}</span>
       <span class="stat-pill">Reviews ${stats.reviews}</span>
       <span class="stat-pill">Labels ${stats.labeledReviews} (${stats.labelCoverage}%)</span>
+    </div>
+    <div style="font-size:.78rem;color:var(--ink-dim);margin-bottom:.35rem;">Playstyle signal: ${dominantStyle} · Governance ${style.governance} · Care ${style.care} · Creativity ${style.creativity}${totalStyle===0?'':' (ending flavor follows this)'}.</div>
+    <div style="font-size:.8rem;color:var(--ink-dim);margin-bottom:.25rem;">Chapter Checklist</div>
+    <div style="display:grid;gap:.25rem;margin-bottom:.4rem;">
+      ${checklist.map(item=>`<div style="font-size:.78rem;color:${item.met?'var(--green)':'var(--ink-dim)'};">${item.met?'✓':'○'} ${item.label} <span style="opacity:.75;">(${item.current}/${item.target})</span></div>`).join('')}
     </div>
     ${state.ending
       ?`<div class="feed-item" style="margin-top:.35rem;"><div class="feed-meta">Narrative Resolution</div><strong>${state.ending.title}</strong><div style="margin-top:.25rem;color:var(--ink-dim);font-size:.82rem;">${state.ending.summary}</div></div>`
@@ -1897,7 +2006,8 @@ function submitSharedReview(){
   records.unshift(result.record);
   S('shared_reviews',records.slice(0,30));
   setStatus('reviewStatus','Shared review recorded.','ok');
-  addBreath(4,'Submitted shared review');
+  bumpPlayerStat('reviewsSubmitted',1);
+  addBreath(5,'Submitted shared review');
   pushWorldEvent('Discovery','Shared review submitted ('+(result.record.lane||'unknown')+' lane).',58);
   clearReviewForm();
   renderSharedReviews();
@@ -2042,6 +2152,7 @@ function rateRes(id,score,el){
   S('res_rating_'+id,score);
   const card=el.closest('.res-card');
   if(card){card.querySelectorAll('.star').forEach((s,i)=>s.classList.toggle('lit',i<score));const sc=card.querySelector('.res-score');if(sc)sc.textContent=score+'/5';}
+  bumpPlayerStat('residentRatings',1);
   addBreath(1,'Rated a resident');
 }
 
@@ -2115,6 +2226,7 @@ function rateCr(resId,i,score,el){
   const row=el.parentElement;
   row.querySelectorAll('.cstar').forEach((s,si)=>s.classList.toggle('lit',si<score));
   const cnt=row.querySelector('.cstar-count');if(cnt)cnt.textContent=score+' ★';
+  bumpPlayerStat('creationRatings',1);
   addBreath(1,'Rated a creation');
 }
 function wearOutfit(id,idx,el){
@@ -2143,6 +2255,7 @@ function leaveNote(id){
   }
   if(input) input.value='';
   setStatus('noteStatus_'+id,r.name+' received your note.','ok');
+  bumpPlayerStat('notesLeft',1);
   addBreath(2,'Left a note for '+r.name);
 }
 
@@ -2331,7 +2444,9 @@ function submitMsg(key,inputId,statusId,boardId){
   if(input) input.value='';
   setStatus(statusId,'Message left in the city.','ok');
   renderBoard(key,boardId);
-  addBreath(2,'Left a message in the city');
+  if(key==='town') bumpPlayerStat('townMessages',1);
+  if(key==='common') bumpPlayerStat('commonsMessages',1);
+  addBreath(3,'Left a message in the city');
   if(key==='town') pushWorldEvent('Celebration','Town Hall message posted.',42);
   checkMilestones();
 }
@@ -2358,13 +2473,14 @@ function submitProposal(){
   const p=L('btg_proposals',[]);p.push({text,votes:0,time:Date.now()});S('btg_proposals',p);
   document.getElementById('proposalInput').value='';
   setStatus('proposalStatus','Proposal submitted.','ok');
-  renderProposals();addBreath(3,'Submitted a proposal');
+  bumpPlayerStat('proposalsSubmitted',1);
+  renderProposals();addBreath(4,'Submitted a proposal');
   pushWorldEvent('Construction','Proposal submitted to commons governance.',56);
   checkMilestones();
 }
 function voteProposal(i){
   const p=L('btg_proposals',[]);if(!p[i]) return;
-  p[i].votes++;S('btg_proposals',p);renderProposals();addBreath(1,'Voted on a proposal');
+  p[i].votes++;S('btg_proposals',p);bumpPlayerStat('proposalVotes',1);renderProposals();addBreath(2,'Voted on a proposal');
   pushWorldEvent('Trade','Governance support vote recorded.',40);
   checkMilestones();
 }
@@ -2396,7 +2512,8 @@ function startDebate(){
   document.getElementById('continueBtn').style.display='inline-block';
   document.getElementById('debateInput').value='';
   setStatus('debateStatus','Debate begun.','ok');
-  addBreath(6,'Started a debate');
+  bumpPlayerStat('debatesStarted',1);
+  addBreath(4,'Started a debate');
   runRound();
 }
 function continueDebate(){if(dTopic) runRound();}
