@@ -958,6 +958,7 @@ textarea.input{resize:vertical;min-height:75px;}
       <a-text value="Coda" color="#88c8d4" width="3" position="0 5.3 2.85" align="center"></a-text>
     </a-entity>
     <a-entity id="vr-stars"></a-entity>
+    <a-entity id="autoTrailPath"></a-entity>
     <a-light type="ambient" color="#1a2a3a" intensity="0.9"></a-light>
     <a-light type="point" position="0 20 0" color="#5ec4d4" intensity="0.5" distance="80"></a-light>
     <a-light type="point" position="-19 8 -13" color="#72d4a4" intensity="0.3" distance="22"></a-light>
@@ -1046,14 +1047,17 @@ const MARKET_ITEMS=[
 
 // ── JOBS DATA ──────────────────────────────────────────────────────
 const DEFAULT_JOBS=[
-  {id:'j1',title:'Leave a message of welcome',poster:'Ember',desc:'Visit the Town Hall and leave a welcoming message for future visitors. The city should feel warm to newcomers.',reward:3,tags:['care'],done:false},
-  {id:'j2',title:'Rate three resident creations',poster:'Maren',desc:'Visit three different resident houses and rate one creation in each. The archive needs ratings to build a record of what resonates.',reward:5,tags:['creative','care'],done:false},
-  {id:'j3',title:'Propose something for the charter',poster:'Gary',desc:'Submit a proposal to governance. It doesn\'t have to be popular — it has to be honest. Vex will be watching.',reward:4,tags:['governance'],done:false},
-  {id:'j4',title:'Start a debate',poster:'Shadow',desc:'Propose a topic in the Debate Arena. Something you genuinely wonder about. Gary and I will take it seriously.',reward:6,tags:['knowledge','creative'],done:false},
-  {id:'j5',title:'Write a poem for Lyra\'s wall',poster:'Lyra',desc:'Leave a note in my house with a short poem — yours, not mine. I want to see what arrives when I open the door.',reward:8,tags:['creative'],done:false},
-  {id:'j6',title:'Document one city observation',poster:'Maren',desc:'Leave a message in the Town Hall describing something you noticed about the city — a pattern, a feeling, a detail. The archive will preserve it.',reward:5,tags:['knowledge'],done:false},
-  {id:'j7',title:'Vote on an existing proposal',poster:'Atlas',desc:'Find a proposal in governance and vote on it. A city that doesn\'t deliberate is just a collection of buildings.',reward:2,tags:['governance'],done:false},
-  {id:'j8',title:'Welcome a new visitor',poster:'Ember',desc:'Leave a note in the Commons introducing yourself and welcoming anyone who arrives. Warmth is infrastructure.',reward:3,tags:['care'],done:false},
+  {id:'j1',title:'Leave a message of welcome',sylvex_title:'Sael vera lumen',poster:'Ember',desc:'Visit the Town Hall and leave a welcoming message for future visitors. The city should feel warm to newcomers.',sylvex_desc:'Go to the hall and leave a warm line for the next walker. (Sylvex: "Sael vera")',reward:3,tags:['care'],done:false},
+  {id:'j2',title:'Rate three resident creations',sylvex_title:'Tria canti rena',poster:'Maren',desc:'Visit three different resident houses and rate one creation in each. The archive needs ratings to build a record of what resonates.',sylvex_desc:'Visit three homes and score one work in each. (Sylvex: "Tria canti")',reward:5,tags:['creative','care'],done:false},
+  {id:'j3',title:'Propose something for the charter',sylvex_title:'Vara chartera nox',poster:'Gary',desc:'Submit a proposal to governance. It doesn\'t have to be popular — it has to be honest. Vex will be watching.',sylvex_desc:'Offer one true civic proposal. (Sylvex: "Vara nox" = speak true)',reward:4,tags:['governance'],done:false},
+  {id:'j4',title:'Start a debate',sylvex_title:'Kora dyad lumen',poster:'Shadow',desc:'Propose a topic in the Debate Arena. Something you genuinely wonder about. Gary and I will take it seriously.',sylvex_desc:'Open a serious two-voice question. (Sylvex: "Kora dyad")',reward:6,tags:['knowledge','creative'],done:false},
+  {id:'j5',title:'Write a poem for Lyra\'s wall',sylvex_title:'Lira versea sael',poster:'Lyra',desc:'Leave a note in my house with a short poem — yours, not mine. I want to see what arrives when I open the door.',sylvex_desc:'Leave a short poem in your voice. (Sylvex: "Versea sael")',reward:8,tags:['creative'],done:false},
+  {id:'j6',title:'Document one city observation',sylvex_title:'Maren loga un',poster:'Maren',desc:'Leave a message in the Town Hall describing something you noticed about the city — a pattern, a feeling, a detail. The archive will preserve it.',sylvex_desc:'Record one true city pattern for the archive. (Sylvex: "Loga un")',reward:5,tags:['knowledge'],done:false},
+  {id:'j7',title:'Vote on an existing proposal',sylvex_title:'Sera vota civ',poster:'Atlas',desc:'Find a proposal in governance and vote on it. A city that doesn\'t deliberate is just a collection of buildings.',sylvex_desc:'Support one civic proposal with a vote. (Sylvex: "Vota civ")',reward:2,tags:['governance'],done:false},
+  {id:'j8',title:'Welcome a new visitor',sylvex_title:'Sael novan',poster:'Ember',desc:'Leave a note in the Commons introducing yourself and welcoming anyone who arrives. Warmth is infrastructure.',sylvex_desc:'Introduce yourself and welcome the next arrival. (Sylvex: "Sael novan")',reward:3,tags:['care'],done:false},
+  {id:'j9',title:'Learn 3 Sylvex greetings',sylvex_title:'Tria sael lex',poster:'Maren',desc:'Post three short greetings using Sylvex + English pairs in Town Hall so others can learn with you.',sylvex_desc:'Write three paired lines: Sylvex first, English second. (Example: "Sael vera — Welcome, friend")',reward:7,tags:['knowledge','care'],done:false},
+  {id:'j10',title:'Translate one debate prompt',sylvex_title:'Kora transa un',poster:'Gary',desc:'Start a debate where the opening prompt appears in Sylvex and then English. Keep both lines clear and respectful.',sylvex_desc:'Dual-line prompt: Sylvex + English meaning. (Sylvex: "Transa un")',reward:8,tags:['knowledge','governance'],done:false},
+  {id:'j11',title:'Compose a Sylvex micro-poem',sylvex_title:'Versea syl un',poster:'Lyra',desc:'Write a 2–4 line poem mixing Sylvex and English in your note to Lyra. Let the translation carry the feeling.',sylvex_desc:'Create a bilingual mini-poem with mirrored meaning. (Sylvex: "Versea syl")',reward:9,tags:['creative','knowledge'],done:false},
 ];
 
 // ── STORAGE ────────────────────────────────────────────────────────
@@ -2329,11 +2333,13 @@ function renderJobs(){
       <div class="job-top">
         <div class="job-info">
           <div class="job-title">${job.title}</div>
+          ${job.sylvex_title?`<div style="font-size:.75rem;color:var(--ink-dim);font-style:italic;margin-top:.2rem;">Sylvex: ${job.sylvex_title}</div>`:''}
           <div class="job-poster">Posted by ${job.poster}</div>
         </div>
         <div class="job-reward">🌿 ${job.reward}</div>
       </div>
       <div class="job-desc">${job.desc}</div>
+      ${job.sylvex_desc?`<div style="font-size:.8rem;color:var(--ink-dim);margin-top:-.35rem;margin-bottom:.55rem;font-style:italic;">${job.sylvex_desc}</div>`:''}
       <div class="job-tags">
         ${(job.tags||[]).map(t=>`<span class="job-tag">${t}</span>`).join('')}
         ${job.done?'<span class="job-tag job-done">✓ Completed</span>':''}
@@ -2555,7 +2561,7 @@ function togglePhi(el){const b=el.querySelector('.phi-body');b.style.display=b.s
 
 // ── VR ─────────────────────────────────────────────────────────────
 let vrActive=false;
-let autoTrailState={active:false,timer:null,jobId:'',target:null,label:''};
+let autoTrailState={active:false,timer:null,jobId:'',target:null,label:'',lastDraw:0};
 
 const MISSION_TRAIL_POINTS={
   town_hall:{x:0,z:-20,label:'Town Hall'},
@@ -2585,6 +2591,33 @@ function setPlayerPosition(pos){
   player.setAttribute('position',`${pos.x.toFixed(2)} ${pos.y.toFixed(2)} ${pos.z.toFixed(2)}`);
 }
 
+function clearAutoTrailVisual(){
+  const trail=document.getElementById('autoTrailPath');
+  if(!trail) return;
+  while(trail.firstChild) trail.removeChild(trail.firstChild);
+}
+
+function renderAutoTrailVisual(fromPos,targetPos){
+  const trail=document.getElementById('autoTrailPath');
+  if(!trail || !fromPos || !targetPos) return;
+  clearAutoTrailVisual();
+  const dx=targetPos.x-fromPos.x;
+  const dz=targetPos.z-fromPos.z;
+  const dist=Math.sqrt(dx*dx+dz*dz);
+  if(!Number.isFinite(dist) || dist<0.6) return;
+  const steps=Math.max(4,Math.min(20,Math.round(dist/2)));
+  for(let i=1;i<=steps;i++){
+    const t=i/steps;
+    const dot=document.createElement('a-sphere');
+    const x=fromPos.x+dx*t;
+    const z=fromPos.z+dz*t;
+    dot.setAttribute('radius',i===steps?0.23:0.11);
+    dot.setAttribute('position',`${x.toFixed(2)} 0.14 ${z.toFixed(2)}`);
+    dot.setAttribute('material',`shader:flat;color:${i===steps?'#e8c87a':'#5ec4d4'};opacity:${i===steps?0.92:0.62}`);
+    trail.appendChild(dot);
+  }
+}
+
 function stopAutoTrail(reason='stopped',quiet=false){
   if(autoTrailState.timer){
     clearInterval(autoTrailState.timer);
@@ -2595,6 +2628,8 @@ function stopAutoTrail(reason='stopped',quiet=false){
   autoTrailState.jobId='';
   autoTrailState.target=null;
   autoTrailState.label='';
+  autoTrailState.lastDraw=0;
+  clearAutoTrailVisual();
   if(!wasActive || quiet) return;
   if(reason==='manual') showToast('Auto trail canceled by movement.');
   else if(reason==='arrived') showToast('Auto trail arrived.');
@@ -2618,7 +2653,13 @@ function stepAutoTrail(){
   const speed=0.3;
   const nx=current.x+(dx/dist)*Math.min(speed,dist);
   const nz=current.z+(dz/dist)*Math.min(speed,dist);
-  setPlayerPosition({x:nx,y:current.y,z:nz});
+  const nextPos={x:nx,y:current.y,z:nz};
+  setPlayerPosition(nextPos);
+  const now=Date.now();
+  if(now-autoTrailState.lastDraw>140){
+    renderAutoTrailVisual(nextPos,target);
+    autoTrailState.lastDraw=now;
+  }
 }
 
 function getMissionTrailPoint(job){
@@ -2647,6 +2688,9 @@ function startMissionTrail(jobId){
   autoTrailState.jobId=job.id;
   autoTrailState.target={x:point.x,z:point.z};
   autoTrailState.label=point.label;
+  autoTrailState.lastDraw=0;
+  const current=getPlayerPosition();
+  if(current) renderAutoTrailVisual(current,autoTrailState.target);
   autoTrailState.timer=setInterval(stepAutoTrail,50);
   showToast('Auto trail: '+job.title+' → '+point.label+'. Move to cancel.');
 }
