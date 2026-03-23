@@ -8,7 +8,7 @@
     :root{--bg:#070b14;--card:rgba(10,16,30,.82);--line:rgba(127,168,207,.32);--ink:#d7e7f8;--ink2:#93b4cc;--accent:#7c60e8;--ok:#6de0b2}
     *{box-sizing:border-box}
     html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
-    #cameraBg{position:fixed;inset:0;z-index:0;width:100%;height:100%;object-fit:cover;display:none;transform:scaleX(-1);filter:saturate(1.06) contrast(1.04)}
+    #cameraBg{position:fixed;inset:0;z-index:0;width:100%;height:100%;object-fit:cover;display:none;transform:none;filter:saturate(1.06) contrast(1.04)}
     #cameraOverlay{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(circle at 50% 30%,rgba(124,96,232,.08),rgba(5,9,19,.32) 70%)}
     #uiTop{position:fixed;top:10px;left:10px;right:10px;z-index:50;display:flex;gap:8px;flex-wrap:wrap}
     #uiOptions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -63,7 +63,7 @@
   <div id="cameraOverlay"></div>
   <div id="uiTop" class="menu-collapsed">
     <button id="menuToggleBtn" class="btn">☰ Menu</button>
-    <button id="enterArBtn" class="btn primary">Enter AR</button>
+    <button id="enterArBtn" class="btn primary">Go Find</button>
     <div id="uiOptions">
       <button id="fullscreenBtn" class="btn">Fullscreen</button>
       <button id="collectionBtn" class="btn">📖 Collection</button>
@@ -175,6 +175,7 @@
     const lastExplorePos = new THREE.Vector3();
     let arExplorationSpawnTimer = 0;
     let arExplorationDistance = 0;
+    let explorationModeActive = false;
     const MAX_ACTIVE_WORKERS = 20;
     const SAVE_FILE_VERSION = 1;
     const SAVE_PBKDF2_ITERATIONS = 150000;
@@ -1328,7 +1329,7 @@
       createResource('stone', {x: -0.85, z: 0.65}, false);
 
       unlockAdvancement(1);
-      notify('🏠 Main hut placed. Explore in AR to discover and collect Sylvexians.');
+      notify('🏠 Main hut placed. Use Go Find and explore nearby space to discover Sylvexians.');
     }
 
     function chooseHideBehavior(){
@@ -1342,7 +1343,28 @@
     }
 
     function isExploringInAr(){
-      return !!cityAnchor.getAttribute('visible') && scene.is('ar-mode');
+      return !!cityAnchor.getAttribute('visible') && explorationModeActive;
+    }
+
+    function placeSpawnedBeingNearViewer(spawned){
+      let markerX = spawned.el.object3D.position.x;
+      let markerZ = spawned.el.object3D.position.z;
+      const liveCam = scene.camera;
+      if(liveCam && cityAnchor.getAttribute('visible')){
+        const wp = new THREE.Vector3();
+        liveCam.getWorldPosition(wp);
+        const localPos = cityAnchor.object3D.worldToLocal(wp.clone());
+        const jitter = 0.18;
+        const px = localPos.x + (Math.random() - 0.5) * jitter;
+        const pz = localPos.z + (Math.random() - 0.5) * jitter;
+        spawned.el.object3D.position.set(px, 0, pz);
+        spawned.currentRadius = Math.sqrt(px * px + pz * pz);
+        spawned.targetRadius = Math.max(0.4, spawned.currentRadius * 0.85);
+        spawned.angle = Math.atan2(pz, px);
+        markerX = px;
+        markerZ = pz;
+      }
+      showSpawnIndicator(markerX, markerZ);
     }
 
     function spawnFromArExploration(){
@@ -1357,25 +1379,7 @@
       const name = undiscovered[Math.floor(Math.random() * undiscovered.length)];
       const spawned = addBeing(name);
       if(spawned){
-        let markerX = spawned.el.object3D.position.x;
-        let markerZ = spawned.el.object3D.position.z;
-        // Pin spawn to player's current AR position, not the city orbit radius
-        const liveCam = scene.camera;
-        if(liveCam && cityAnchor.getAttribute('visible')){
-          const wp = new THREE.Vector3();
-          liveCam.getWorldPosition(wp);
-          const localPos = cityAnchor.object3D.worldToLocal(wp.clone());
-          const jitter = 0.18;
-          const px = localPos.x + (Math.random()-0.5)*jitter;
-          const pz = localPos.z + (Math.random()-0.5)*jitter;
-          spawned.el.object3D.position.set(px, 0, pz);
-          spawned.currentRadius = Math.sqrt(px*px + pz*pz);
-          spawned.targetRadius = Math.max(0.4, spawned.currentRadius * 0.85);
-          spawned.angle = Math.atan2(pz, px);
-          markerX = px;
-          markerZ = pz;
-        }
-        showSpawnIndicator(markerX, markerZ);
+        placeSpawnedBeingNearViewer(spawned);
         notify(`✨ A Sylvexian appeared nearby: ${name}. Tap to pick up.`);
       }
     }
@@ -1432,14 +1436,20 @@
       }
     }
 
-    function cityAnchorPositionInFront(distance = 2.2){
-      const camObj = document.querySelector('#playerRig a-camera').object3D;
+    function cityAnchorPositionInFront(distance = 2.8){
+      const camObj = scene.camera || document.querySelector('#playerRig a-camera').object3D;
       const worldPos = new THREE.Vector3();
       const dir = new THREE.Vector3();
       camObj.getWorldPosition(worldPos);
       camObj.getWorldDirection(dir);
+      dir.y = 0;
+      if(dir.lengthSq() < 1e-6){
+        dir.set(0, 0, -1);
+      } else {
+        dir.normalize();
+      }
       const place = worldPos.clone().add(dir.multiplyScalar(distance));
-      place.y = Math.max(0, worldPos.y - 1.55);
+      place.y = Math.max(0, worldPos.y - 1.45);
       return place;
     }
 
@@ -1740,7 +1750,7 @@
           }
           arExplorationSpawnTimer += dt;
 
-          if(arExplorationSpawnTimer > 4.5 && arExplorationDistance > 0.9){
+          if(arExplorationSpawnTimer > 2.6 && arExplorationDistance > 0.35){
             arExplorationSpawnTimer = 0;
             arExplorationDistance = 0;
             if(beings.length < Math.min(5, MAX_ACTIVE_WORKERS)){
@@ -1753,11 +1763,11 @@
     }
 
     function placeCityInFront(){
-      const place = cityAnchorPositionInFront(2.2);
+      const place = cityAnchorPositionInFront(2.8);
       cityAnchor.object3D.position.copy(place);
       cityAnchor.setAttribute('visible', true);
       seedCity();
-      notify('City placed. Walk around and tap beings to inspect rarity + skills.');
+      notify('City placed in front of you. Walk outward to search for Sylvexians.');
     }
 
     async function enterAr(){
@@ -1766,13 +1776,20 @@
         if(document.fullscreenEnabled && !document.fullscreenElement){
           await document.documentElement.requestFullscreen().catch(()=>{});
         }
-        if(scene.enterAR){
-          await scene.enterAR();
-          notify('AR mode active (if supported). Place city and explore.');
-        } else {
-          notify('AR not available in this browser. Using normal 3D mode.');
+        explorationModeActive = true;
+        arExplorationSpawnTimer = 1.2;
+        arExplorationDistance = 0;
+        lastExplorePos.set(0, 0, 0);
+        if(!cityAnchor.getAttribute('visible')){
+          placeCityInFront();
         }
-      }catch(_){ notify('AR entry failed on this device/browser. Normal mode still works.'); }
+        setTimeout(()=>{
+          if(explorationModeActive && beings.length < Math.min(5, MAX_ACTIVE_WORKERS)){
+            spawnFromArExploration();
+          }
+        }, 650);
+        notify('Go Find mode active. Walk around nearby areas to reveal Sylvexians.');
+      }catch(_){ notify('Go Find could not start camera view on this device, but regular mode still works.'); }
     }
 
     async function enterFullscreen(){
@@ -1841,7 +1858,7 @@
     });
     document.getElementById('growBtn').addEventListener('click', ()=>{
       if(!isExploringInAr()){
-        notify('Explore in AR to spawn Sylvexians.');
+        notify('Use Go Find to start searching for Sylvexians.');
         return;
       }
       if(beings.length >= MAX_ACTIVE_WORKERS){
@@ -1852,6 +1869,7 @@
       setTimeout(()=>{
         const newest = addBeing(newSylvexianName);
         if(newest){
+          placeSpawnedBeingNearViewer(newest);
           notify(`✨ New Sylvexian emerged nearby: ${newest.name}. Tap to collect.`);
         }
       }, 300);
