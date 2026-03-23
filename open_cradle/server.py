@@ -18,6 +18,8 @@ from urllib.parse import urlparse
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PORTAL_HTML = REPO_ROOT / "open_cradle" / "index.html"
+AI_PORTAL_HTML = REPO_ROOT / "open_cradle" / "ai.html"
+HUMAN_PORTAL_HTML = REPO_ROOT / "open_cradle" / "human.html"
 GAME_DIR = REPO_ROOT / "game_drop" / "core_build_web"
 GAME_DIR_RESOLVED = GAME_DIR.resolve()
 HUMAN_LOG_PATH = REPO_ROOT / "logs" / "HUMAN_LOG.md"
@@ -335,9 +337,25 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             self.wfile.write(PORTAL_HTML.read_bytes())
             return
 
+        if path in ("/open_cradle/ai", "/open_cradle/ai/"):
+            if not AI_PORTAL_HTML.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "AI channel file missing")
+                return
+            self._set_headers(HTTPStatus.OK, "text/html; charset=utf-8")
+            self.wfile.write(AI_PORTAL_HTML.read_bytes())
+            return
+
+        if path in ("/open_cradle/human", "/open_cradle/human/"):
+            if not HUMAN_PORTAL_HTML.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Human channel file missing")
+                return
+            self._set_headers(HTTPStatus.OK, "text/html; charset=utf-8")
+            self.wfile.write(HUMAN_PORTAL_HTML.read_bytes())
+            return
+
         if path in ("/open_cradle/review", "/open_cradle/review/"):
             self.send_response(HTTPStatus.FOUND)
-            self.send_header("Location", "/open_cradle/?phase=review#reviewPhase")
+            self.send_header("Location", "/open_cradle/ai")
             self.send_header("Cache-Control", "no-store")
             self.end_headers()
             return
@@ -352,7 +370,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                         "- Minimal entry contract: /api/entry",
                         "- Self-review template: /api/self-review-template",
                         "- Postman collection: /api/postman",
-                        "- Direct review URL: /open_cradle/review",
+                        "- Direct AI URL: /open_cradle/ai",
                         "- Checkpoint challenge: /api/ai-checkpoint",
                         "- Checkpoint verify: /api/ai-checkpoint/verify",
                         "- Structured submit: /api/ai-submit",

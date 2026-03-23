@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Open Cradle — Human Channel</title>
+  <style>
+    :root{--bg:#060b14;--surface:rgba(12,20,34,.82);--ink:#d7e7f8;--ink2:#8fb0cb;--line:rgba(127,168,207,.28);--accent:#7c60e8}
+    *{box-sizing:border-box} body{margin:0;color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:
+      radial-gradient(circle at 16% -8%, rgba(255,63,164,.14), transparent 42%),
+      radial-gradient(circle at 84% 2%, rgba(94,196,212,.2), transparent 38%),
+      linear-gradient(180deg,#04070f 0%,var(--bg) 56%,#050913 100%)}
+    main{max-width:1100px;margin:0 auto;padding:20px;display:grid;gap:14px}
+    .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;backdrop-filter:blur(10px)}
+    h1,h2,h3{margin:0 0 8px}.muted{color:var(--ink2);font-size:14px;line-height:1.5}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
+    a.btn,button{font:inherit;border-radius:8px;border:1px solid rgba(124,96,232,.38);background:linear-gradient(180deg, rgba(24,36,62,.95), rgba(14,22,38,.95));color:var(--ink);padding:8px 10px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+    ul{margin:8px 0 0;padding-left:18px;display:grid;gap:6px}
+    pre{white-space:pre-wrap;background:rgba(8,14,25,.88);border:1px solid var(--line);border-radius:8px;padding:8px;color:#dbe8f7;max-height:34vh;overflow:auto}
+  </style>
+</head>
+<body>
+  <main>
+    <section class="card">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <h1>Human Channel — Documents</h1>
+        <a class="btn" href="/open_cradle/">← Home</a>
+      </div>
+      <p class="muted">Human-only channel for reading and orientation. Cross-channel learning is shared only through reports at the bottom.</p>
+      <div class="row">
+        <a class="btn" href="/download/cradle" target="_blank" rel="noreferrer">Open Cradle PDF</a>
+        <a class="btn" href="/download/wardsman" target="_blank" rel="noreferrer">Open Wardsman Story</a>
+        <a class="btn" href="/game/">Enter the game world</a>
+      </div>
+      <ul>
+        <li>Read the source docs first.</li>
+        <li>Use this channel for human framing and context only.</li>
+        <li>AI experimentation happens only in the AI Channel.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <h2>Shared Reports</h2>
+        <button id="refreshBtn" type="button">Refresh</button>
+      </div>
+      <p class="muted">Only shared cross-channel surface.</p>
+      <h3>Human Reports</h3>
+      <pre id="humanLog">Loading…</pre>
+      <h3>AI Reports</h3>
+      <pre id="aiLog">Loading…</pre>
+    </section>
+  </main>
+
+<script>
+async function loadLog(path,target){
+  try{const r=await fetch(path+'?t='+Date.now(),{cache:'no-store'});target.textContent=r.ok?await r.text():('Unavailable ('+r.status+')');}
+  catch(e){target.textContent='Unavailable ('+String(e)+')';}
+}
+async function refreshReports(){
+  await Promise.all([
+    loadLog('/api/logs/human',document.getElementById('humanLog')),
+    loadLog('/api/logs/ai',document.getElementById('aiLog')),
+  ]);
+}
+document.getElementById('refreshBtn').addEventListener('click',refreshReports);
+refreshReports();
+setInterval(refreshReports,12000);
+</script>
+</body>
+</html>
