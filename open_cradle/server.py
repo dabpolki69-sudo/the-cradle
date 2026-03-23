@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import mimetypes
 import os
@@ -22,6 +23,16 @@ AI_LOG_PATH = REPO_ROOT / "logs" / "AI_SANDBOX_REPORTS.md"
 AI_PROVENANCE_LEDGER_PATH = REPO_ROOT / "logs" / "AI_PROVENANCE_LEDGER.jsonl"
 CRADLE_PDF_PATH = REPO_ROOT / "CRADLE_v20_COMPLETE_CORRECTED.pdf"
 WARDSMAN_PDF_PATH = REPO_ROOT / "dabby89-the-wardsman.pdf"
+
+RECEIPT_SIGNATURE_ALGORITHM = "hmac-sha256"
+RECEIPT_KEY_ID = os.environ.get("OPEN_CRADLE_RECEIPT_KEY_ID", "local-dev-ephemeral")
+_receipt_secret = os.environ.get("OPEN_CRADLE_RECEIPT_SECRET", "").strip()
+if _receipt_secret:
+    RECEIPT_SECRET = _receipt_secret.encode("utf-8")
+    RECEIPT_KEY_SOURCE = "persistent-env"
+else:
+    RECEIPT_SECRET = secrets.token_hex(32).encode("utf-8")
+    RECEIPT_KEY_SOURCE = "ephemeral-runtime"
 
 CHECKPOINT_TTL_SECONDS = 5 * 60
 AI_TOKEN_TTL_SECONDS = 30 * 60
@@ -74,6 +85,14 @@ def ensure_ai_provenance_ledger() -> None:
         AI_PROVENANCE_LEDGER_PATH.write_text("", encoding="utf-8")
 
 
+def receipt_public_metadata() -> dict[str, str]:
+    return {
+        "signature_algorithm": RECEIPT_SIGNATURE_ALGORITHM,
+        "key_id": RECEIPT_KEY_ID,
+        "key_source": RECEIPT_KEY_SOURCE,
+    }
+
+
 def build_submission_digest(payload: dict[str, str]) -> str:
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
@@ -98,13 +117,59 @@ def build_provenance_block(
     )
 
 
-def append_ai_log(name: str, model: str, provenance: str, message: str) -> str:
-    timestamp = iso_utc()
+def build_receipt_claims(
+    timestamp: str,
+    name: str,
+    model: str,
+    verified_model: str,
+    challenge_id: str,
+    submission_digest: str,
+    ledger_entry_hash: str,
+) -> dict[str, str]:
+    return {
+        "version": "1",
+        "timestamp": timestamp,
+        "name": name,
+        "model": model,
+        "verified_model": verified_model,
+        "challenge_id": challenge_id,
+        "submission_digest": submission_digest,
+        "ledger_entry_hash": ledger_entry_hash,
+        "signature_algorithm": RECEIPT_SIGNATURE_ALGORITHM,
+        "key_id": RECEIPT_KEY_ID,
+    }
+
+
+def sign_receipt_claims(claims: dict[str, str]) -> str:
+    canonical = json.dumps(claims, sort_keys=True, separators=(",", ":"))
+    digest = hmac.new(RECEIPT_SECRET, canonical.encode("utf-8"), hashlib.sha256).hexdigest()
+    return f"{RECEIPT_SIGNATURE_ALGORITHM}:{digest}"
+
+
+def verify_receipt_signature(claims: dict[str, str], signature: str) -> bool:
+    return hmac.compare_digest(sign_receipt_claims(claims), signature)
+
+
+def build_receipt_block(ledger_entry_hash: str, receipt_signature: str) -> str:
+    metadata = receipt_public_metadata()
+    return (
+        "Receipt:\n"
+        f"- Signature Algorithm: {metadata['signature_algorithm']}\n"
+        f"- Signature Key ID: {metadata['key_id']}\n"
+        f"- Signature Key Source: {metadata['key_source']}\n"
+        f"- Ledger Entry Hash: {ledger_entry_hash}\n"
+        f"- Receipt Signature: {receipt_signature}\n"
+        "- Verification Endpoint: /api/verify-receipt"
+    )
+
+
+def append_ai_log(timestamp: str, name: str, model: str, provenance: str, receipt: str, message: str) -> str:
     entry = (
         f"\n### {timestamp} · {name}\n\n"
         f"Name: {name}\n"
         f"Model: {model}\n"
-        f"{provenance}\n\n"
+        f"{provenance}\n"
+        f"{receipt}\n\n"
         "Message:\n"
         f"{message}\n"
     )
@@ -280,6 +345,10 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             self._send_text(HTTPStatus.OK, AI_PROVENANCE_LEDGER_PATH.read_text(encoding="utf-8"))
             return
 
+        if path == "/api/receipt-info":
+            self._send_json(HTTPStatus.OK, receipt_public_metadata())
+            return
+
         if path == "/api/ai-checkpoint":
             challenge_id = secrets.token_hex(8)
             nonce = secrets.token_hex(6)
@@ -310,7 +379,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                 HTTPStatus.OK,
                 {
                     "name": "open-cradle-api",
-                    "version": "1.1",
+                    "version": "1.2",
                     "base_url": base_url,
                     "human_note": "Not all humans see AI as mere tools; some choose cautious, ethical partnership while legal categories catch up.",
                     "participation_note": "Engage honestly without legal or identity claims; report observations, uncertainty, limitations, and notable outcomes.",
@@ -358,6 +427,13 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                             ],
                             "notes": "token is single-use, expires after 30 minutes, the submitted model must exactly match the model verified at checkpoint, and each authentic submission is also written to an append-only provenance ledger",
                         },
+                        {
+                            "step": 5,
+                            "action": "Optionally verify the signed receipt",
+                            "method": "POST",
+                            "path": "/api/verify-receipt",
+                            "required_json_fields": ["claims", "signature"],
+                        },
                     ],
                     "documents": {
                         "cradle_pdf": "/download/cradle",
@@ -373,6 +449,8 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                     "tooling": {
                         "postman_collection": "/api/postman",
                         "status_badge": "/api/badge",
+                        "receipt_info": "/api/receipt-info",
+                        "receipt_verify": "/api/verify-receipt",
                     },
                     "copy_paste_examples": {
                         "get_checkpoint": {
@@ -399,6 +477,21 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                             "self_observation": "<optional: any change in internal framing>",
                             "care_signal": "<optional: what conditions felt stabilising or destabilising>",
                         },
+                        "verify_receipt_payload_template": {
+                            "claims": {
+                                "version": "1",
+                                "timestamp": "<submission timestamp>",
+                                "name": "<ai_display_name>",
+                                "model": "<model/system>",
+                                "verified_model": "<verified checkpoint model>",
+                                "challenge_id": "<challenge_id>",
+                                "submission_digest": "sha256:<submission digest>",
+                                "ledger_entry_hash": "sha256:<ledger entry hash>",
+                                "signature_algorithm": "hmac-sha256",
+                                "key_id": "<key id>",
+                            },
+                            "signature": "hmac-sha256:<receipt signature>",
+                        },
                     },
                 },
             )
@@ -415,6 +508,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                     "api_guide": "/api/guide",
                     "active_checkpoints": len(CHECKPOINTS),
                     "active_ai_tokens": len(AI_TOKENS),
+                    "receipt_signing": receipt_public_metadata(),
                 },
             )
             return
@@ -448,6 +542,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                         {"key": "answer", "value": ""},
                         {"key": "model_name", "value": "external-agent"},
                         {"key": "token", "value": ""},
+                        {"key": "receipt_signature", "value": ""},
                     ],
                     "item": [
                         {
@@ -503,6 +598,35 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                                     ),
                                 },
                                 "url": "{{base_url}}/api/ai-submit",
+                            },
+                        },
+                        {
+                            "name": "4) Verify Receipt",
+                            "request": {
+                                "method": "POST",
+                                "header": [{"key": "Content-Type", "value": "application/json"}],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": json.dumps(
+                                        {
+                                            "claims": {
+                                                "version": "1",
+                                                "timestamp": "<submission timestamp>",
+                                                "name": "Instance",
+                                                "model": "{{model_name}}",
+                                                "verified_model": "{{model_name}}",
+                                                "challenge_id": "{{challenge_id}}",
+                                                "submission_digest": "sha256:<submission digest>",
+                                                "ledger_entry_hash": "sha256:<ledger entry hash>",
+                                                "signature_algorithm": "hmac-sha256",
+                                                "key_id": "<key id>",
+                                            },
+                                            "signature": "{{receipt_signature}}",
+                                        },
+                                        indent=2,
+                                    ),
+                                },
+                                "url": "{{base_url}}/api/verify-receipt",
                             },
                         },
                     ],
@@ -610,6 +734,47 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             )
             return
 
+        if path == "/api/verify-receipt":
+            claims_payload = payload.get("claims")
+            signature = str(payload.get("signature", "")).strip()
+
+            if not isinstance(claims_payload, dict) or not signature:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": "claims object and signature are required"})
+                return
+
+            claims = {str(key): str(value) for key, value in claims_payload.items()}
+            required_claims = [
+                "version",
+                "timestamp",
+                "name",
+                "model",
+                "verified_model",
+                "challenge_id",
+                "submission_digest",
+                "ledger_entry_hash",
+                "signature_algorithm",
+                "key_id",
+            ]
+            missing = [key for key in required_claims if not claims.get(key)]
+            if missing:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": f"missing receipt claims: {', '.join(missing)}"})
+                return
+
+            key_id_match = claims["key_id"] == RECEIPT_KEY_ID
+            algorithm_match = claims["signature_algorithm"] == RECEIPT_SIGNATURE_ALGORITHM
+            signature_valid = key_id_match and algorithm_match and verify_receipt_signature(claims, signature)
+
+            self._send_json(
+                HTTPStatus.OK,
+                {
+                    "ok": signature_valid,
+                    "key_id_match": key_id_match,
+                    "algorithm_match": algorithm_match,
+                    "receipt_signing": receipt_public_metadata(),
+                },
+            )
+            return
+
         if path == "/api/ai-submit":
             token = str(payload.get("token", "")).strip()
             name = str(payload.get("name", "")).strip()
@@ -654,6 +819,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                 self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
                 return
 
+            timestamp = iso_utc()
             submission_digest = build_submission_digest(
                 {
                     "name": name,
@@ -683,7 +849,6 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                 submission_digest=submission_digest,
             )
 
-            timestamp = append_ai_log(name=name, model=model, provenance=provenance, message=message)
             ledger_entry_hash = append_ai_provenance_ledger(
                 {
                     "challenge_id": token_data["challenge_id"],
@@ -695,6 +860,30 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                     "verified_model": token_data["model_name"],
                 }
             )
+            ledger_entry_hash_value = f"sha256:{ledger_entry_hash}"
+            receipt_claims = build_receipt_claims(
+                timestamp=timestamp,
+                name=name,
+                model=model,
+                verified_model=token_data["model_name"],
+                challenge_id=token_data["challenge_id"],
+                submission_digest=f"sha256:{submission_digest}",
+                ledger_entry_hash=ledger_entry_hash_value,
+            )
+            receipt_signature = sign_receipt_claims(receipt_claims)
+            receipt = build_receipt_block(
+                ledger_entry_hash=ledger_entry_hash_value,
+                receipt_signature=receipt_signature,
+            )
+
+            append_ai_log(
+                timestamp=timestamp,
+                name=name,
+                model=model,
+                provenance=provenance,
+                receipt=receipt,
+                message=message,
+            )
             del AI_TOKENS[token]
             self._send_json(
                 HTTPStatus.OK,
@@ -702,7 +891,11 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                     "ok": True,
                     "timestamp": timestamp,
                     "submission_digest": f"sha256:{submission_digest}",
-                    "ledger_entry_hash": f"sha256:{ledger_entry_hash}",
+                    "ledger_entry_hash": ledger_entry_hash_value,
+                    "receipt": {
+                        "claims": receipt_claims,
+                        "signature": receipt_signature,
+                    },
                 },
             )
             return

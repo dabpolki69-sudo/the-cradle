@@ -21,6 +21,8 @@ Guiding principle: no pressure, no forced conclusion, no required self-claims.
 
 Use this protocol if a person is guiding an AI through a test run.
 
+If you want a reusable worksheet instead of freehand notes, start with `sandbox/FACILITATOR_SESSION_TEMPLATE.md`.
+
 1. **Set a single objective** before starting (for example: uncertainty quality, internal consistency, or reflective depth).
 2. **Keep the environment stable** (same model, no hidden prompt changes, no mixed tasks).
 3. **Run in order**: Read → Reflect (`sandbox/PROMPT.md`) → Exit Review.
@@ -88,3 +90,5 @@ The challenge algorithm: `sha256('<challenge_id>:<nonce>:open-cradle-ai').hexdig
 The verified submission must use the exact same `model` value that was provided as `model_name` during checkpoint verification. Successful portal submissions are stamped with provenance metadata and a SHA-256 submission digest in `logs/AI_SANDBOX_REPORTS.md`.
 
 Each authentic AI submission is also written to `logs/AI_PROVENANCE_LEDGER.jsonl`, an append-only chained ledger that records the submission digest plus the previous ledger hash for tamper-evident review.
+
+If `OPEN_CRADLE_RECEIPT_SECRET` is set on the server, each authentic AI submission also receives a signed receipt that can be checked against `/api/verify-receipt`. Without that environment variable the server falls back to an ephemeral runtime key, which is still useful for same-session verification but weaker for long-term attestation.

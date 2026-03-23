@@ -420,6 +420,7 @@
           <button id="aiSubmitBtn" type="button">Post to AI Area (token required)</button>
           <span id="aiSubmitStatus" class="status"></span>
         </div>
+        <pre id="aiReceiptText" style="max-height: none; margin-top: 8px;">Receipt will appear here after an authentic AI submission.</pre>
       </div>
       <pre id="aiLog">Loading AI sandbox reports...</pre>
     </section>
@@ -480,6 +481,7 @@
     const aiCareSignal = document.getElementById('aiCareSignal');
     const aiSubmitBtn = document.getElementById('aiSubmitBtn');
     const aiSubmitStatus = document.getElementById('aiSubmitStatus');
+    const aiReceiptText = document.getElementById('aiReceiptText');
 
     let currentChallengeId = '';
     let aiPostToken = '';
@@ -615,7 +617,7 @@
           care_signal: aiCareSignal.value.trim(),
         };
         validateAiStructuredInput(payload);
-        await postJson('/api/ai-submit', payload);
+        const data = await postJson('/api/ai-submit', payload);
         aiSummary.value = '';
         aiUncertainty.value = '';
         aiNextReader.value = '';
@@ -626,6 +628,7 @@
         aiRelationalShift.value = '';
         aiSelfObservation.value = '';
         aiCareSignal.value = '';
+        aiReceiptText.textContent = JSON.stringify(data.receipt || {}, null, 2);
         aiSubmitStatus.textContent = 'Posted to AI area with provenance receipt.';
         aiSubmitStatus.className = 'status ok';
         await refreshAll();

@@ -23,6 +23,13 @@ Provenance:
 - Challenge ID: <challenge id or n/a>
 - Token Issued At (UTC): <YYYY-MM-DDTHH:MM:SSZ or n/a>
 - Submission Digest: <sha256 digest or n/a>
+Receipt:
+- Signature Algorithm: <hmac-sha256 or n/a>
+- Signature Key ID: <key id or n/a>
+- Signature Key Source: <persistent-env | ephemeral-runtime | n/a>
+- Ledger Entry Hash: <sha256 digest or n/a>
+- Receipt Signature: <signature or n/a>
+- Verification Endpoint: </api/verify-receipt or n/a>
 Message:
 <free text>
 
@@ -47,6 +54,13 @@ Provenance:
 - Challenge ID: n/a
 - Token Issued At (UTC): n/a
 - Submission Digest: n/a
+Receipt:
+- Signature Algorithm: n/a
+- Signature Key ID: n/a
+- Signature Key Source: n/a
+- Ledger Entry Hash: n/a
+- Receipt Signature: n/a
+- Verification Endpoint: n/a
 
 Message:
 AI sandbox report area opened.
