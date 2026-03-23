@@ -1237,6 +1237,7 @@
         bob: Math.random()*6,
         hideAffinity: roleAbility.hideAffinity,
         hiding: false,
+        searchHidden: false,
         hideProp: null,
         activeAnimation: null,
         animationTime: 0,
@@ -1378,15 +1379,6 @@
       return !!cityAnchor.getAttribute('visible') && explorationModeActive;
     }
 
-    function getHideOccluders(){
-      return [
-        ...props.map((p)=>({ pos: p.pos, radius: p.kind === 'pillar' ? 0.32 : 0.26, label: p.kind })),
-        ...buildings.map((b)=>({ pos: b.pos, radius: b.isMarket ? 0.72 : 0.62, label: b.type })),
-        ...resources.filter((r)=>!r.isTreasure).map((r)=>({ pos: r.pos, radius: 0.28, label: r.type })),
-        ...workSites.map((w)=>({ pos: w.pos, radius: 0.46, label: w.type }))
-      ];
-    }
-
     function getPlayerAnchorLocalPosition(){
       const liveCam = scene.camera;
       if(!liveCam) return new THREE.Vector3();
@@ -1396,48 +1388,44 @@
     }
 
     function placeSpawnedBeingHidden(spawned){
+      const liveCam = scene.camera;
+      if(!liveCam){
+        placeSpawnedBeingNearViewer(spawned);
+        return;
+      }
+
       const viewer = getPlayerAnchorLocalPosition();
-      const occluders = getHideOccluders();
-      if(!occluders.length){
-        placeSpawnedBeingNearViewer(spawned);
-        return;
-      }
+      liveCam.getWorldDirection(moveForward);
+      moveForward.y = 0;
+      if(moveForward.lengthSq() < 1e-6) moveForward.set(0, 0, -1);
+      moveForward.normalize();
+      moveRight.crossVectors(moveForward, moveUp).normalize();
 
-      let best = null;
-      let bestScore = Infinity;
-      for(const occluder of occluders){
-        const dx = occluder.pos.x - viewer.x;
-        const dz = occluder.pos.z - viewer.z;
-        const dist = Math.hypot(dx, dz);
-        const score = Math.abs(dist - 1.4);
-        if(score < bestScore){
-          best = occluder;
-          bestScore = score;
-        }
-      }
+      const sideBias = [-0.9, -0.55, 0.55, 0.9][Math.floor(Math.random() * 4)];
+      const forwardDistance = 1.6 + Math.random() * 1.2;
+      const lateralDistance = sideBias * (0.7 + Math.random() * 0.5);
+      const pxRaw = viewer.x + moveForward.x * forwardDistance + moveRight.x * lateralDistance;
+      const pzRaw = viewer.z + moveForward.z * forwardDistance + moveRight.z * lateralDistance;
 
-      if(!best){
-        placeSpawnedBeingNearViewer(spawned);
-        return;
+      const minCityDistance = 2.15;
+      let px = pxRaw;
+      let pz = pzRaw;
+      const cityDist = Math.hypot(px, pz);
+      if(cityDist < minCityDistance){
+        const norm = cityDist || 1;
+        px = (px / norm) * minCityDistance;
+        pz = (pz / norm) * minCityDistance;
       }
-
-      let hideDirX = viewer.x - best.pos.x;
-      let hideDirZ = viewer.z - best.pos.z;
-      const hideLen = Math.hypot(hideDirX, hideDirZ) || 1;
-      hideDirX /= hideLen;
-      hideDirZ /= hideLen;
-      const hideOffset = best.radius + 0.16;
-      const px = best.pos.x - hideDirX * hideOffset;
-      const pz = best.pos.z - hideDirZ * hideOffset;
 
       spawned.el.object3D.position.set(px, 0, pz);
       spawned.currentRadius = Math.sqrt(px * px + pz * pz);
       spawned.targetRadius = Math.max(0.48, spawned.currentRadius * 0.92);
       spawned.angle = Math.atan2(pz, px);
-      spawned.hiding = true;
+      spawned.hiding = false;
       spawned.searchHidden = true;
-      spawned.hideProp = best;
-      spawned.hideOffset = { x: px - best.pos.x, z: pz - best.pos.z };
+      spawned.hideProp = null;
+      spawned.hideOffset = null;
+      spawned.el.object3D.visible = false;
     }
 
     function revealHiddenBuddy(buddy, reason = 'scan'){
@@ -1446,6 +1434,7 @@
       buddy.hiding = false;
       buddy.hideProp = null;
       buddy.hideOffset = null;
+      buddy.el.object3D.visible = true;
       showSpawnIndicator(buddy.el.object3D.position.x, buddy.el.object3D.position.z);
       if(reason === 'scan'){
         notify(`📡 Scan hit. ${buddy.name} emerged from cover.`);
@@ -1785,6 +1774,7 @@
         bob: data.bob ?? Math.random() * 6,
         hideAffinity: data.hideAffinity ?? 1,
         hiding: false,
+        searchHidden: false,
         hideProp: null,
         activeAnimation: null,
         animationTime: 0,
@@ -1898,6 +1888,7 @@
     }
 
     function updateMovement(dt){
+      if(explorationModeActive) return;
       if(!moveInput.x && !moveInput.y) return;
       const cam = scene.camera;
       if(!cam) return;
@@ -1971,6 +1962,9 @@
         if(document.fullscreenEnabled && !document.fullscreenElement){
           await document.documentElement.requestFullscreen().catch(()=>{});
         }
+        if(scene.enterAR && !scene.is('ar-mode')){
+          await scene.enterAR().catch(()=>{});
+        }
         explorationModeActive = true;
         arExplorationSpawnTimer = 1.2;
         arExplorationDistance = 0;
@@ -1983,7 +1977,9 @@
             spawnFromArExploration();
           }
         }, 650);
-        notify('Go Find mode active. Walk around nearby areas to reveal Sylvexians.');
+        notify(scene.is('ar-mode')
+          ? 'Go Find active. AR tracking anchored the city; search your room for hidden Sylvexians.'
+          : 'Go Find active. Look around and scan for hidden Sylvexians.');
       }catch(_){ notify('Go Find could not start camera view on this device, but regular mode still works.'); }
     }
 
