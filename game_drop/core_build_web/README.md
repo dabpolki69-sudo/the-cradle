@@ -8,6 +8,7 @@ This folder is the clean build-forward baseline extracted from the mixed drop.
 - `manifest.json`, `sw.js` — PWA support assets
 - `TWO_LANE_COEXISTENCE_SPEC.md` — human lane + AI lane product blueprint
 - `shared-review-schema.js` — shared step-out review validation/record helpers
+- `world-state-contract.json` — Unreal-aligned canonical world-state exchange contract
 - `NEXT_STEPS.md` — 48-hour implementation checklist
 
 ## Run (local)

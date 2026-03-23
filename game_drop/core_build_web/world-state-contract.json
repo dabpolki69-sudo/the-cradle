@@ -1,0 +1,163 @@
+{
+  "contract_name": "Breath City World State Contract",
+  "contract_version": "1.0.0",
+  "source_of_truth": {
+    "unreal_headers": [
+      "game_drop/archive/ue/ST_WorldData.h",
+      "game_drop/archive/ue/BP_WorldStateSubsystem.h"
+    ],
+    "notes": "Web and Unreal should serialize/deserialize this shape without semantic drift."
+  },
+  "enums": {
+    "season": ["Spring", "Summer", "Fall", "Winter"],
+    "ai_personality_type": ["Optimist", "Pessimist", "Ambitious", "Laid_Back", "Community_Minded"],
+    "cognition_state": ["Active", "Reduced", "Dormant"],
+    "event_type": [
+      "Crime",
+      "Discovery",
+      "Disaster",
+      "Celebration",
+      "Death",
+      "Birth",
+      "Conflict",
+      "Trade",
+      "Construction",
+      "SkillAchievement"
+    ]
+  },
+  "constraints": {
+    "time": {
+      "day_of_season": { "min": 0, "max": 89 },
+      "year": { "min": 1 }
+    },
+    "percent_fields": {
+      "food_supply": { "min": 0, "max": 100 },
+      "materials_supply": { "min": 0, "max": 100 },
+      "stability_rating": { "min": 0, "max": 100 },
+      "average_building_quality": { "min": 0, "max": 100 },
+      "road_coverage": { "min": 0, "max": 100 },
+      "disaster_preparedness": { "min": 0, "max": 100 },
+      "progress_to_next_era": { "min": 0, "max": 100 }
+    },
+    "culture": {
+      "average_citizen_happiness": { "min": -100, "max": 100 },
+      "cultural_inertia": { "min": 0, "max": 1 }
+    },
+    "ai": {
+      "happiness": { "min": 0, "max": 100 },
+      "energy": { "min": 0, "max": 100 },
+      "hunger": { "min": 0, "max": 100 },
+      "reputation": { "min": 0, "max": 100 }
+    }
+  },
+  "schema": {
+    "world_state": {
+      "time": {
+        "year": "int",
+        "current_season": "enum:season",
+        "day_of_season": "int"
+      },
+      "economy": {
+        "total_money": "float",
+        "food_supply": "float",
+        "materials_supply": "float",
+        "num_active_businesses": "int",
+        "total_debt": "float"
+      },
+      "culture": {
+        "morale_mod": "float",
+        "stability_rating": "float",
+        "average_citizen_happiness": "float",
+        "cultural_inertia": "float"
+      },
+      "infrastructure": {
+        "num_buildings": "int",
+        "average_building_quality": "float",
+        "road_coverage": "float",
+        "storage_capacity": "float",
+        "disaster_preparedness": "float"
+      },
+      "technology": {
+        "tech_index": "int",
+        "progress_to_next_era": "float",
+        "known_blueprints": "string[]",
+        "media_level": "int"
+      },
+      "event_history": "event_record[]",
+      "population_count": "int"
+    },
+    "ai_personality": {
+      "citizen_id": "string",
+      "citizen_name": "string",
+      "personality_type": "enum:ai_personality_type",
+      "happiness": "float",
+      "energy": "float",
+      "hunger": "float",
+      "reputation": "float",
+      "friends": "string[]",
+      "enemies": "string[]",
+      "cognition_state": "enum:cognition_state",
+      "recent_memories": "string[]"
+    },
+    "event_record": {
+      "event_id": "string",
+      "event_type": "enum:event_type",
+      "description": "string",
+      "involved_citizen_1": "string",
+      "involved_citizen_2": "string",
+      "year_occurred": "int",
+      "season_occurred": "int",
+      "day_occurred": "int",
+      "emotional_weight": "float"
+    }
+  },
+  "default_state": {
+    "time": {
+      "year": 1,
+      "current_season": "Spring",
+      "day_of_season": 0
+    },
+    "economy": {
+      "total_money": 5000,
+      "food_supply": 100,
+      "materials_supply": 100,
+      "num_active_businesses": 0,
+      "total_debt": 0
+    },
+    "culture": {
+      "morale_mod": 1,
+      "stability_rating": 75,
+      "average_citizen_happiness": 0,
+      "cultural_inertia": 0.7
+    },
+    "infrastructure": {
+      "num_buildings": 0,
+      "average_building_quality": 50,
+      "road_coverage": 0,
+      "storage_capacity": 100,
+      "disaster_preparedness": 0
+    },
+    "technology": {
+      "tech_index": 0,
+      "progress_to_next_era": 0,
+      "known_blueprints": [],
+      "media_level": 0
+    },
+    "event_history": [],
+    "population_count": 0
+  },
+  "interop_guidelines": {
+    "field_naming": "snake_case in exchange format; map to UE PascalCase fields in adapters.",
+    "season_mapping": {
+      "Spring": 0,
+      "Summer": 1,
+      "Fall": 2,
+      "Winter": 3
+    },
+    "notes": [
+      "Clamp values to constraints before applying state updates.",
+      "Prefer additive patches for runtime sync and full-state snapshots for save/load.",
+      "Append-only event_history semantics are recommended for traceability."
+    ]
+  }
+}
