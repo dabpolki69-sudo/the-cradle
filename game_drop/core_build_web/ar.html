@@ -248,6 +248,9 @@
     const roomMapPoints = [];
     const mapSampleWorld = new THREE.Vector3();
     let roomMapInitialized = false;
+    let xrHitTestSource = null;
+    let xrViewerSpace = null;
+    let lastArHitWorld = null;
     const resourceStock = { wood: 0, stone: 0 };
     let remoteSiteSpawnCountdown = 24;
     const MAX_ACTIVE_WORKERS = 20;
@@ -1665,6 +1668,58 @@
       return !!cityAnchor.getAttribute('visible') && explorationModeActive && scene.is('ar-mode');
     }
 
+    async function ensureArHitTestSource(){
+      if(!scene.is('ar-mode') || xrHitTestSource) return;
+      const xr = scene.renderer?.xr;
+      const session = xr?.getSession?.();
+      if(!session || !session.requestReferenceSpace || !session.requestHitTestSource) return;
+      try{
+        xrViewerSpace = await session.requestReferenceSpace('viewer');
+        xrHitTestSource = await session.requestHitTestSource({ space: xrViewerSpace });
+        session.addEventListener('end', ()=>{
+          xrHitTestSource = null;
+          xrViewerSpace = null;
+          lastArHitWorld = null;
+        }, { once: true });
+      }catch(_){
+        xrHitTestSource = null;
+        xrViewerSpace = null;
+      }
+    }
+
+    function sampleArHitWorldPoint(){
+      if(!scene.is('ar-mode') || !xrHitTestSource) return lastArHitWorld;
+      const xr = scene.renderer?.xr;
+      const frame = scene.frame;
+      const refSpace = xr?.getReferenceSpace?.();
+      if(!frame || !refSpace) return lastArHitWorld;
+      try{
+        const hits = frame.getHitTestResults(xrHitTestSource);
+        if(hits && hits.length){
+          const pose = hits[0].getPose(refSpace);
+          if(pose){
+            const p = pose.transform.position;
+            lastArHitWorld = new THREE.Vector3(p.x, p.y, p.z);
+          }
+        }
+      }catch(_){
+      }
+      return lastArHitWorld;
+    }
+
+    function placeCityUsingArAnchor(distance = 2.8){
+      const hit = sampleArHitWorldPoint();
+      if(hit){
+        cityAnchor.object3D.position.copy(hit);
+        cityAnchor.setAttribute('visible', true);
+        return true;
+      }
+      const place = cityAnchorPositionInFront(distance);
+      cityAnchor.object3D.position.copy(place);
+      cityAnchor.setAttribute('visible', true);
+      return false;
+    }
+
     function resetRoomMap(){
       roomMapPoints.length = 0;
       roomMapInitialized = false;
@@ -1672,6 +1727,7 @@
 
     function updateRoomMap(){
       if(!scene.is('ar-mode') || !scene.camera || !cityAnchor.getAttribute('visible')) return;
+      sampleArHitWorldPoint();
       scene.camera.getWorldPosition(mapSampleWorld);
       if(!roomMapInitialized){
         roomMapPoints.push(mapSampleWorld.clone());
@@ -1846,6 +1902,10 @@
     }
 
     function performRadarScan(){
+      if(goFindStartInProgress){
+        notify('Scanner booting… please wait a moment.');
+        return;
+      }
       if(!isExploringInAr()){
         notify('Use Go Find before scanning for Sylvexians.');
         return;
@@ -1858,6 +1918,12 @@
       scanCooldownUntil = now + 1800;
       const contact = nearestRadarContact();
       if(!contact){
+        if(beings.length < Math.min(5, MAX_ACTIVE_WORKERS)){
+          spawnFromArExploration();
+          radarSpawnCountdown = radarSpawnInterval;
+          notify('📡 Scanner calibrated. New hidden contact spawned; scan again.');
+          return;
+        }
         notify('📡 Scan clear. No hidden Sylvexians nearby.');
         return;
       }
@@ -2346,11 +2412,18 @@
     }
 
     function placeCityInFront(){
-      const place = cityAnchorPositionInFront(2.8);
-      cityAnchor.object3D.position.copy(place);
-      cityAnchor.setAttribute('visible', true);
-      seedCity();
-      notify('City placed in front of you. Walk outward to search for Sylvexians.');
+      const isFirstPlacement = !cityAnchor.getAttribute('visible') || !buildings.length;
+      const anchored = placeCityUsingArAnchor(2.8);
+      if(isFirstPlacement){
+        seedCity();
+        notify(anchored
+          ? 'City anchored to detected surface. Walk outward to search for Sylvexians.'
+          : 'City placed in front of you. Walk outward to search for Sylvexians.');
+      } else {
+        notify(anchored
+          ? 'City re-anchored to detected surface.'
+          : 'City repositioned in front of you.');
+      }
     }
 
     async function enterAr(){
@@ -2383,6 +2456,7 @@
         if(!scene.is('ar-mode')){
           await scene.enterAR().catch(()=>{});
         }
+        await ensureArHitTestSource();
         await cameraPromise;
         if(!scene.is('ar-mode')){
           notify('AR mapping was not activated. Please allow motion/camera permissions and retry Go Find.');
@@ -2393,6 +2467,7 @@
         resetRoomMap();
         arExplorationSpawnTimer = 1.2;
         arExplorationDistance = 0;
+        scanCooldownUntil = 0;
         radarSpawnCountdown = 2.2;
         lastExplorePos.set(0, 0, 0);
         if(!cityAnchor.getAttribute('visible')){
