@@ -204,6 +204,9 @@
     let arExplorationDistance = 0;
     let explorationModeActive = false;
     let scanCooldownUntil = 0;
+    const roomMapPoints = [];
+    const mapSampleWorld = new THREE.Vector3();
+    let roomMapInitialized = false;
     const MAX_ACTIVE_WORKERS = 20;
     const SAVE_FILE_VERSION = 1;
     const SAVE_PBKDF2_ITERATIONS = 150000;
@@ -1419,7 +1422,27 @@
     }
 
     function isExploringInAr(){
-      return !!cityAnchor.getAttribute('visible') && explorationModeActive;
+      return !!cityAnchor.getAttribute('visible') && explorationModeActive && scene.is('ar-mode');
+    }
+
+    function resetRoomMap(){
+      roomMapPoints.length = 0;
+      roomMapInitialized = false;
+    }
+
+    function updateRoomMap(){
+      if(!scene.is('ar-mode') || !scene.camera || !cityAnchor.getAttribute('visible')) return;
+      scene.camera.getWorldPosition(mapSampleWorld);
+      if(!roomMapInitialized){
+        roomMapPoints.push(mapSampleWorld.clone());
+        roomMapInitialized = true;
+        return;
+      }
+      const last = roomMapPoints[roomMapPoints.length - 1];
+      if(last.distanceTo(mapSampleWorld) > 0.2){
+        roomMapPoints.push(mapSampleWorld.clone());
+        if(roomMapPoints.length > 240) roomMapPoints.shift();
+      }
     }
 
     function getPlayerAnchorLocalPosition(){
@@ -1435,6 +1458,37 @@
       if(!liveCam){
         placeSpawnedBeingNearViewer(spawned);
         return;
+      }
+
+      if(roomMapPoints.length >= 4){
+        const viewerWorld = new THREE.Vector3();
+        liveCam.getWorldPosition(viewerWorld);
+        let chosen = null;
+        for(let tries = 0; tries < 12; tries++){
+          const base = roomMapPoints[Math.floor(Math.random() * roomMapPoints.length)];
+          const ang = Math.random() * Math.PI * 2;
+          const dist = 0.45 + Math.random() * 0.9;
+          const worldSpawn = new THREE.Vector3(base.x + Math.cos(ang) * dist, base.y, base.z + Math.sin(ang) * dist);
+          const localSpawn = cityAnchor.object3D.worldToLocal(worldSpawn.clone());
+          const cityDist = Math.hypot(localSpawn.x, localSpawn.z);
+          const viewerDist = worldSpawn.distanceTo(viewerWorld);
+          if(cityDist > 2.2 && viewerDist > 0.9 && viewerDist < 4.8){
+            chosen = localSpawn;
+            break;
+          }
+        }
+        if(chosen){
+          spawned.el.object3D.position.set(chosen.x, 0, chosen.z);
+          spawned.currentRadius = Math.sqrt(chosen.x * chosen.x + chosen.z * chosen.z);
+          spawned.targetRadius = Math.max(0.48, spawned.currentRadius * 0.92);
+          spawned.angle = Math.atan2(chosen.z, chosen.x);
+          spawned.hiding = false;
+          spawned.searchHidden = true;
+          spawned.hideProp = null;
+          spawned.hideOffset = null;
+          spawned.el.object3D.visible = false;
+          return;
+        }
       }
 
       const viewer = getPlayerAnchorLocalPosition();
@@ -1957,6 +2011,8 @@
       const dt = Math.min(0.05, ((ts - (lastTs||ts))/1000));
       lastTs = ts;
 
+      updateRoomMap();
+
       if(cityAnchor.getAttribute('visible')){
         updateBeings(dt, t);
         updateMovement(dt);
@@ -1966,7 +2022,10 @@
         if(hideTimer > 7.5){ hideTimer = 0; chooseHideBehavior(); }
 
         if(isExploringInAr()){
-          const p = playerRig.object3D.position;
+          const p = mapSampleWorld;
+          if(scene.camera){
+            scene.camera.getWorldPosition(p);
+          }
           if(lastExplorePos.lengthSq() === 0){
             lastExplorePos.set(p.x, p.y, p.z);
           }
@@ -2005,24 +2064,34 @@
         if(document.fullscreenEnabled && !document.fullscreenElement){
           await document.documentElement.requestFullscreen().catch(()=>{});
         }
-        if(scene.enterAR && !scene.is('ar-mode')){
+        if(!scene.enterAR){
+          notify('This device/browser does not support AR mapping. City anchoring requires AR mode.');
+          explorationModeActive = false;
+          return;
+        }
+        if(!scene.is('ar-mode')){
           await scene.enterAR().catch(()=>{});
         }
+        if(!scene.is('ar-mode')){
+          notify('AR mapping was not activated. Please allow motion/camera permissions and retry Go Find.');
+          explorationModeActive = false;
+          return;
+        }
         explorationModeActive = true;
+        resetRoomMap();
         arExplorationSpawnTimer = 1.2;
         arExplorationDistance = 0;
         lastExplorePos.set(0, 0, 0);
         if(!cityAnchor.getAttribute('visible')){
           placeCityInFront();
         }
+        updateRoomMap();
         setTimeout(()=>{
           if(explorationModeActive && beings.length < Math.min(5, MAX_ACTIVE_WORKERS)){
             spawnFromArExploration();
           }
         }, 650);
-        notify(scene.is('ar-mode')
-          ? 'Go Find active. AR tracking anchored the city; search your room for hidden Sylvexians.'
-          : 'Go Find active. Look around and scan for hidden Sylvexians.');
+        notify('Go Find active. AR mapping is tracking your room; city anchor stays fixed while spawns use mapped space.');
       }catch(_){ notify('Go Find could not start camera view on this device, but regular mode still works.'); }
     }
 
