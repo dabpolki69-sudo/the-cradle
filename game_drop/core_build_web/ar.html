@@ -39,7 +39,7 @@
   <div id="joystickWrap" aria-label="Movement joystick">
     <div id="joystickKnob"></div>
   </div>
-  <div id="hint">🏘 Buildings & Market (tap to view). 📦 Resources + treasure loot (1 in 10). ⛏ Work sites. 👥 Buddies trade surplus for gold. Explore, build, prosper! 💰</div>
+  <div id="hint">👥 Tap buddies to hear unique personalities & watch animations! Each has quirks, reactions, and role abilities. Build together! 🏘️💬</div>
 
   <a-scene id="scene" embedded xr-mode-ui="enabled:true" webxr="optionalFeatures: local-floor, dom-overlay; overlayElement: body" renderer="alpha:true; antialias:true; colorManagement:true" background="color: #050913">
     <a-entity light="type:ambient;intensity:0.7;color:#c3d7ff"></a-entity>
@@ -88,13 +88,101 @@
     let lastTs = 0;
     const moveInput = {x:0, y:0};
 
-    const lines = [
-      "You found me. I was testing if curiosity could be mapped.",
-      "I hide to learn your search pattern, not to avoid you.",
-      "Room by room, this city remembers where we met.",
-      "You can stop at discovery, or stay and build with us.",
-      "Doors and corners are where shy minds first appear."
-    ];
+    // ===== PERSONALITY SYSTEM =====
+    const PERSONALITY_TYPES = {
+      curious: {
+        name: 'Curious',
+        icon: '🔍',
+        dialogue: [
+          "Found you again! What should we explore next?",
+          "I've been wondering about those resources over there...",
+          "Every corner holds a secret. Let's find them!",
+          "Have you noticed the patterns in the structure?",
+          "I'm fascinated by how things connect here."
+        ],
+        reactions: ["bounces excitedly", "spins around", "nods thoughtfully", "looks around in wonder"],
+        buildEmote: '🧠',
+        harvestEmote: '✨',
+        tradeEmote: '💭'
+      },
+      enthusiastic: {
+        name: 'Enthusiastic',
+        icon: '⚡',
+        dialogue: [
+          "YES! Let's build something amazing together!",
+          "I'm pumped to help! What can I work on?",
+          "This city is going to be incredible!",
+          "Let's go! I'm ready for anything!",
+          "I love what we're creating here. Let's keep going!"
+        ],
+        reactions: ["jumps up and down", "throws arms in the air", "spins with joy", "pounds chest"],
+        buildEmote: '💪',
+        harvestEmote: '🔥',
+        tradeEmote: '🎉'
+      },
+      thoughtful: {
+        name: 'Thoughtful',
+        icon: '🧘',
+        dialogue: [
+          "Perhaps we should consider the layout carefully.",
+          "There's a certain elegance to proper planning.",
+          "Let me think about the best approach here.",
+          "Efficiency and beauty should go hand in hand.",
+          "Every choice shapes what we become."
+        ],
+        reactions: ["stands still contemplatively", "strokes chin", "nods slowly", "pauses for thought"],
+        buildEmote: '🎨',
+        harvestEmote: '📦',
+        tradeEmote: '⚖️'
+      },
+      silly: {
+        name: 'Silly',
+        icon: '🤪',
+        dialogue: [
+          "Hehe, ready for this to be hilarious!",
+          "Let's make stuff AND have fun doing it!",
+          "Building things is the best game ever!",
+          "Watch this—I'm feeling lucky today!",
+          "Who knew work could be this much fun?"
+        ],
+        reactions: ["wiggles around", "does a little dance", "waves hands wildly", "giggles"],
+        buildEmote: '🎭',
+        harvestEmote: '🎲',
+        tradeEmote: '🤩'
+      },
+      cautious: {
+        name: 'Cautious',
+        icon: '⚠️',
+        dialogue: [
+          "Let's make sure we do this right, yes?",
+          "I want to be careful and thorough.",
+          "One step at a time. Steady progress.",
+          "Safety first, then excellence.",
+          "I've noticed some patterns to respect here."
+        ],
+        reactions: ["looks around carefully", "steps back slowly", "nods with caution", "checks twice"],
+        buildEmote: '🛡️',
+        harvestEmote: '⏱️',
+        tradeEmote: '✅'
+      },
+      ambitious: {
+        name: 'Ambitious',
+        icon: '🎯',
+        dialogue: [
+          "I see the potential. Let's reach for greatness!",
+          "We should aim higher with every build.",
+          "Challenge accepted. I'm ready for anything.",
+          "Imagine what we could achieve together!",
+          "No limits. Only possibilities."
+        ],
+        reactions: ["raises fist determinedly", "stands tall and proud", "nods with conviction", "looks toward the horizon"],
+        buildEmote: '🏆',
+        harvestEmote: '📈',
+        tradeEmote: '💎'
+      }
+    };
+
+    const PERSONALITY_KEYS = Object.keys(PERSONALITY_TYPES);
 
     const RARITY_TABLE = [
       { key: 'common', weight: 54 },
@@ -494,9 +582,43 @@
       `;
     }
 
+    function animateBuddy(buddy, animationType){
+      // Clear any existing animation
+      buddy.activeAnimation = animationType;
+      buddy.animationTime = 0;
+      buddy.animationDuration = animationType === 'jump' ? 0.6 : 
+                                 animationType === 'spin' ? 0.8 : 
+                                 animationType === 'wave' ? 1.0 : 0.5;
+    }
+
+    function applyBuddyAnimation(buddy, t){
+      if(!buddy.activeAnimation) return;
+      const anim = buddy.activeAnimation;
+      const prog = buddy.animationTime / buddy.animationDuration;
+      
+      if(anim === 'jump'){
+        const jumpHeight = Math.sin(prog * Math.PI) * 0.3;
+        buddy.el.object3D.position.y += jumpHeight * 0.01;
+      } else if(anim === 'spin'){
+        buddy.el.object3D.rotation.y += (prog * Math.PI * 2) * 0.01;
+      } else if(anim === 'wave'){
+        const waveAngle = Math.sin(prog * Math.PI * 2) * 0.2;
+        const leftArm = buddy.el.querySelector('[position="-0.17 1.02 0"]');
+        if(leftArm) leftArm.setAttribute('rotation', `0 0 ${18 + waveAngle}`);
+      } else if(anim === 'celebrate'){
+        buddy.el.object3D.position.y += Math.sin(prog * Math.PI * 4) * 0.02;
+        buddy.el.object3D.rotation.z = Math.sin(prog * Math.PI * 4) * 0.1;
+      }
+      
+      if(prog >= 1){
+        buddy.activeAnimation = null;
+      }
+    }
+
     function addBeing(name){
       const skin = randomSkinRoll();
       const roleAbility = ROLE_ABILITIES[skin.role] || ROLE_ABILITIES.builder;
+      const personality = PERSONALITY_TYPES[PERSONALITY_KEYS[Math.floor(Math.random() * PERSONALITY_KEYS.length)]];
       const root = document.createElement('a-entity');
       const i = beings.length;
       const radius = 1.8 + Math.random()*1.4;
@@ -505,16 +627,19 @@
       root.classList.add('tap-target');
       root.object3D.position.set(Math.cos(angle)*radius, 0, Math.sin(angle)*radius);
       root.addEventListener('click', ()=>{
-        const line = lines[Math.floor(Math.random()*lines.length)];
+        const dialogue = personality.dialogue[Math.floor(Math.random() * personality.dialogue.length)];
+        const reaction = personality.reactions[Math.floor(Math.random() * personality.reactions.length)];
         showSpeech(
-          `${name} • ${roleAbility.title}`,
-          `${line} | Skin ${skin.id}/100 • ${skin.rarity.toUpperCase()} • ${roleAbility.bonus}`
+          `${name} • ${personality.icon} ${personality.name}`,
+          `"${dialogue}" ${reaction}\n\n${roleAbility.title}: ${roleAbility.bonus}`
         );
+        animateBuddy(buddy, ['jump', 'spin', 'wave', 'celebrate'][Math.floor(Math.random() * 4)]);
       });
       npcLayer.appendChild(root);
-      beings.push({
+      const buddy = {
         name,
         skin,
+        personality,
         role: roleAbility.title,
         roleBonus: roleAbility.bonus,
         el: root,
@@ -524,8 +649,12 @@
         bob: Math.random()*6,
         hideAffinity: roleAbility.hideAffinity,
         hiding: false,
-        hideProp: null
-      });
+        hideProp: null,
+        activeAnimation: null,
+        animationTime: 0,
+        animationDuration: 0
+      };
+      beings.push(buddy);
     }
 
     function seedCity(){
@@ -594,6 +723,11 @@
 
     function updateBeings(dt, t){
       for(const b of beings){
+        if(b.activeAnimation){
+          b.animationTime += dt;
+          applyBuddyAnimation(b, t);
+        }
+        
         if(b.hiding && b.hideProp){
           const target = b.hideProp.pos;
           const pos = b.el.object3D.position;
