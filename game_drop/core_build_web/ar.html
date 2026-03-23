@@ -1302,6 +1302,20 @@
       const name = undiscovered[Math.floor(Math.random() * undiscovered.length)];
       const spawned = addBeing(name);
       if(spawned){
+        // Pin spawn to player's current AR position, not the city orbit radius
+        const liveCam = scene.camera;
+        if(liveCam && cityAnchor.getAttribute('visible')){
+          const wp = new THREE.Vector3();
+          liveCam.getWorldPosition(wp);
+          const localPos = cityAnchor.object3D.worldToLocal(wp.clone());
+          const jitter = 0.18;
+          const px = localPos.x + (Math.random()-0.5)*jitter;
+          const pz = localPos.z + (Math.random()-0.5)*jitter;
+          spawned.el.object3D.position.set(px, 0, pz);
+          spawned.currentRadius = Math.sqrt(px*px + pz*pz);
+          spawned.targetRadius = Math.max(0.4, spawned.currentRadius * 0.85);
+          spawned.angle = Math.atan2(pz, px);
+        }
         notify(`✨ A Sylvexian appeared nearby: ${name}. Tap to pick up.`);
       }
     }
@@ -1720,6 +1734,7 @@
     menuToggleBtn.addEventListener('click', ()=>{
       const collapsed = uiTop.classList.toggle('menu-collapsed');
       menuToggleBtn.textContent = collapsed ? '☰ Menu' : '✕ Close';
+      statusEl.style.display = collapsed ? '' : 'none';
     });
     layoutModeSelect.addEventListener('change', (e)=>{
       document.body.classList.remove('layout-compact', 'layout-minimal');
@@ -1778,6 +1793,33 @@
     });
 
     startCameraBackground();
+
+    // Manual touchend raycaster — ensures tap-to-select works in WebXR AR
+    // (look-controls touchEnabled:true prevents synthetic click from touchstart;
+    //  this handler fires reliably on touchend and bypasses that issue)
+    document.addEventListener('touchend', (e)=>{
+      if(e.target.closest('#uiTop,#status,#speech,#hint,#joystickWrap,#collectionModal,#introOverlay')) return;
+      if(!cityAnchor.getAttribute('visible')) return;
+      const touch = e.changedTouches[0];
+      if(!touch) return;
+      const x = (touch.clientX / window.innerWidth) * 2 - 1;
+      const y = -(touch.clientY / window.innerHeight) * 2 + 1;
+      const liveCam = scene.camera;
+      if(!liveCam) return;
+      const rc = new THREE.Raycaster();
+      rc.setFromCamera({ x, y }, liveCam);
+      const meshes = [];
+      document.querySelectorAll('.tap-target').forEach(el=>{
+        if(el.object3D) el.object3D.traverse(obj=>{ if(obj.isMesh) meshes.push(obj); });
+      });
+      const hits = rc.intersectObjects(meshes, false);
+      if(!hits.length) return;
+      let obj = hits[0].object;
+      while(obj && !obj.el) obj = obj.parent;
+      let tapEl = obj ? obj.el : null;
+      while(tapEl && !tapEl.classList.contains('tap-target')) tapEl = tapEl.parentElement;
+      if(tapEl) tapEl.dispatchEvent(new MouseEvent('click', { bubbles:true, cancelable:true }));
+    }, { passive:true });
 
     requestAnimationFrame(tick);
   </script>
