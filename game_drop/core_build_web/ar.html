@@ -248,6 +248,8 @@
     const roomMapPoints = [];
     const mapSampleWorld = new THREE.Vector3();
     let roomMapInitialized = false;
+    const resourceStock = { wood: 0, stone: 0 };
+    let remoteSiteSpawnCountdown = 24;
     const MAX_ACTIVE_WORKERS = 20;
     const SAVE_FILE_VERSION = 1;
     const SAVE_PBKDF2_ITERATIONS = 150000;
@@ -1023,13 +1025,16 @@
       buildings.length = 0;
       resources.length = 0;
       workSites.length = 0;
+      resourceStock.wood = 0;
+      resourceStock.stone = 0;
+      remoteSiteSpawnCountdown = 24;
       collectedSylvexians.clear();
       advancements.clear();
       updateCollectionUI();
       updateTeamUI();
     }
 
-    function createWorkSite(siteType, pos){
+    function createWorkSite(siteType, pos, options = {}){
       const root = document.createElement('a-entity');
       root.object3D.position.set(pos.x, 0, pos.z);
       root.innerHTML = workSiteMarkup(siteType);
@@ -1038,11 +1043,11 @@
         const output = siteType === 'logging' ? 'Wood' : 'Stone';
         showSpeech(
           `${siteType.toUpperCase()} Site`,
-          `Active extraction site. Post your workers here to harvest ${output}.`
+          `${options.remote ? 'Remote' : 'Active'} extraction site. Post your workers here to harvest ${output}.`
         );
       });
       workSiteLayer.appendChild(root);
-      workSites.push({type: siteType, el: root, pos});
+      workSites.push({type: siteType, el: root, pos, remote: !!options.remote, output: options.output || (siteType === 'logging' ? 'wood' : 'stone')});
       return root;
     }
 
@@ -1542,6 +1547,120 @@
       setTimeout(()=>{ b.hiding = false; b.hideProp = null; }, 5200);
     }
 
+    function setBuddyCargoVisual(buddy, material){
+      if(!buddy || !buddy.el) return;
+      const existing = buddy.el.querySelector('.buddy-cargo');
+      if(existing && !material){
+        existing.remove();
+        buddy.cargoType = null;
+        return;
+      }
+      if(!material) return;
+
+      const color = material === 'wood' ? '#b8864a' : '#9ca6b3';
+      const emissive = material === 'wood' ? '#6d3f1f' : '#70839d';
+      if(existing){
+        existing.setAttribute('material', `color:${color};roughness:0.4;metalness:0.2;emissive:${emissive};emissiveIntensity:0.08`);
+      } else {
+        const cargo = document.createElement('a-box');
+        cargo.classList.add('buddy-cargo');
+        cargo.setAttribute('width', '0.08');
+        cargo.setAttribute('height', '0.08');
+        cargo.setAttribute('depth', '0.08');
+        cargo.setAttribute('position', '0.12 1.02 0.08');
+        cargo.setAttribute('material', `color:${color};roughness:0.4;metalness:0.2;emissive:${emissive};emissiveIntensity:0.08`);
+        buddy.el.appendChild(cargo);
+      }
+      buddy.cargoType = material;
+    }
+
+    function ensureWorkerTask(buddy){
+      if(!buddy || buddy.searchHidden) return;
+      if(!workSites.length) return;
+      if(buddy.workerTask && buddy.workerTask.site && workSites.includes(buddy.workerTask.site)) return;
+      const site = workSites[Math.floor(Math.random() * workSites.length)];
+      buddy.workerTask = {
+        site,
+        phase: 'toSite',
+        gatherTimer: 0,
+        deliveryCount: buddy.workerTask?.deliveryCount || 0
+      };
+    }
+
+    function moveBuddyToward(buddy, target, dt, speed = 1){
+      const pos = buddy.el.object3D.position;
+      const dx = target.x - pos.x;
+      const dz = target.z - pos.z;
+      const dist = Math.hypot(dx, dz);
+      if(dist < 0.08) return true;
+      const step = Math.min(dist, (buddy.speed + 0.28) * speed * dt);
+      pos.x += (dx / dist) * step;
+      pos.z += (dz / dist) * step;
+      buddy.el.object3D.rotation.y = Math.atan2(dx, dz);
+      return dist - step < 0.08;
+    }
+
+    function updateBuddyWorkerLoop(buddy, dt){
+      if(!isExploringInAr()) return false;
+      if(!buddy || buddy.searchHidden || buddy.hiding || buddy.activeAnimation) return false;
+      ensureWorkerTask(buddy);
+      const task = buddy.workerTask;
+      if(!task || !task.site) return false;
+
+      if(task.phase === 'toSite'){
+        const arrived = moveBuddyToward(buddy, task.site.pos, dt, 1.25);
+        if(arrived){
+          task.phase = 'gather';
+          task.gatherTimer = 0.7 + Math.random() * 0.9;
+        }
+      } else if(task.phase === 'gather'){
+        task.gatherTimer -= dt;
+        if(task.gatherTimer <= 0){
+          setBuddyCargoVisual(buddy, task.site.output || 'wood');
+          task.phase = 'toBase';
+        }
+      } else if(task.phase === 'toBase'){
+        const arrived = moveBuddyToward(buddy, { x: 0, z: 0 }, dt, 1.45);
+        if(arrived){
+          if(buddy.cargoType === 'wood') resourceStock.wood += 1;
+          if(buddy.cargoType === 'stone') resourceStock.stone += 1;
+          setBuddyCargoVisual(buddy, null);
+          task.phase = 'toSite';
+          task.deliveryCount += 1;
+          if(task.deliveryCount % 4 === 0){
+            notify(`📦 Supplies delivered • Wood ${resourceStock.wood} | Stone ${resourceStock.stone}`);
+          }
+        }
+      }
+      return true;
+    }
+
+    function spawnRemoteWorkSiteFromMap(){
+      if(!roomMapPoints.length || !cityAnchor.getAttribute('visible')) return;
+      if(workSites.length >= 5) return;
+
+      for(let tries = 0; tries < 18; tries++){
+        const base = roomMapPoints[Math.floor(Math.random() * roomMapPoints.length)];
+        const localPos = cityAnchor.object3D.worldToLocal(base.clone());
+        const cityDist = Math.hypot(localPos.x, localPos.z);
+        if(cityDist < 2.8 || cityDist > 7.5) continue;
+
+        let tooClose = false;
+        for(const site of workSites){
+          if(Math.hypot(localPos.x - site.pos.x, localPos.z - site.pos.z) < 1.35){
+            tooClose = true;
+            break;
+          }
+        }
+        if(tooClose) continue;
+
+        const type = Math.random() < 0.5 ? 'logging' : 'mining';
+        createWorkSite(type, { x: localPos.x, z: localPos.z }, { remote: true });
+        notify(`🛠 Remote ${type} site discovered in mapped area.`);
+        return;
+      }
+    }
+
     function isExploringInAr(){
       return !!cityAnchor.getAttribute('visible') && explorationModeActive && scene.is('ar-mode');
     }
@@ -1836,11 +1955,14 @@
           pos.z += (targetZ - pos.z) * Math.min(1, dt*1.9);
           b.el.object3D.lookAt(target.x*1.2, 1, target.z*1.2);
         } else {
-          b.angle += b.speed*dt;
-          b.currentRadius += (b.targetRadius - b.currentRadius) * Math.min(1, dt * 1.7);
-          b.el.object3D.position.x = Math.cos(b.angle)*b.currentRadius;
-          b.el.object3D.position.z = Math.sin(b.angle)*b.currentRadius;
-          b.el.object3D.rotation.y = -b.angle + Math.PI/2;
+          const handledByWorker = updateBuddyWorkerLoop(b, dt);
+          if(!handledByWorker){
+            b.angle += b.speed*dt;
+            b.currentRadius += (b.targetRadius - b.currentRadius) * Math.min(1, dt * 1.7);
+            b.el.object3D.position.x = Math.cos(b.angle)*b.currentRadius;
+            b.el.object3D.position.z = Math.sin(b.angle)*b.currentRadius;
+            b.el.object3D.rotation.y = -b.angle + Math.PI/2;
+          }
 
           const gait = Math.sin(t * 8 + b.bob) * (0.22 + b.speed * 0.15);
           const leftArm = b.el.querySelector('.left-arm');
@@ -1917,6 +2039,11 @@
         version: SAVE_FILE_VERSION,
         savedAt: new Date().toISOString(),
         playerGold,
+        resourceStock: {
+          wood: resourceStock.wood,
+          stone: resourceStock.stone
+        },
+        remoteSiteSpawnCountdown,
         cityVisible: !!cityAnchor.getAttribute('visible'),
         cityAnchor: {
           x: cityAnchor.object3D.position.x,
@@ -1937,7 +2064,12 @@
           pos: { x: r.pos.x, z: r.pos.z },
           isTreasure: !!r.isTreasure
         })),
-        workSites: workSites.map((w)=>({ type: w.type, pos: { x: w.pos.x, z: w.pos.z } })),
+        workSites: workSites.map((w)=>({
+          type: w.type,
+          pos: { x: w.pos.x, z: w.pos.z },
+          remote: !!w.remote,
+          output: w.output || (w.type === 'mining' ? 'stone' : 'wood')
+        })),
         beings: beings.map((b)=>({
           name: b.name,
           skin: b.skin,
@@ -2038,11 +2170,19 @@
         else createBuilding(b.type || 'shelter', b.pos || { x: 0, z: 0 }, b.index || 0);
       });
       (snapshot.resources || []).forEach((r)=>createResource(r.type || 'wood', r.pos || { x: 0, z: 0 }, !!r.isTreasure));
-      (snapshot.workSites || []).forEach((w)=>createWorkSite(w.type || 'logging', w.pos || { x: 0, z: 0 }));
+      (snapshot.workSites || []).forEach((w)=>createWorkSite(w.type || 'logging', w.pos || { x: 0, z: 0 }, { remote: !!w.remote, output: w.output }));
       (snapshot.beings || []).forEach((b)=>restoreBeingFromSave(b));
       (snapshot.collected || []).forEach((name)=>{
         upsertCollectionEntry(name);
       });
+
+      if(snapshot.resourceStock && typeof snapshot.resourceStock === 'object'){
+        resourceStock.wood = Number(snapshot.resourceStock.wood) || 0;
+        resourceStock.stone = Number(snapshot.resourceStock.stone) || 0;
+      }
+      remoteSiteSpawnCountdown = typeof snapshot.remoteSiteSpawnCountdown === 'number'
+        ? snapshot.remoteSiteSpawnCountdown
+        : 24;
 
       (snapshot.advancements || []).forEach((id)=>advancements.add(id));
       updateCollectionUI();
@@ -2193,6 +2333,12 @@
             } else {
               notify('Radar active. Team cap reached, no new spawn this cycle.');
             }
+          }
+
+          remoteSiteSpawnCountdown -= dt;
+          if(remoteSiteSpawnCountdown <= 0){
+            spawnRemoteWorkSiteFromMap();
+            remoteSiteSpawnCountdown = 26 + Math.random() * 12;
           }
         }
       }
