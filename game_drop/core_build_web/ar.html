@@ -1293,6 +1293,9 @@
         hideAffinity: roleAbility.hideAffinity,
         hiding: false,
         searchHidden: false,
+        searchAnchor: null,
+        searchRadius: 0.32 + Math.random() * 0.22,
+        searchPhase: Math.random() * Math.PI * 2,
         hideProp: null,
         activeAnimation: null,
         animationTime: 0,
@@ -1749,10 +1752,16 @@
       return cityAnchor.object3D.worldToLocal(wp.clone());
     }
 
-    function placeSpawnedBeingHidden(spawned){
+    function placeSpawnedBeingHidden(spawned, startHidden = true){
       const liveCam = scene.camera;
       if(!liveCam){
         placeSpawnedBeingNearViewer(spawned);
+        spawned.searchAnchor = {
+          x: spawned.el.object3D.position.x,
+          z: spawned.el.object3D.position.z
+        };
+        spawned.searchHidden = !!startHidden;
+        spawned.el.object3D.visible = !startHidden;
         return;
       }
 
@@ -1775,14 +1784,15 @@
         }
         if(chosen){
           spawned.el.object3D.position.set(chosen.x, 0, chosen.z);
+          spawned.searchAnchor = { x: chosen.x, z: chosen.z };
           spawned.currentRadius = Math.sqrt(chosen.x * chosen.x + chosen.z * chosen.z);
           spawned.targetRadius = Math.max(0.48, spawned.currentRadius * 0.92);
           spawned.angle = Math.atan2(chosen.z, chosen.x);
           spawned.hiding = false;
-          spawned.searchHidden = true;
+          spawned.searchHidden = !!startHidden;
           spawned.hideProp = null;
           spawned.hideOffset = null;
-          spawned.el.object3D.visible = false;
+          spawned.el.object3D.visible = !startHidden;
           return;
         }
       }
@@ -1811,14 +1821,15 @@
       }
 
       spawned.el.object3D.position.set(px, 0, pz);
+      spawned.searchAnchor = { x: px, z: pz };
       spawned.currentRadius = Math.sqrt(px * px + pz * pz);
       spawned.targetRadius = Math.max(0.48, spawned.currentRadius * 0.92);
       spawned.angle = Math.atan2(pz, px);
       spawned.hiding = false;
-      spawned.searchHidden = true;
+      spawned.searchHidden = !!startHidden;
       spawned.hideProp = null;
       spawned.hideOffset = null;
-      spawned.el.object3D.visible = false;
+      spawned.el.object3D.visible = !startHidden;
     }
 
     function revealHiddenBuddy(buddy, reason = 'scan'){
@@ -1981,8 +1992,12 @@
       const name = undiscovered[Math.floor(Math.random() * undiscovered.length)];
       const spawned = addBeing(name);
       if(spawned){
-        placeSpawnedBeingHidden(spawned);
-        notify(`🫥 Sensor contact detected: ${name} is hiding near cover. Use Scan or move closer.`);
+        const startHidden = roomMapPoints.length >= 10 ? Math.random() < 0.75 : false;
+        placeSpawnedBeingHidden(spawned, startHidden);
+        showSpawnIndicator(spawned.el.object3D.position.x, spawned.el.object3D.position.z);
+        notify(startHidden
+          ? `🫥 Sensor contact detected: ${name} is hiding near cover. Use Scan or move closer.`
+          : `👀 Contact spotted: ${name} is roaming your mapped room. Look around to find them.`);
       }
     }
 
@@ -2020,6 +2035,23 @@
           pos.x += (targetX - pos.x) * Math.min(1, dt*1.9);
           pos.z += (targetZ - pos.z) * Math.min(1, dt*1.9);
           b.el.object3D.lookAt(target.x*1.2, 1, target.z*1.2);
+        } else if(isExploringInAr() && b.searchAnchor){
+          b.searchPhase += dt * (0.8 + b.speed * 0.9);
+          const roamR = b.searchRadius || 0.34;
+          const anchorX = b.searchAnchor.x;
+          const anchorZ = b.searchAnchor.z;
+          const roamX = anchorX + Math.cos(b.searchPhase) * roamR;
+          const roamZ = anchorZ + Math.sin(b.searchPhase * 0.9) * roamR;
+          const pos = b.el.object3D.position;
+          pos.x += (roamX - pos.x) * Math.min(1, dt * 2.2);
+          pos.z += (roamZ - pos.z) * Math.min(1, dt * 2.2);
+          const lookX = roamX - pos.x;
+          const lookZ = roamZ - pos.z;
+          if(Math.hypot(lookX, lookZ) > 0.02){
+            b.el.object3D.rotation.y = Math.atan2(lookX, lookZ);
+          }
+          b.currentRadius = Math.hypot(pos.x, pos.z);
+          b.angle = Math.atan2(pos.z, pos.x);
         } else {
           const handledByWorker = updateBuddyWorkerLoop(b, dt);
           if(!handledByWorker){
@@ -2161,7 +2193,10 @@
             x: b.el.object3D.position.x,
             y: b.el.object3D.position.y,
             z: b.el.object3D.position.z
-          }
+          },
+          searchAnchor: b.searchAnchor ? { x: b.searchAnchor.x, z: b.searchAnchor.z } : null,
+          searchRadius: b.searchRadius,
+          searchPhase: b.searchPhase
         }))
       };
     }
@@ -2211,6 +2246,9 @@
         hideAffinity: data.hideAffinity ?? 1,
         hiding: false,
         searchHidden: false,
+        searchAnchor: data.searchAnchor || null,
+        searchRadius: data.searchRadius ?? (0.32 + Math.random() * 0.22),
+        searchPhase: data.searchPhase ?? (Math.random() * Math.PI * 2),
         hideProp: null,
         activeAnimation: null,
         animationTime: 0,
@@ -2580,8 +2618,11 @@
       setTimeout(()=>{
         const newest = addBeing(newSylvexianName);
         if(newest){
-          placeSpawnedBeingHidden(newest);
-          notify(`🫥 New Sylvexian contact detected: ${newest.name} is hiding nearby.`);
+          const startHidden = roomMapPoints.length >= 8 ? Math.random() < 0.65 : false;
+          placeSpawnedBeingHidden(newest, startHidden);
+          notify(startHidden
+            ? `🫥 New Sylvexian contact detected: ${newest.name} is hiding nearby.`
+            : `👀 New Sylvexian contact detected: ${newest.name} is roaming nearby.`);
         }
       }, 300);
     });
