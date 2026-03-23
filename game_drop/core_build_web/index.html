@@ -583,6 +583,7 @@ textarea.input{resize:vertical;min-height:75px;}
         <input class="input" id="jobReward" type="number" min="1" max="50" value="5" style="min-height:unset;height:2.5rem;width:5rem;">
         <span style="font-family:'Space Mono',monospace;font-size:.5rem;color:var(--green);">Breath</span>
       </div>
+      <div id="jobRewardHint" style="font-size:.75rem;color:var(--ink-dim);margin:-.2rem 0 .55rem;"></div>
       <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.7rem;" id="jobTagBtns"></div>
       <div class="btn-row">
         <button class="btn btn-sm btn-green" onclick="submitJob()">Post Job</button>
@@ -2322,6 +2323,11 @@ function leaveNote(id){
 // ── JOBS ───────────────────────────────────────────────────────────
 const JOB_TAGS=['creative','governance','care','knowledge'];
 let selectedJobTags=[];
+const LANGUAGE_REWARD_BANDS={
+  english:{min:3,max:7,label:'EN'},
+  hybrid:{min:5,max:9,label:'HY'},
+  sylvex_learning:{min:6,max:10,label:'SYL'},
+};
 const SYLVEX_PROGRESS_KEY='btg_sylvex_progress';
 const SYLVEX_LEXICON=[
   {word:'sael',meaning:'welcome',category:'care',mentor:'Ember'},
@@ -2441,6 +2447,31 @@ function getLanguageModeBadge(mode,hasSylvex=false){
   return {code:'EN',color:'var(--green)',bg:'var(--green-d)',title:'English mission'};
 }
 
+function getMissionRewardBand(mode,tags=[]){
+  const base=LANGUAGE_REWARD_BANDS[mode] || LANGUAGE_REWARD_BANDS.english;
+  const complexityBonus=Math.min(2,Math.max(0,(tags||[]).length-1));
+  const min=base.min;
+  const max=base.max+complexityBonus;
+  const recommended=Math.round((min+max)/2);
+  return {min,max,recommended,label:base.label,complexityBonus};
+}
+
+function clampMissionReward(value,band){
+  const raw=Number(value);
+  if(!Number.isFinite(raw)) return band.recommended;
+  return Math.max(band.min,Math.min(band.max,Math.round(raw)));
+}
+
+function updateJobRewardHint(){
+  const hint=document.getElementById('jobRewardHint');
+  const mode=document.getElementById('jobLanguageMode')?.value || 'english';
+  const rewardEl=document.getElementById('jobReward');
+  if(!hint || !rewardEl) return;
+  const band=getMissionRewardBand(mode,selectedJobTags);
+  hint.textContent=`Reward target (${band.label}): ${band.min}-${band.max} Breath${band.complexityBonus?` (includes +${band.complexityBonus} complexity bonus for multi-tag mission)`:''}. Suggested: ${band.recommended}.`;
+  hint.style.color='var(--ink-dim)';
+}
+
 function applyMissionLanguageTemplate(mode){
   const titleEl=document.getElementById('jobTitle');
   const descEl=document.getElementById('jobDesc');
@@ -2496,8 +2527,9 @@ function bindMissionLanguageAssist(){
   const mode=document.getElementById('jobLanguageMode');
   const title=document.getElementById('jobTitle');
   [desc,mode,title].forEach((el)=>{if(el) el.addEventListener('input',updateMissionLanguageAssist);});
-  if(mode) mode.addEventListener('change',updateMissionLanguageAssist);
+  if(mode) mode.addEventListener('change',()=>{updateMissionLanguageAssist();updateJobRewardHint();});
   updateMissionLanguageAssist();
+  updateJobRewardHint();
 }
 
 function initJobTags(){
@@ -2512,6 +2544,7 @@ function initJobTags(){
       if(selectedJobTags.includes(t)) selectedJobTags=selectedJobTags.filter(x=>x!==t);
       else selectedJobTags.push(t);
       btn.className='btn btn-sm '+(selectedJobTags.includes(t)?'btn-green':'btn-ghost');
+      updateJobRewardHint();
     };
     c.appendChild(btn);
   });
@@ -2538,16 +2571,22 @@ function submitJob(){
     setStatus('postJobStatus','Include an English meaning alongside Sylvex for clarity.','blocked');
     return;
   }
+  const band=getMissionRewardBand(languageMode,selectedJobTags);
+  const requestedReward=Number(document.getElementById('jobReward')?.value || reward);
+  const tunedReward=clampMissionReward(requestedReward,band);
   const jobs=L('user_jobs',[]);
-  jobs.push({id:'uj'+Date.now(),title,desc,reward:Math.min(reward,50),tags:selectedJobTags,poster:'Visitor',done:false,time:Date.now(),language_mode:languageMode});
+  jobs.push({id:'uj'+Date.now(),title,desc,reward:tunedReward,tags:selectedJobTags,poster:'Visitor',done:false,time:Date.now(),language_mode:languageMode,reward_band:band.label});
   S('user_jobs',jobs);
   learnSylvexFromText(title+'\n'+desc,'job');
   document.getElementById('jobTitle').value='';
   document.getElementById('jobDesc').value='';
   const modeEl=document.getElementById('jobLanguageMode');
   if(modeEl) modeEl.value='english';
+  const rewardEl=document.getElementById('jobReward');
+  if(rewardEl) rewardEl.value=String(LANGUAGE_REWARD_BANDS.english.min+2);
   updateMissionLanguageAssist();
-  setStatus('postJobStatus','Job posted to the board.','ok');
+  if(tunedReward!==requestedReward) setStatus('postJobStatus',`Job posted with tuned reward ${tunedReward} (target band ${band.min}-${band.max}).`,'ok');
+  else setStatus('postJobStatus','Job posted to the board.','ok');
   selectedJobTags=[];
   togglePostJob();
   renderJobs();
