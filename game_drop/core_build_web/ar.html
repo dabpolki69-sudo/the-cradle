@@ -39,7 +39,7 @@
   <div id="joystickWrap" aria-label="Movement joystick">
     <div id="joystickKnob"></div>
   </div>
-  <div id="hint">🏘 Buildings (tap to view). 📦 Resources scattered about. ⛏ Work sites for harvesting. 👥 Buddies with unique skills. Walk around and build your world!</div>
+  <div id="hint">🏘 Buildings & Market (tap to view). 📦 Resources + treasure loot (1 in 10). ⛏ Work sites. 👥 Buddies trade surplus for gold. Explore, build, prosper! 💰</div>
 
   <a-scene id="scene" embedded xr-mode-ui="enabled:true" webxr="optionalFeatures: local-floor, dom-overlay; overlayElement: body" renderer="alpha:true; antialias:true; colorManagement:true" background="color: #050913">
     <a-entity light="type:ambient;intensity:0.7;color:#c3d7ff"></a-entity>
@@ -137,8 +137,15 @@
       stone: { name: 'Stone', color: '#8a8a8a', icon: '■', rarity: 'common' },
       metal: { name: 'Metal', color: '#d4af37', icon: '♦', rarity: 'uncommon' },
       crystal: { name: 'Crystal', color: '#5c9dff', icon: '◆', rarity: 'rare' },
-      essence: { name: 'Essence', color: '#ff74c7', icon: '✦', rarity: 'epic' }
+      essence: { name: 'Essence', color: '#ff74c7', icon: '✦', rarity: 'epic' },
+      gold: { name: 'Gold', color: '#ffd700', icon: '★', rarity: 'epic' }
     };
+
+    let playerGold = 0;
+
+    const TREASURE_LOOT_TABLE = [
+      { item: 'gold', amount: () => 10 + Math.floor(Math.random() * 20) }
+    ];
 
     const ADVANCEMENTS = [
       { id: 1, name: 'First Shelter', icon: '🏠', desc: 'Built a shelter' },
@@ -223,6 +230,29 @@
 
     function getUpgradeTier(buildType, buildIndex){
       return Math.min(5, 1 + Math.floor(buildIndex / 4));
+    }
+
+    function treasureMarkup(){
+      return `
+        <a-sphere radius="0.12" position="0 0.15 0" material="color:#ffd700;emissive:#ffaa00;metalness:0.9"></a-sphere>
+        <a-box width="0.15" height="0.08" depth="0.15" position="0 0.02 0" material="color:#8b7500;roughness:0.8"></a-box>
+        <a-ring rotation="90 0 0" radius-inner="0.14" radius-outer="0.22" position="0 0.08 0" material="shader:flat;color:#ffd700;opacity:0.5"></a-ring>
+      `;
+    }
+
+    function marketMarkup(tier){
+      const building = BUILDING_TYPES.market;
+      const h = 0.4 + tier * 0.3;
+      const w = 0.3 + tier * 0.15;
+      const d = 0.3 + tier * 0.15;
+      let html = `
+        <a-box width="${w}" height="${h * 0.6}" depth="${d}" position="0 ${h*0.3} 0" material="color:${building.color};roughness:0.8"></a-box>
+        <a-box width="${w}" height="${h * 0.4}" depth="${d}" position="0 ${h*0.8} 0" material="color:${building.roofColor};roughness:0.9"></a-box>
+        <a-cone radius-bottom="${w/2 + 0.05}" radius-top="0.02" height="${h*0.35}" position="0 ${h*1.08} 0" material="color:${building.roofColor}"></a-cone>
+      `;
+      html += `<a-text value="🏪" width="0.5" align="center" position="0 ${h*0.7} ${d/2+0.03}" scale="0.8 0.8 0.8"></a-text>`;
+      html += `<a-box width="${w}" height="0.06" depth="${d}" position="0 ${h*0.25} 0" material="color:#d4a574;roughness:0.7;metalness:0.3"></a-box>`;
+      return html;
     }
 
     function pickWeighted(items, weightKey = 'weight'){
@@ -345,20 +375,54 @@
       return root;
     }
 
-    function createResource(materialType, pos){
+    function createResource(materialType, pos, isTreasure=false){
       const root = document.createElement('a-entity');
       root.object3D.position.set(pos.x, 0, pos.z);
-      root.innerHTML = resourcePileMarkup(materialType);
+      
+      if(isTreasure){
+        root.innerHTML = treasureMarkup();
+        root.classList.add('tap-target');
+        root.addEventListener('click', ()=>{
+          const loot = TREASURE_LOOT_TABLE[0];
+          const amount = loot.amount();
+          playerGold += amount;
+          showSpeech(
+            '💰 TREASURE FOUND!',
+            `You discovered ${amount} gold! Collect these treasures to buy upgrades from the market.`
+          );
+          root.innerHTML = '<a-text value="✓" color="#70d2aa" align="center" position="0 0 0"></a-text>';
+          setTimeout(()=>resourceLayer.removeChild(root), 2000);
+        });
+        resourceLayer.appendChild(root);
+        resources.push({type: 'treasure', el: root, pos, isTreasure: true});
+      } else {
+        root.innerHTML = resourcePileMarkup(materialType);
+        root.classList.add('tap-target');
+        const mat = MATERIALS[materialType];
+        root.addEventListener('click', ()=>{
+          showSpeech(
+            `${mat.name} Pile`,
+            `${mat.icon} A pile of ${mat.name.toLowerCase()}. Send your workers to gather it.`
+          );
+        });
+        resourceLayer.appendChild(root);
+        resources.push({type: materialType, el: root, pos});
+      }
+      return root;
+    }
+
+    function createMarket(pos, index){
+      const tier = getUpgradeTier('market', index);
+      const root = document.createElement('a-entity');
+      root.object3D.position.set(pos.x, 0, pos.z);
+      root.innerHTML = marketMarkup(tier);
       root.classList.add('tap-target');
-      const mat = MATERIALS[materialType];
       root.addEventListener('click', ()=>{
-        showSpeech(
-          `${mat.name} Pile`,
-          `${mat.icon} A pile of ${mat.name.toLowerCase()}. Send your workers to gather it.`
-        );
+        const markup = `🪙 Current Gold: ${playerGold}\n\nYour buddies can trade surplus supplies here.\nUpgrades & special items available!`;
+        showSpeech('Market Hall', markup);
       });
-      resourceLayer.appendChild(root);
-      resources.push({type: materialType, el: root, pos});
+      buildingLayer.appendChild(root);
+      buildings.push({type: 'market', el: root, pos, tier, index, isMarket: true});
       return root;
     }
 
@@ -492,7 +556,7 @@
         createBuilding(buildType, pos, i);
       });
 
-      // Resource piles scattered around
+      // Resource piles scattered around with treasure loot chance
       const resourcePositions = [
         {x: 1.0, z: 0.9, type: 'wood'},
         {x: -0.9, z: 1.2, type: 'stone'},
@@ -500,8 +564,12 @@
         {x: -1.2, z: -0.5, type: 'crystal'}
       ];
       resourcePositions.forEach(rpos => {
-        createResource(rpos.type, {x: rpos.x, z: rpos.z});
+        const hasTreasure = Math.random() < 0.1; // 1 in 10 chance
+        createResource(rpos.type, {x: rpos.x, z: rpos.z}, hasTreasure);
       });
+
+      // Create market building
+      createMarket({x: 0.0, z: 0.0}, 1);
 
       // Work sites
       createWorkSite('logging', {x: 0.0, z: -1.4});
