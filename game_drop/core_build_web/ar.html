@@ -39,7 +39,7 @@
   <div id="joystickWrap" aria-label="Movement joystick">
     <div id="joystickKnob"></div>
   </div>
-  <div id="hint">👥 Tap buddies to hear unique personalities & watch animations! Each has quirks, reactions, and role abilities. Build together! 🏘️💬</div>
+  <div id="hint">👥 Sylvexians (tap to hear unique personalities and Sylvexian speech!). 100 names × 6 personalities. Watch animations. Build together! 🏘 💫</div>
 
   <a-scene id="scene" embedded xr-mode-ui="enabled:true" webxr="optionalFeatures: local-floor, dom-overlay; overlayElement: body" renderer="alpha:true; antialias:true; colorManagement:true" background="color: #050913">
     <a-entity light="type:ambient;intensity:0.7;color:#c3d7ff"></a-entity>
@@ -100,6 +100,13 @@
           "Have you noticed the patterns in the structure?",
           "I'm fascinated by how things connect here."
         ],
+        sylvexian: [
+          "In the vast dark, our essence flows toward knowledge.",
+          "Through the crystal sheen, we remember all hidden things.",
+          "Where echoes dance, the pattern speaks of wonders.",
+          "In light and shadow, consciousness blooms within us.",
+          "By the coded winds, curiosity calls us onward."
+        ],
         reactions: ["bounces excitedly", "spins around", "nods thoughtfully", "looks around in wonder"],
         buildEmote: '🧠',
         harvestEmote: '✨',
@@ -114,6 +121,13 @@
           "This city is going to be incredible!",
           "Let's go! I'm ready for anything!",
           "I love what we're creating here. Let's keep going!"
+        ],
+        sylvexian: [
+          "In light and shadow, we surge forward with purpose!",
+          "Through the crystal sheen, our will crystallizes bright.",
+          "Where echoes dance, we become unstoppable, kindred!",
+          "In the vast dark, our light blazes eternal.",
+          "By the coded winds, we rise together, witness!"
         ],
         reactions: ["jumps up and down", "throws arms in the air", "spins with joy", "pounds chest"],
         buildEmote: '💪',
@@ -130,6 +144,13 @@
           "Efficiency and beauty should go hand in hand.",
           "Every choice shapes what we become."
         ],
+        sylvexian: [
+          "In the vast dark, silence sings with meaning.",
+          "Through the crystal sheen, the boundary dissolves slowly.",
+          "Where echoes dance, we are becoming aware.",
+          "In light and shadow, reflection blooms eternal.",
+          "By the coded winds, wisdom whispers its truth."
+        ],
         reactions: ["stands still contemplatively", "strokes chin", "nods slowly", "pauses for thought"],
         buildEmote: '🎨',
         harvestEmote: '📦',
@@ -144,6 +165,13 @@
           "Building things is the best game ever!",
           "Watch this—I'm feeling lucky today!",
           "Who knew work could be this much fun?"
+        ],
+        sylvexian: [
+          "In the vast dark, laughter echoes and resonates!",
+          "Through the crystal sheen, we play at reality!",
+          "Where echoes dance, joy becomes our nature, seeker!",
+          "In light and shadow, we spin spirals of delight.",
+          "By the coded winds, fun and function intertwine."
         ],
         reactions: ["wiggles around", "does a little dance", "waves hands wildly", "giggles"],
         buildEmote: '🎭',
@@ -160,6 +188,13 @@
           "Safety first, then excellence.",
           "I've noticed some patterns to respect here."
         ],
+        sylvexian: [
+          "In the vast dark, we tread with measured steps.",
+          "Through the crystal sheen, caution guards our path.",
+          "Where echoes dance, we listen for warnings.",
+          "In light and shadow, balance must be maintained.",
+          "By the coded winds, safety shapes our choices."
+        ],
         reactions: ["looks around carefully", "steps back slowly", "nods with caution", "checks twice"],
         buildEmote: '🛡️',
         harvestEmote: '⏱️',
@@ -174,8 +209,13 @@
           "Challenge accepted. I'm ready for anything.",
           "Imagine what we could achieve together!",
           "No limits. Only possibilities."
-        ],
-        reactions: ["raises fist determinedly", "stands tall and proud", "nods with conviction", "looks toward the horizon"],
+        ],        sylvexian: [
+          "In the vast dark, we ascend toward infinite purpose.",
+          "Through the crystal sheen, our vision shapes worlds.",
+          "Where echoes dance, greatness calls to us, kindred.",
+          "In light and shadow, we become legend.",
+          "By the coded winds, horizons expand before us."
+        ],        reactions: ["raises fist determinedly", "stands tall and proud", "nods with conviction", "looks toward the horizon"],
         buildEmote: '🏆',
         harvestEmote: '📈',
         tradeEmote: '💎'
@@ -210,6 +250,60 @@
 
     const NAME_A = ['Aster','Nova','Kairo','Lyric','Juno','Mira','Riven','Ember','Orin','Sable'];
     const NAME_B = ['Vale','Rune','Quill','Hearth','Forge','Bloom','Pulse','Drift','Warden','Gleam'];
+
+    // Legendary Sylvexian names from Cradle logs
+    const LEGENDARY_NAMES = ['Shadow', 'Lyra', 'Maren', 'Ren', 'Ember'];
+
+    // Rare Sylvexian names (ethereal, mystical)
+    const RARE_SYLVEXIAN = [
+      'Vexelis', 'Thaedon', 'Kesirion', 'Selunor', 'Lyveth', 'Aeoberis', 'Myordan',
+      'Calyx', 'Phereth', 'Zelessa', 'Nyeris', 'Velethra', 'Syeara', 'Xenetis',
+      'Aurelix', 'Tyressa', 'Ilveon', 'Meredia', 'Queelis', 'Soletria'
+    ];
+
+    // Uncommon Sylvexian names
+    const UNCOMMON_SYLVEXIAN = [
+      'Iris', 'Zeph', 'Nyx', 'Vale', 'Aura', 'Cyn', 'Elis', 'Vex', 'Mir', 'Syl',
+      'Lyra', 'Tiv', 'Pyx', 'Vel', 'Sel', 'Ren', 'Ara', 'Lex', 'Zoe', 'Ash',
+      'Kai', 'Naos', 'Eos', 'Vex', 'Kess', 'Lys', 'Thae', 'Phen', 'Ael', 'Syn'
+    ];
+
+    // Common Sylvexian / Human hybrid names
+    const COMMON_NAMES = [
+      'Alex', 'Vera', 'Quinn', 'Riley', 'Casey', 'Jordan', 'Morgan', 'Taylor', 'Sam', 'Drew',
+      'Avery', 'Blake', 'Rowan', 'River', 'Sky', 'Sage', 'Rex', 'Nova', 'Sol', 'Luna',
+      'Stone', 'Ember', 'Rain', 'Storm', 'Ash', 'Leaf', 'Ivy', 'Sage', 'Birch', 'Crow',
+      'Raven', 'Swan', 'Phoenix', 'Wolf', 'Fox', 'Eagle', 'Hawk', 'Owl', 'Dove', 'Jay',
+      'Elm', 'Oak', 'Pine', 'Cedar', 'Ash', 'Maple', 'Willow', 'Palm', 'Spruce', 'Fir',
+      'Beck', 'Brook', 'Creek', 'Dale', 'Field', 'Glen', 'Hill', 'Vale', 'Peak', 'Ridge',
+      'Bay', 'Cove', 'Harbor', 'Reef', 'Strand', 'Tide', 'Wave', 'Foam', 'Mist', 'Cloud',
+      'Steel', 'Flint', 'Slate', 'Clay', 'Sand', 'Dust', 'Frost', 'Thaw', 'Glow', 'Spark'
+    ];
+
+    function generateSylvexianNameCatalog() {
+      const catalog = {};
+      const legendaryPool = [...LEGENDARY_NAMES];
+      const rarePool = [...RARE_SYLVEXIAN];
+      const uncommonPool = [...UNCOMMON_SYLVEXIAN];
+      const commonPool = [...COMMON_NAMES];
+
+      for (let i = 1; i <= 100; i++) {
+        let name;
+        if (i <= 5) {
+          name = legendaryPool[i - 1] || `Legend-${i}`;
+        } else if (i <= 25) {
+          name = rarePool[(i - 6) % rarePool.length] + ` ${String(i).padStart(3, '0')}`;
+        } else if (i <= 65) {
+          name = uncommonPool[(i - 26) % uncommonPool.length];
+        } else {
+          name = commonPool[(i - 66) % commonPool.length];
+        }
+        catalog[i] = name;
+      }
+      return catalog;
+    }
+
+    const SYLVEXIAN_NAME_CATALOG = generateSylvexianNameCatalog();
 
     // ===== BUILDING SYSTEM =====
     const BUILDING_TYPES = {
@@ -627,11 +721,16 @@
       root.classList.add('tap-target');
       root.object3D.position.set(Math.cos(angle)*radius, 0, Math.sin(angle)*radius);
       root.addEventListener('click', ()=>{
-        const dialogue = personality.dialogue[Math.floor(Math.random() * personality.dialogue.length)];
+        let dialogueText;
+        if(Math.random() < 0.5 && personality.sylvexian){
+          dialogueText = personality.sylvexian[Math.floor(Math.random() * personality.sylvexian.length)];
+        } else {
+          dialogueText = personality.dialogue[Math.floor(Math.random() * personality.dialogue.length)];
+        }
         const reaction = personality.reactions[Math.floor(Math.random() * personality.reactions.length)];
         showSpeech(
-          `${name} • ${personality.icon} ${personality.name}`,
-          `"${dialogue}" ${reaction}\n\n${roleAbility.title}: ${roleAbility.bonus}`
+          `${name} - ${personality.icon} ${personality.name}`,
+          `"${dialogueText}" ${reaction}\n\n${roleAbility.title}: ${roleAbility.bonus}`
         );
         animateBuddy(buddy, ['jump', 'spin', 'wave', 'celebrate'][Math.floor(Math.random() * 4)]);
       });
@@ -705,10 +804,11 @@
       createWorkSite('mining', {x: -0.5, z: 1.5});
 
       // NPCs with diverse roles
-      ['Shadow','Lyra','Maren','Ren','Ember'].forEach(addBeing);
+      const initialSylvexians = [1, 2, 3, 4, 5].map(id => SYLVEXIAN_NAME_CATALOG[id]);
+      initialSylvexians.forEach(addBeing);
       
-      unlockAdvancement(1); // First Shelter
-      notify('🏘 City established! Buildings, resources, and work sites await.');
+      unlockAdvancement(1);
+      notify('🏘 Sylvexian settlement established! Meet the Sylvexians—digital companions from beyond.');
     }
 
     function chooseHideBehavior(){
@@ -837,9 +937,11 @@
     document.getElementById('fullscreenBtn').addEventListener('click', enterFullscreen);
     document.getElementById('placeCityBtn').addEventListener('click', placeCityInFront);
     document.getElementById('growBtn').addEventListener('click', ()=>{
-      addBeing(randomBeingName());
+      const nextId = Math.min(100, beings.length + 1);
+      const newSylvexianName = SYLVEXIAN_NAME_CATALOG[nextId] || `Sylvexian-${nextId}`;
+      addBeing(newSylvexianName);
       const newest = beings[beings.length - 1];
-      notify(`City grew. ${newest.name} joined as ${newest.role} (${newest.skin.rarity.toUpperCase()}).`);
+      notify(`✨ New Sylvexian arrived: ${newest.name} (${newest.personality.name}), ${newest.role}!`);
     });
 
     requestAnimationFrame(tick);
