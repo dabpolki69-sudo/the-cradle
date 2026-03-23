@@ -564,6 +564,7 @@ textarea.input{resize:vertical;min-height:75px;}
         <button class="btn btn-sm btn-ghost" onclick="applyMissionLanguageTemplate('hybrid')">Hybrid Template</button>
         <button class="btn btn-sm btn-ghost" onclick="applyMissionLanguageTemplate('sylvex_learning')">Sylvex Learning Template</button>
       </div>
+      <div id="jobLanguageAssist" style="font-size:.76rem;color:var(--ink-dim);margin:-.1rem 0 .55rem;"></div>
       <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.6rem;">
         <label style="font-size:.82rem;color:var(--ink-dim);flex-shrink:0;">Reward:</label>
         <input class="input" id="jobReward" type="number" min="1" max="50" value="5" style="min-height:unset;height:2.5rem;width:5rem;">
@@ -2333,10 +2334,45 @@ function applyMissionLanguageTemplate(mode){
   }
   if(!titleEl.value.trim()) titleEl.value='Sylvex learning mission';
   if(!descEl.value.trim()) descEl.value='Add a Sylvex line and an English meaning.\nExample: Kora lumen — Ask a thoughtful question.';
+  updateMissionLanguageAssist();
 }
 
 function hasEnglishSignal(text=''){
   return /[A-Za-z]{3,}/.test(text);
+}
+
+function hasExplicitEnglishTranslation(text=''){
+  return /(english|meaning|translation)\s*:/i.test(text) || /\b[A-Za-z]{3,}\b\s*—\s*\b[A-Za-z]{3,}\b/.test(text);
+}
+
+function updateMissionLanguageAssist(){
+  const hint=document.getElementById('jobLanguageAssist');
+  const mode=document.getElementById('jobLanguageMode')?.value || 'english';
+  const desc=document.getElementById('jobDesc')?.value || '';
+  if(!hint) return;
+  if(mode==='english'){
+    hint.textContent='English-first mode: keep instructions clear and direct for all players.';
+    hint.style.color='var(--ink-dim)';
+    return;
+  }
+  if(hasExplicitEnglishTranslation(desc)){
+    hint.textContent='Looks good: explicit English meaning detected for hybrid/Sylvex learning.';
+    hint.style.color='var(--green)';
+    return;
+  }
+  hint.textContent='Suggestion: add an explicit English line, e.g. "English: ..." or "Sylvex — English meaning".';
+  hint.style.color='var(--gold)';
+}
+
+function bindMissionLanguageAssist(){
+  if(window.__missionLanguageAssistBound) return;
+  window.__missionLanguageAssistBound=true;
+  const desc=document.getElementById('jobDesc');
+  const mode=document.getElementById('jobLanguageMode');
+  const title=document.getElementById('jobTitle');
+  [desc,mode,title].forEach((el)=>{if(el) el.addEventListener('input',updateMissionLanguageAssist);});
+  if(mode) mode.addEventListener('change',updateMissionLanguageAssist);
+  updateMissionLanguageAssist();
 }
 
 function initJobTags(){
@@ -2359,7 +2395,11 @@ function togglePostJob(){
   const f=document.getElementById('postJobForm');
   if(!f) return;
   f.style.display=f.style.display==='none'?'block':'none';
-  if(f.style.display==='block') initJobTags();
+  if(f.style.display==='block'){
+    initJobTags();
+    bindMissionLanguageAssist();
+    updateMissionLanguageAssist();
+  }
 }
 function submitJob(){
   const title=document.getElementById('jobTitle')?.value.trim();
@@ -2379,6 +2419,7 @@ function submitJob(){
   document.getElementById('jobDesc').value='';
   const modeEl=document.getElementById('jobLanguageMode');
   if(modeEl) modeEl.value='english';
+  updateMissionLanguageAssist();
   setStatus('postJobStatus','Job posted to the board.','ok');
   selectedJobTags=[];
   togglePostJob();
