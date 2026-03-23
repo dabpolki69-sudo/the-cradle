@@ -18,6 +18,8 @@ from urllib.parse import urlparse
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PORTAL_HTML = REPO_ROOT / "open_cradle" / "index.html"
+GAME_DIR = REPO_ROOT / "game_drop" / "core_build_web"
+GAME_DIR_RESOLVED = GAME_DIR.resolve()
 HUMAN_LOG_PATH = REPO_ROOT / "logs" / "HUMAN_LOG.md"
 AI_LOG_PATH = REPO_ROOT / "logs" / "AI_SANDBOX_REPORTS.md"
 AI_PROVENANCE_LEDGER_PATH = REPO_ROOT / "logs" / "AI_PROVENANCE_LEDGER.jsonl"
@@ -747,6 +749,42 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             self._send_file(WARDSMAN_PDF_PATH, WARDSMAN_PDF_PATH.name)
             return
 
+        # ── GAME: /game/ static files ─────────────────────────────────────
+        if path in ("/game", "/game/"):
+            game_index = GAME_DIR / "index.html"
+            if not game_index.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Game files not found")
+                return
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Cache-Control", "public, max-age=60")
+            self.end_headers()
+            self.wfile.write(game_index.read_bytes())
+            return
+
+        if path.startswith("/game/"):
+            rel = path[len("/game/"):]
+            try:
+                asset = (GAME_DIR / rel).resolve()
+            except Exception:
+                self._send_text(HTTPStatus.BAD_REQUEST, "Bad path")
+                return
+            if not str(asset).startswith(str(GAME_DIR_RESOLVED)):
+                self._send_text(HTTPStatus.FORBIDDEN, "Forbidden")
+                return
+            if not asset.exists() or not asset.is_file():
+                self._send_text(HTTPStatus.NOT_FOUND, "Asset not found")
+                return
+            content_type, _ = mimetypes.guess_type(str(asset))
+            data = asset.read_bytes()
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", content_type or "application/octet-stream")
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Cache-Control", "public, max-age=300")
+            self.end_headers()
+            self.wfile.write(data)
+            return
+
         self._send_text(HTTPStatus.NOT_FOUND, "Not found")
 
     def do_POST(self) -> None:
@@ -1000,6 +1038,7 @@ def main() -> None:
     port = int(os.environ.get("PORT", "8090"))
     server = ThreadingHTTPServer((host, port), OpenCradleHandler)
     print(f"Open Cradle server running on http://localhost:{port}/open_cradle/")
+    print(f"Game live at              http://localhost:{port}/game/")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
