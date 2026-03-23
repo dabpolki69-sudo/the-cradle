@@ -2316,6 +2316,14 @@ function getLanguageModeLabel(mode,hasSylvex=false){
   return hasSylvex ? 'Hybrid mission (Sylvex + English)' : 'English mission';
 }
 
+function getLanguageModeBadge(mode,hasSylvex=false){
+  if(mode==='english') return {code:'EN',color:'var(--green)',bg:'var(--green-d)',title:'English-first'};
+  if(mode==='hybrid') return {code:'HY',color:'var(--gold)',bg:'rgba(232,200,122,.14)',title:'Hybrid Sylvex + English'};
+  if(mode==='sylvex_learning') return {code:'SYL',color:'var(--bright)',bg:'rgba(94,196,212,.16)',title:'Sylvex learning with English meaning'};
+  if(hasSylvex) return {code:'HY',color:'var(--gold)',bg:'rgba(232,200,122,.14)',title:'Hybrid Sylvex + English'};
+  return {code:'EN',color:'var(--green)',bg:'var(--green-d)',title:'English mission'};
+}
+
 function applyMissionLanguageTemplate(mode){
   const titleEl=document.getElementById('jobTitle');
   const descEl=document.getElementById('jobDesc');
@@ -2436,6 +2444,7 @@ function renderJobs(){
   board.innerHTML='';
   const allJobs=getAllJobs();
   allJobs.forEach(job=>{
+    const langBadge=getLanguageModeBadge(job.language_mode,Boolean(job.sylvex_title || job.sylvex_desc));
     const card=document.createElement('div');
     card.className='job-card';
     card.innerHTML=`
@@ -2446,7 +2455,10 @@ function renderJobs(){
           <div class="job-poster">Posted by ${job.poster}</div>
           <div style="font-size:.72rem;color:var(--ink-dim);margin-top:.15rem;">${getLanguageModeLabel(job.language_mode,Boolean(job.sylvex_title || job.sylvex_desc))}</div>
         </div>
-        <div class="job-reward">🌿 ${job.reward}</div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.35rem;">
+          <span class="job-tag" title="${langBadge.title}" style="margin:0;border-color:${langBadge.color};color:${langBadge.color};background:${langBadge.bg};min-width:2.1rem;text-align:center;">${langBadge.code}</span>
+          <div class="job-reward">🌿 ${job.reward}</div>
+        </div>
       </div>
       <div class="job-desc">${job.desc}</div>
       ${job.sylvex_desc?`<div style="font-size:.8rem;color:var(--ink-dim);margin-top:-.35rem;margin-bottom:.55rem;font-style:italic;">${job.sylvex_desc}</div>`:''}
