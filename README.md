@@ -115,6 +115,8 @@ The Cradle v20 COMPLETE is released under [Creative Commons Zero (CC0)](https://
 
 All other documents in the Modular Mind corpus (H-Spec v1, R-Code v2, Blueprint v2, Bridging Memo, Covering Letter, MMCU v3 Silicon Pack) are copyright Daniel Polkinghorne. All rights reserved.
 
+`game_drop/` content is **not** covered by Cradle CC0 by default. Treat all files in `game_drop/` as proprietary/all-rights-reserved unless a file inside that folder explicitly states a different license.
+
 ---
 
 ## The Falsifiable Claim

@@ -1,0 +1,10 @@
+game_drop license notice
+
+This folder is excluded from the repository's Cradle CC0 scope unless explicitly stated otherwise.
+
+Default for files under game_drop/:
+- Proprietary
+- All rights reserved
+- No reuse or redistribution without permission
+
+If any specific file has a different license, that file-level license controls for that file only.

@@ -1,0 +1,223 @@
+# BREATH CITY - QUICK START INSTALLATION GUIDE
+
+## What You Just Downloaded
+You have 4 files:
+1. **breath_city_dev_kit.md** - Full development manual (read this for context)
+2. **ST_WorldData.h** - Data structure definitions
+3. **BP_WorldStateSubsystem.h** - Class header
+4. **BP_WorldStateSubsystem.cpp** - Class implementation
+
+These 3 code files are READY TO USE. Just copy them into your UE project.
+
+---
+
+## STEP 1: Locate Your Project Folder
+
+Open Windows File Explorer and navigate to:
+```
+C:\Users\[YourName]\Documents\Unreal Projects\BreathCity\Source\BreathCity\
+```
+
+You should see:
+- BreathCity.cpp
+- BreathCity.h
+- BreathCityCharacter.cpp
+- BreathCityCharacter.h
+- BreathCityGameMode.cpp
+- BreathCityGameMode.h
+- (maybe other files)
+
+This is your **Source folder**. This is where you'll paste the new files.
+
+---
+
+## STEP 2: Copy the Three Code Files
+
+1. **ST_WorldData.h** → Copy to `C:\Users\[YourName]\Documents\Unreal Projects\BreathCity\Source\BreathCity\`
+2. **BP_WorldStateSubsystem.h** → Copy to same folder
+3. **BP_WorldStateSubsystem.cpp** → Copy to same folder
+
+Your folder should now look like:
+```
+Source\BreathCity\
+├── BreathCity.cpp
+├── BreathCity.h
+├── BreathCityCharacter.cpp
+├── BreathCityCharacter.h
+├── BreathCityGameMode.cpp
+├── BreathCityGameMode.h
+├── ST_WorldData.h                    ← NEW
+├── BP_WorldStateSubsystem.h           ← NEW
+└── BP_WorldStateSubsystem.cpp         ← NEW
+```
+
+---
+
+## STEP 3: Open Your Project in Visual Studio
+
+1. In the BreathCity folder (C:\Users\[YourName]\Documents\Unreal Projects\BreathCity\)
+2. Right-click **BreathCity.sln** → **Open with Visual Studio**
+3. Wait for it to load (might take a minute)
+
+You should see your project structure in Solution Explorer on the left.
+
+---
+
+## STEP 4: Compile in Visual Studio
+
+1. **Build → Build Solution** (or press Ctrl+Shift+B)
+2. Wait for it to compile... (watch the Output panel at bottom)
+3. It should say **"Build succeeded"** in the Output panel
+
+If you see **errors**, copy-paste them here and I'll fix them immediately.
+
+---
+
+## STEP 5: Refresh Unreal Engine
+
+1. Go back to **Unreal Engine Editor** (if it's still open)
+2. You might see a notification saying "Source code has changed"
+3. Click **Compile** and **Refresh** buttons at the top of the editor
+4. Wait for compilation to complete
+
+---
+
+## STEP 6: Verify Installation
+
+Once compiled, let's verify it worked:
+
+1. In **Unreal Editor**, open your Level (File → Open Level)
+2. Click on **Window → Developer Tools → Output Log**
+3. You should see a window showing logs
+4. **Play** the game (press Spacebar or click Play button)
+5. Look in the Output Log for this message:
+
+```
+LogTemp: Warning: === BREATH CITY INITIALIZATION ===
+LogTemp: Warning: WorldState initialized. Ready for citizens!
+```
+
+If you see these messages → **SUCCESS! Your world state is running.**
+
+---
+
+## STEP 7: Test the System
+
+While in Play mode, open the **Console** by pressing **~** (tilde/backtick key):
+
+Type one of these commands to test:
+
+```
+stat unit
+```
+Shows performance metrics. Not directly related to our code, but useful.
+
+Try opening a **Blueprint** and calling functions on the WorldState:
+
+1. **Window → Blueprints** (or create a new Blueprint)
+2. Add a **Get Game Instance** node
+3. Connect it to **Get Subsystem** (search for it)
+4. Select **UBP_WorldStateSubsystem** as the subsystem class
+5. Right-click on the subsystem output → **Call Function** → Choose from available functions
+   - **Advance Day**
+   - **Advance Season**
+   - **Add Money**
+   - **Print World State**
+
+---
+
+## TROUBLESHOOTING
+
+### Compiler Error: "Unknown class 'UBP_WorldStateSubsystem'"
+**Solution:** 
+1. Make sure you copied the files to the right folder
+2. Try **File → Refresh Visual Studio Project** in UE Editor
+3. Recompile
+
+### Compiler Error: "Include file 'ST_WorldData.h' not found"
+**Solution:**
+1. Make sure ST_WorldData.h is in the same Source\BreathCity\ folder
+2. Check the #include path in BP_WorldStateSubsystem.h matches your project name
+3. Try: #include "ST_WorldData.h" (should work if in same folder)
+
+### Unreal Engine says "Missing module" or "Rebuild"
+**Solution:**
+1. Close the Unreal Editor completely
+2. In Windows Explorer, delete the **Intermediate** and **Binaries** folders in your project
+3. Right-click the .uproject file → **Generate Visual Studio project files**
+4. Reopen the .sln in Visual Studio
+5. **Build → Clean Solution**, then **Build → Build Solution**
+6. Open Unreal Engine again
+
+### Output Log doesn't show initialization messages
+**Solution:**
+1. Make sure you PLAYED the game (pressed Spacebar)
+2. Check the Output Log filter - you might be filtering out warnings
+3. Try calling **Print World State** from a Blueprint to verify it's running
+
+---
+
+## NEXT STEPS AFTER SUCCESSFUL INSTALLATION
+
+If you see the initialization messages, congrats! Your foundation is built.
+
+Now try this test:
+
+1. **Create a new Blueprint Actor** (right-click in Content Browser → Blueprint → Actor)
+2. Name it **BP_TestScript**
+3. Open it, and in the **Event Graph**, create:
+   - **Event Begin Play** → **Get Game Instance** → **Get Subsystem (UBP_WorldStateSubsystem)**
+   - Add this sequence:
+     ```
+     Advance Day (call it 10 times)
+     Advance Season (call it 4 times)  
+     Add Money ($1000)
+     Print World State
+     ```
+4. Place this actor in your level
+5. **Play** and watch the Output Log
+
+You should see the world state changing and time advancing.
+
+---
+
+## WHAT NOW?
+
+You've successfully:
+✅ Set up the core world simulation system
+✅ Verified it compiles and runs
+✅ Tested basic functions
+
+**Your next goals:**
+1. Get comfortable calling subsystem functions from Blueprints
+2. Explore the data structure (FST_WorldState) in code
+3. Create a simple UI to display the world state
+4. Plan Week 2 (AI Personality System)
+
+**When ready to proceed to Week 2**, come back and let me know:
+- "Hey, installation successful! What should I build next?"
+- And I'll give you the AI Personality system and instructions.
+
+---
+
+## QUICK REFERENCE: YOUR FILES
+
+Save this info somewhere:
+
+**Project Location:**
+`C:\Users\[YourName]\Documents\Unreal Projects\BreathCity\`
+
+**Source Code Location:**
+`C:\Users\[YourName]\Documents\Unreal Projects\BreathCity\Source\BreathCity\`
+
+**Main Class:**
+`UBP_WorldStateSubsystem` - The core of your simulation
+
+**How to Access in Blueprints:**
+```
+Get Game Instance → Get Subsystem (UBP_WorldStateSubsystem) → Call Function
+```
+
+---
+
+Good luck! You've got this. 🚀
