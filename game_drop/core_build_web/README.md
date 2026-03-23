@@ -57,7 +57,7 @@ node advanced-simulations.js
 	- Sylvex phrasebook progression panel with mentor residents (Maren, Gary, Lyra, Ember)
 	- Language mission completion validation with translation clarity and vocabulary-learning bonuses
 	- Language bonus tuning: lower clarity and vocab bonus caps to keep core Breath economy balanced
-	- Mission reward bands for creator-posted jobs: EN 3-7, HY 5-9, SYL 6-10 (+up to +2 for multi-tag complexity), with auto-clamp into target band
+	- Mission reward bands for creator-posted jobs: EN 3-7, HY 4-8, SYL 5-9 (+up to +2 for multi-tag complexity), with auto-clamp into target band
 	- Mission Auto Trail in VR: tap a job to auto-walk toward relevant city landmarks with visible breadcrumb path; any manual movement cancels trail
 	- New run reset that preserves Dev Kit auth, snapshots, and backup state
 	- Local save reset for bug repro loops

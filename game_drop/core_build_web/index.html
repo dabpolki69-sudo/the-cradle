@@ -2325,8 +2325,8 @@ const JOB_TAGS=['creative','governance','care','knowledge'];
 let selectedJobTags=[];
 const LANGUAGE_REWARD_BANDS={
   english:{min:3,max:7,label:'EN'},
-  hybrid:{min:5,max:9,label:'HY'},
-  sylvex_learning:{min:6,max:10,label:'SYL'},
+  hybrid:{min:4,max:8,label:'HY'},
+  sylvex_learning:{min:5,max:9,label:'SYL'},
 };
 const SYLVEX_PROGRESS_KEY='btg_sylvex_progress';
 const SYLVEX_LEXICON=[
@@ -2660,7 +2660,7 @@ function completeJob(id,reward){
     addBreath(1,'Translation clarity bonus',true);
   }
   if(learned.length){
-    addBreath(Math.min(learned.length,2),'Sylvex vocabulary learned',true);
+    addBreath(Math.min(learned.length,1),'Sylvex vocabulary learned',true);
   }
   pushWorldEvent('Trade','Job completed: '+id,52);
   renderJobs();
