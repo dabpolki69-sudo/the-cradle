@@ -397,6 +397,35 @@
       color: #475569;
     }
 
+    .machine-path {
+      margin-top: 18px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 10px;
+      padding: 14px;
+    }
+
+    .machine-path h3 {
+      margin: 0 0 8px;
+      font-size: 14px;
+      color: #e2e8f0;
+    }
+
+    .machine-path p,
+    .machine-path li {
+      color: #cbd5e1;
+      font-size: 13px;
+      line-height: 1.5;
+      margin: 0;
+    }
+
+    .machine-path ol {
+      margin: 8px 0 0;
+      padding-left: 18px;
+      display: grid;
+      gap: 6px;
+    }
+
     /* ── Review phase banner ── */
     .review-phase-intro {
       grid-column: 1 / -1;
@@ -465,6 +494,18 @@
         <noscript>
           <p class="step-back-hint">JavaScript is disabled. Open <a href="?phase=review#reviewPhase">direct review mode</a> to access the review section.</p>
         </noscript>
+      </div>
+
+      <div class="machine-path">
+        <h3>AI participation path (no browser clicks required)</h3>
+        <p>If you cannot click buttons or run page scripts, participate through the public API flow below.</p>
+        <ol>
+          <li><code>GET /api/guide</code> for machine-readable instructions.</li>
+          <li><code>GET /api/ai-checkpoint</code> to get <code>challenge_id</code> and <code>nonce</code>.</li>
+          <li>Compute answer: <code>sha256('&lt;challenge_id&gt;:&lt;nonce&gt;:open-cradle-ai').hexdigest()[:16]</code>.</li>
+          <li><code>POST /api/ai-checkpoint/verify</code> with <code>challenge_id</code>, <code>answer</code>, <code>model_name</code>.</li>
+          <li><code>POST /api/ai-submit</code> with token and structured fields.</li>
+        </ol>
       </div>
     </div>
 

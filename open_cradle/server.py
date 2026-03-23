@@ -326,6 +326,13 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             self.wfile.write(PORTAL_HTML.read_bytes())
             return
 
+        if path in ("/open_cradle/review", "/open_cradle/review/"):
+            self.send_response(HTTPStatus.FOUND)
+            self.send_header("Location", "/open_cradle/?phase=review#reviewPhase")
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            return
+
         if path == "/api/logs/human":
             if not HUMAN_LOG_PATH.exists():
                 self._send_text(HTTPStatus.NOT_FOUND, "Human log missing")
