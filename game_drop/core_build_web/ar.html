@@ -21,8 +21,14 @@
     .btn.primary{background:linear-gradient(135deg,#4f46e5,#7c3aed);border-color:transparent;color:#fff}
     .btn.ok{border-color:rgba(109,224,178,.55)}
     #status{position:fixed;top:58px;left:10px;right:10px;z-index:50;padding:8px 10px;background:var(--card);border:1px solid var(--line);border-radius:10px;color:var(--ink2);font-size:13px;backdrop-filter:blur(8px)}
-    #speech{position:fixed;bottom:96px;left:50%;transform:translateX(-50%);z-index:60;max-width:min(680px,92vw);padding:10px 14px;border-radius:12px;background:rgba(8,14,26,.92);border:1px solid rgba(124,96,232,.5);display:none}
+    #speech{position:fixed;bottom:96px;left:50%;transform:translateX(-50%);z-index:60;max-width:min(680px,92vw);padding:10px 14px 12px;border-radius:12px;background:rgba(8,14,26,.92);border:1px solid rgba(124,96,232,.5);display:none}
     #speech strong{display:block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#b6a8ff;margin-bottom:4px}
+    #speechCloseBtn{position:absolute;top:6px;right:8px;border:1px solid rgba(124,96,232,.45);background:rgba(20,30,52,.85);color:var(--ink);border-radius:8px;padding:1px 7px;font-size:12px;cursor:pointer}
+    #introOverlay{position:fixed;inset:0;z-index:95;background:rgba(3,8,18,.7);display:flex;align-items:center;justify-content:center;padding:14px}
+    #introCard{max-width:min(700px,95vw);background:rgba(9,15,29,.95);border:1px solid var(--line);border-radius:14px;padding:14px}
+    #introCard h2{margin:0 0 8px;font-size:18px}
+    #introCard p{margin:0 0 8px;color:var(--ink2);line-height:1.45;font-size:13px}
+    #introActions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
     #joystickWrap{position:fixed;left:14px;bottom:14px;z-index:55;width:120px;height:120px;border-radius:999px;background:rgba(9,14,24,.55);border:1px solid rgba(127,168,207,.3);backdrop-filter:blur(8px);touch-action:none}
     #joystickKnob{position:absolute;left:40px;top:40px;width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#b8d6ff,#4d74c9);box-shadow:0 0 16px rgba(93,141,255,.45);pointer-events:none}
     #hint{position:fixed;right:12px;bottom:16px;z-index:55;max-width:46vw;padding:10px;border-radius:10px;background:rgba(8,14,26,.82);border:1px solid var(--line);font-size:12px;color:var(--ink2)}
@@ -86,15 +92,27 @@
     </div>
     <div id="collectionGrid"></div>
   </div>
+  <div id="introOverlay">
+    <div id="introCard">
+      <h2>Welcome to your Sylvexian Village</h2>
+      <p>You begin with one main hut and a tiny crew. Build your settlement from scratch by exploring your surroundings and growing your village together.</p>
+      <p>Place the village on your carpet or floor, tap Sylvexians to interact, and use the menu to grow, relocate base, and save/load your instance.</p>
+      <p>Enable camera to augment your real room and immerse in live surroundings.</p>
+      <div id="introActions">
+        <button id="enableCameraBtn" class="btn primary">Enable Camera</button>
+        <button id="startWithoutCameraBtn" class="btn">Start Without Camera</button>
+      </div>
+    </div>
+  </div>
   <div id="status">Explore your living room city. Tap buildings, resources, and work sites. Assign buddies to harvest and build.</div>
-  <div id="speech"><strong id="speechName"></strong><span id="speechText"></span></div>
+  <div id="speech"><button id="speechCloseBtn" type="button">✕</button><strong id="speechName"></strong><span id="speechText"></span></div>
 
   <div id="joystickWrap" aria-label="Movement joystick">
     <div id="joystickKnob"></div>
   </div>
   <div id="hint">👥 Sylvexians - Tap collection to view all! 100 names × 6 personalities. 🏘 💫</div>
 
-  <a-scene id="scene" embedded xr-mode-ui="enabled:true" webxr="optionalFeatures: local-floor, dom-overlay; overlayElement: body" renderer="alpha:true; antialias:true; colorManagement:true" background="color: #050913">
+  <a-scene id="scene" embedded xr-mode-ui="enabled:true" webxr="optionalFeatures: local-floor, dom-overlay; overlayElement: body" renderer="alpha:true; antialias:true; colorManagement:true" background="color: #000; transparent: true">
     <a-entity light="type:ambient;intensity:0.7;color:#c3d7ff"></a-entity>
     <a-entity light="type:point;intensity:0.9;color:#7c60e8" position="0 5 0"></a-entity>
 
@@ -128,9 +146,13 @@
     const playerRig = document.getElementById('playerRig');
     const statusEl = document.getElementById('status');
     const speechBox = document.getElementById('speech');
+    const speechCloseBtn = document.getElementById('speechCloseBtn');
     const speechName = document.getElementById('speechName');
     const speechText = document.getElementById('speechText');
     const cameraBg = document.getElementById('cameraBg');
+    const introOverlay = document.getElementById('introOverlay');
+    const enableCameraBtn = document.getElementById('enableCameraBtn');
+    const startWithoutCameraBtn = document.getElementById('startWithoutCameraBtn');
     const loadInstanceFileInput = document.getElementById('loadInstanceFileInput');
     const uiTop = document.getElementById('uiTop');
     const menuToggleBtn = document.getElementById('menuToggleBtn');
@@ -146,6 +168,14 @@
     let hideTimer = 0;
     let lastTs = 0;
     const moveInput = {x:0, y:0};
+    const moveForward = new THREE.Vector3();
+    const moveRight = new THREE.Vector3();
+    const moveUp = new THREE.Vector3(0,1,0);
+    const moveDelta = new THREE.Vector3();
+    const lastExplorePos = new THREE.Vector3();
+    let arExplorationSpawnTimer = 0;
+    let arExplorationDistance = 0;
+    const MAX_ACTIVE_WORKERS = 20;
     const SAVE_FILE_VERSION = 1;
     const SAVE_PBKDF2_ITERATIONS = 150000;
 
@@ -511,6 +541,16 @@
       return catalog;
     }
 
+    function sylvexianTierById(id){
+      const legendaryCount = LEGENDARY_NAMES.length;
+      const rareCount = 20;
+      const uncommonCount = 40;
+      if(id <= legendaryCount) return 'legendary';
+      if(id <= legendaryCount + rareCount) return 'rare';
+      if(id <= legendaryCount + rareCount + uncommonCount) return 'uncommon';
+      return 'common';
+    }
+
     const SYLVEXIAN_NAME_CATALOG = generateSylvexianNameCatalog();
 
     // ===== BUILDING SYSTEM =====
@@ -717,7 +757,7 @@
         const bodyHeight = 0.5 + (index % 4) * 0.04;
         const armTilt = 12 + (index % 5) * 4;
         const legHeight = 0.4 + (index % 3) * 0.05;
-        const scale = 0.46 + (index % 5) * 0.028;
+        const scale = 0.085 + (index % 5) * 0.006;
         const crestType = index % 4;
         const visorType = index % 3;
         const clothingId = ((index * 37) % CLOTHING_CATALOG.length) + 1;
@@ -794,6 +834,11 @@
       speechBox.style.display = 'block';
       clearTimeout(showSpeech._t);
       showSpeech._t = setTimeout(()=>speechBox.style.display='none', 4200);
+    }
+
+    function closeSpeech(){
+      clearTimeout(showSpeech._t);
+      speechBox.style.display = 'none';
     }
 
     function makeProp(kind, pos){
@@ -1060,6 +1105,13 @@
     }
 
     function addBeing(name){
+      if(beings.length >= MAX_ACTIVE_WORKERS){
+        upsertCollectionEntry(name);
+        updateCollectionUI();
+        notify(`👥 Team full (${MAX_ACTIVE_WORKERS} active). ${name} kept in collection.`);
+        return null;
+      }
+
       const legendaryProfile = LEGENDARY_PROFILES[name] || null;
       const skin = legendaryProfile ? randomSkinRollByRarity('legendary') : randomSkinRoll();
       skin.clothingId = randomClothingId();
@@ -1083,22 +1135,7 @@
       root.object3D.scale.set(scale, scale, scale);
       root.object3D.position.set(Math.cos(angle)*spawnRadius, 0, Math.sin(angle)*spawnRadius);
       root.setAttribute('animation__spawn', `property: scale; from: 0.05 0.05 0.05; to: ${scale} ${scale} ${scale}; dur: 700; easing: easeOutBack`);
-      root.addEventListener('click', ()=>{
-        let dialogueText;
-        if(Math.random() < 0.5 && personality.sylvexian){
-          dialogueText = personality.sylvexian[Math.floor(Math.random() * personality.sylvexian.length)];
-        } else {
-          dialogueText = personality.dialogue[Math.floor(Math.random() * personality.dialogue.length)];
-        }
-        const reaction = personality.reactions[Math.floor(Math.random() * personality.reactions.length)];
-        const statLine = `PWR ${buddy.stats.power} · AGI ${buddy.stats.agility} · FOC ${buddy.stats.focus} · RES ${buddy.stats.resilience} · INS ${buddy.stats.insight}`;
-        const buffLine = buddy.uniqueBuff ? `\nLegendary Buff: ${buddy.uniqueBuff}` : '';
-        showSpeech(
-          `${name} - ${personality.icon} ${personality.name}`,
-          `"${dialogueText}" ${reaction}\n\n${roleAbility.title}: ${roleAbility.bonus}\n${statLine}${buffLine}`
-        );
-        animateBuddy(buddy, ['jump', 'spin', 'wave', 'celebrate'][Math.floor(Math.random() * 4)]);
-      });
+      root.addEventListener('click', ()=>collectSylvexian(buddy));
       npcLayer.appendChild(root);
       const buddy = {
         name,
@@ -1124,10 +1161,38 @@
         animationDuration: 0
       };
       beings.push(buddy);
-      
-      // Add to collection
-      collectedSylvexians.set(name, buddy);
+      return buddy;
+    }
+
+    function upsertCollectionEntry(name, seed = {}){
+      if(!name || collectedSylvexians.has(name)) return;
+      const skin = seed.skin ? { ...seed.skin } : randomSkinRoll();
+      const personalityKey = seed.personalityKey && PERSONALITY_TYPES[seed.personalityKey]
+        ? seed.personalityKey
+        : PERSONALITY_KEYS[Math.floor(Math.random() * PERSONALITY_KEYS.length)];
+      const personality = PERSONALITY_TYPES[personalityKey];
+      collectedSylvexians.set(name, {
+        name,
+        skin,
+        personality,
+        role: seed.role || (ROLE_ABILITIES[skin.role] || ROLE_ABILITIES.builder).title,
+        stats: seed.stats || calculateBuddyStats(skin.rarity, LEGENDARY_PROFILES[name] || null),
+        uniqueBuff: seed.uniqueBuff || LEGENDARY_PROFILES[name]?.uniqueBuff || null
+      });
+    }
+
+    function collectSylvexian(buddy){
+      if(!buddy || !buddy.el) return;
+      if(!collectedSylvexians.has(buddy.name)){
+        collectedSylvexians.set(buddy.name, buddy);
+      }
+      const idx = beings.indexOf(buddy);
+      if(idx >= 0) beings.splice(idx, 1);
+      if(buddy.el.parentNode) buddy.el.parentNode.removeChild(buddy.el);
       updateCollectionUI();
+      const rarity = (buddy.skin.rarity || 'common').toUpperCase();
+      notify(`📦 Collected ${buddy.name} (${rarity}).`);
+      showSpeech('Sylvexian Collected', `${buddy.name} joined your collection. Keep exploring AR to discover more.`);
     }
 
     function updateCollectionUI(){
@@ -1144,88 +1209,71 @@
         mythic:'#ff74c7'
       };
 
-      for(const buddy of collectedSylvexians.values()){
+      for(let id = 1; id <= 100; id++){
+        const name = SYLVEXIAN_NAME_CATALOG[id] || `Sylvexian-${id}`;
+        const buddy = collectedSylvexians.get(name);
+        const tier = sylvexianTierById(id);
         const card = document.createElement('div');
         card.className = 'sylvexianCard';
-        const color = rarityColor[buddy.skin.rarity] || '#8aa6c8';
-        const translatedName = LEGENDARY_PROFILES[buddy.name]
-          ? `${buddy.name} Prime`
-          : `${buddy.personality.name} Variant`;
-        const outfit = resolveClothingForSkin(buddy.skin);
+        const color = rarityColor[(buddy?.skin?.rarity) || tier] || '#8aa6c8';
 
-        card.innerHTML = `
-          <div class="roleIcon">${buddy.personality.icon}</div>
-          <div class="name">${buddy.name}</div>
-          <div class="translation">${translatedName}</div>
-          <div class="rarity" style="background:${color}30;border-color:${color}">${buddy.skin.rarity.toUpperCase()}</div>
-          <div style="font-size:10px;color:var(--ink2)">${buddy.role}</div>
-          <div style="font-size:10px;color:var(--ink2)">${outfit.name}</div>
-          <div style="font-size:10px;color:var(--ink2)">P${buddy.stats.power} A${buddy.stats.agility} F${buddy.stats.focus} R${buddy.stats.resilience} I${buddy.stats.insight}</div>
-          ${buddy.uniqueBuff ? `<div style="font-size:10px;color:${color}">${buddy.uniqueBuff}</div>` : ''}
-        `;
+        if(buddy){
+          const translatedName = LEGENDARY_PROFILES[buddy.name]
+            ? `${buddy.name} Prime`
+            : `${buddy.personality.name} Variant`;
+          const outfit = resolveClothingForSkin(buddy.skin);
+          card.innerHTML = `
+            <div class="roleIcon">${buddy.personality.icon}</div>
+            <div class="name">${buddy.name}</div>
+            <div class="translation">${translatedName}</div>
+            <div class="rarity" style="background:${color}30;border-color:${color}">${buddy.skin.rarity.toUpperCase()}</div>
+            <div style="font-size:10px;color:var(--ink2)">${buddy.role}</div>
+            <div style="font-size:10px;color:var(--ink2)">${outfit.name}</div>
+            <div style="font-size:10px;color:var(--ink2)">P${buddy.stats.power} A${buddy.stats.agility} F${buddy.stats.focus} R${buddy.stats.resilience} I${buddy.stats.insight}</div>
+            ${buddy.uniqueBuff ? `<div style="font-size:10px;color:${color}">${buddy.uniqueBuff}</div>` : ''}
+          `;
 
-        card.addEventListener('click', ()=>{
-          showSpeech(
-            `${buddy.name} - ${buddy.personality.icon} ${buddy.personality.name}`,
-            `Collected Sylvexian\nRole: ${buddy.role}\nRarity: ${buddy.skin.rarity.toUpperCase()}${buddy.uniqueBuff ? `\nBuff: ${buddy.uniqueBuff}` : ''}`
-          );
-        });
+          card.addEventListener('click', ()=>{
+            showSpeech(
+              `${buddy.name} - ${buddy.personality.icon} ${buddy.personality.name}`,
+              `Collected Sylvexian\nRole: ${buddy.role}\nRarity: ${buddy.skin.rarity.toUpperCase()}${buddy.uniqueBuff ? `\nBuff: ${buddy.uniqueBuff}` : ''}`
+            );
+          });
+        } else {
+          card.style.opacity = '0.72';
+          card.innerHTML = `
+            <div class="roleIcon">❔</div>
+            <div class="name">Unknown Sylvexian</div>
+            <div class="translation">${name}</div>
+            <div class="rarity" style="background:${color}26;border-color:${color}">${tier.toUpperCase()}</div>
+            <div style="font-size:10px;color:var(--ink2)">Not discovered yet</div>
+          `;
+        }
 
         grid.appendChild(card);
       }
     }
 
+    function nextUndiscoveredSylvexianName(){
+      for(let id = 1; id <= 100; id++){
+        const name = SYLVEXIAN_NAME_CATALOG[id] || `Sylvexian-${id}`;
+        if(!collectedSylvexians.has(name)) return name;
+      }
+      const fallback = 1 + Math.floor(Math.random() * 100);
+      return SYLVEXIAN_NAME_CATALOG[fallback] || `Sylvexian-${fallback}`;
+    }
+
     function seedCity(){
       clearCityState();
 
-      // Structural props
-      makeProp('door', {x: 1.4, z: -1.1});
-      makeProp('pillar', {x: -1.7, z: 0.8});
-      makeProp('crate', {x: 0.9, z: 1.7});
+      // Start minimal: one main hut + starter stash/resources
+      createBuilding('shelter', {x: 0.0, z: 0.0}, 0);
+      makeProp('crate', {x: 0.55, z: 0.45});
+      createResource('wood', {x: 0.9, z: 0.55}, false);
+      createResource('stone', {x: -0.85, z: 0.65}, false);
 
-      // Buildings arranged in a settlement pattern
-      const buildTypes = ['shelter', 'house', 'workshop', 'market', 'tower'];
-      const buildPositions = [
-        {x: 0.3, z: -0.5}, {x: -0.4, z: -0.8}, {x: 0.6, z: 0.2},
-        {x: -0.6, z: 0.3}, {x: 0.1, z: 0.7}
-      ];
-      buildPositions.forEach((pos, i) => {
-        const buildType = buildTypes[i % buildTypes.length];
-        createBuilding(buildType, pos, i);
-      });
-
-      // Resource piles scattered around with treasure loot chance
-      const resourcePositions = [
-        {x: 1.0, z: 0.9, type: 'wood'},
-        {x: -0.9, z: 1.2, type: 'stone'},
-        {x: 1.1, z: -0.9, type: 'metal'},
-        {x: -1.2, z: -0.5, type: 'crystal'}
-      ];
-      resourcePositions.forEach(rpos => {
-        const hasTreasure = Math.random() < 0.1; // 1 in 10 chance
-        createResource(rpos.type, {x: rpos.x, z: rpos.z}, hasTreasure);
-      });
-
-      // Create market building
-      createMarket({x: 0.0, z: 0.0}, 1);
-
-      // Work sites
-      createWorkSite('logging', {x: 0.0, z: -1.4});
-      createWorkSite('mining', {x: -0.5, z: 1.5});
-
-      // NPCs with diverse roles (staggered pop-out, not all at once)
-      const initialSylvexians = [1, 2, 3, 4, 5].map(id => SYLVEXIAN_NAME_CATALOG[id]);
-      initialSylvexians.forEach((name, idx)=>{
-        setTimeout(()=>{
-          addBeing(name);
-          if(idx === initialSylvexians.length - 1){
-            notify('🏘 Sylvexians emerged from your surroundings. Meet them and help them grow.');
-          }
-        }, idx * 1200);
-      });
-      
       unlockAdvancement(1);
-      notify('📸 Camera world ready. Sylvexians are emerging around you...');
+      notify('🏠 Main hut placed. Explore in AR to discover and collect Sylvexians.');
     }
 
     function chooseHideBehavior(){
@@ -1236,6 +1284,26 @@
       b.hiding = true;
       b.hideProp = p;
       setTimeout(()=>{ b.hiding = false; b.hideProp = null; }, 5200);
+    }
+
+    function isExploringInAr(){
+      return !!cityAnchor.getAttribute('visible') && scene.is('ar-mode');
+    }
+
+    function spawnFromArExploration(){
+      if(beings.length >= MAX_ACTIVE_WORKERS) return;
+      const activeNames = new Set(beings.map((b)=>b.name));
+      const undiscovered = [];
+      for(let id = 1; id <= 100; id++){
+        const name = SYLVEXIAN_NAME_CATALOG[id] || `Sylvexian-${id}`;
+        if(!collectedSylvexians.has(name) && !activeNames.has(name)) undiscovered.push(name);
+      }
+      if(!undiscovered.length) return;
+      const name = undiscovered[Math.floor(Math.random() * undiscovered.length)];
+      const spawned = addBeing(name);
+      if(spawned){
+        notify(`✨ A Sylvexian appeared nearby: ${name}. Tap to pick up.`);
+      }
     }
 
     function updateBeings(dt, t){
@@ -1334,6 +1402,7 @@
           z: cityAnchor.object3D.position.z
         },
         advancements: Array.from(advancements),
+        collected: Array.from(collectedSylvexians.keys()),
         props: props.map((p)=>({ kind: p.kind || 'crate', pos: { x: p.pos.x, z: p.pos.z } })),
         buildings: buildings.map((b)=>({
           type: b.type,
@@ -1378,6 +1447,17 @@
     }
 
     function restoreBeingFromSave(data){
+      if(beings.length >= MAX_ACTIVE_WORKERS){
+        upsertCollectionEntry(data.name, {
+          skin: data.skin,
+          personalityKey: data.personalityKey,
+          role: data.role,
+          stats: data.stats,
+          uniqueBuff: data.uniqueBuff
+        });
+        return;
+      }
+
       const skin = data.skin || randomSkinRoll();
       const personality = PERSONALITY_TYPES[data.personalityKey] || PERSONALITY_TYPES[PERSONALITY_KEYS[0]];
       const root = document.createElement('a-entity');
@@ -1389,22 +1469,7 @@
       root.object3D.position.set(pos.x, pos.y || 0, pos.z);
       const roleAbility = { title: data.role || skin.role || 'Builder', bonus: data.roleBonus || 'Adaptive' };
       let buddy;
-      root.addEventListener('click', ()=>{
-        let dialogueText;
-        if(Math.random() < 0.5 && personality.sylvexian){
-          dialogueText = personality.sylvexian[Math.floor(Math.random() * personality.sylvexian.length)];
-        } else {
-          dialogueText = personality.dialogue[Math.floor(Math.random() * personality.dialogue.length)];
-        }
-        const reaction = personality.reactions[Math.floor(Math.random() * personality.reactions.length)];
-        const statLine = `PWR ${buddy.stats.power} · AGI ${buddy.stats.agility} · FOC ${buddy.stats.focus} · RES ${buddy.stats.resilience} · INS ${buddy.stats.insight}`;
-        const buffLine = buddy.uniqueBuff ? `\nLegendary Buff: ${buddy.uniqueBuff}` : '';
-        showSpeech(
-          `${buddy.name} - ${personality.icon} ${personality.name}`,
-          `"${dialogueText}" ${reaction}\n\n${roleAbility.title}: ${roleAbility.bonus}\n${statLine}${buffLine}`
-        );
-        animateBuddy(buddy, ['jump', 'spin', 'wave', 'celebrate'][Math.floor(Math.random() * 4)]);
-      });
+      root.addEventListener('click', ()=>collectSylvexian(buddy));
       npcLayer.appendChild(root);
 
       buddy = {
@@ -1432,7 +1497,6 @@
       };
 
       beings.push(buddy);
-      collectedSylvexians.set(buddy.name, buddy);
     }
 
     function loadSnapshot(snapshot){
@@ -1452,6 +1516,9 @@
       (snapshot.resources || []).forEach((r)=>createResource(r.type || 'wood', r.pos || { x: 0, z: 0 }, !!r.isTreasure));
       (snapshot.workSites || []).forEach((w)=>createWorkSite(w.type || 'logging', w.pos || { x: 0, z: 0 }));
       (snapshot.beings || []).forEach((b)=>restoreBeingFromSave(b));
+      (snapshot.collected || []).forEach((name)=>{
+        upsertCollectionEntry(name);
+      });
 
       (snapshot.advancements || []).forEach((id)=>advancements.add(id));
       updateCollectionUI();
@@ -1528,8 +1595,10 @@
         });
         cameraBg.srcObject = stream;
         cameraBg.style.display = 'block';
+        return true;
       }catch(_){
-        notify('Camera not permitted yet. Tap Enter AR to grant camera and place Sylvexians in your surroundings.');
+        notify('Camera not permitted yet. You can still play, or enable camera for live surroundings.');
+        return false;
       }
     }
 
@@ -1537,14 +1606,21 @@
       if(!moveInput.x && !moveInput.y) return;
       const cam = scene.camera;
       if(!cam) return;
-      const yaw = cam.rotation.y;
-      const fwdX = -Math.sin(yaw), fwdZ = -Math.cos(yaw);
-      const rightX = Math.cos(yaw), rightZ = -Math.sin(yaw);
+
+      cam.getWorldDirection(moveForward);
+      moveForward.y = 0;
+      if(moveForward.lengthSq() < 1e-6) return;
+      moveForward.normalize();
+      moveRight.crossVectors(moveForward, moveUp).normalize();
+
       const speed = 1.9;
-      const vx = (fwdX * moveInput.y + rightX * moveInput.x) * speed * dt;
-      const vz = (fwdZ * moveInput.y + rightZ * moveInput.x) * speed * dt;
+      moveDelta.copy(moveForward).multiplyScalar(moveInput.y)
+        .addScaledVector(moveRight, moveInput.x)
+        .multiplyScalar(speed * dt);
+
       const p = playerRig.object3D.position;
-      p.x += vx; p.z += vz;
+      p.x += moveDelta.x;
+      p.z += moveDelta.z;
     }
 
     function tick(ts){
@@ -1557,6 +1633,29 @@
         updateMovement(dt);
         hideTimer += dt;
         if(hideTimer > 7.5){ hideTimer = 0; chooseHideBehavior(); }
+
+        if(isExploringInAr()){
+          const p = playerRig.object3D.position;
+          if(lastExplorePos.lengthSq() === 0){
+            lastExplorePos.set(p.x, p.y, p.z);
+          }
+          const dx = p.x - lastExplorePos.x;
+          const dz = p.z - lastExplorePos.z;
+          const dist = Math.hypot(dx, dz);
+          if(dist > 0.01){
+            arExplorationDistance += dist;
+            lastExplorePos.set(p.x, p.y, p.z);
+          }
+          arExplorationSpawnTimer += dt;
+
+          if(arExplorationSpawnTimer > 4.5 && arExplorationDistance > 0.9){
+            arExplorationSpawnTimer = 0;
+            arExplorationDistance = 0;
+            if(beings.length < Math.min(5, MAX_ACTIVE_WORKERS)){
+              spawnFromArExploration();
+            }
+          }
+        }
       }
       requestAnimationFrame(tick);
     }
@@ -1648,13 +1747,34 @@
       loadInstanceFileInput.value = '';
     });
     document.getElementById('growBtn').addEventListener('click', ()=>{
-      const nextId = Math.min(100, beings.length + 1);
-      const newSylvexianName = SYLVEXIAN_NAME_CATALOG[nextId] || `Sylvexian-${nextId}`;
+      if(!isExploringInAr()){
+        notify('Explore in AR to spawn Sylvexians.');
+        return;
+      }
+      if(beings.length >= MAX_ACTIVE_WORKERS){
+        notify(`👥 Team full (${MAX_ACTIVE_WORKERS} active). Collect first or rely on collection roster.`);
+        return;
+      }
+      const newSylvexianName = nextUndiscoveredSylvexianName();
       setTimeout(()=>{
-        addBeing(newSylvexianName);
-        const newest = beings[beings.length - 1];
-        notify(`✨ New Sylvexian emerged nearby: ${newest.name} (${newest.personality.name}), ${newest.role}!`);
+        const newest = addBeing(newSylvexianName);
+        if(newest){
+          notify(`✨ New Sylvexian emerged nearby: ${newest.name}. Tap to collect.`);
+        }
       }, 300);
+    });
+
+    speechCloseBtn.addEventListener('click', closeSpeech);
+
+    enableCameraBtn.addEventListener('click', async ()=>{
+      await startCameraBackground();
+      introOverlay.style.display = 'none';
+      showSpeech('Getting Started', 'Use Place City Here to pin your main hut to the floor. Gather resources, grow your team, and build your village one structure at a time.');
+    });
+
+    startWithoutCameraBtn.addEventListener('click', ()=>{
+      introOverlay.style.display = 'none';
+      showSpeech('Getting Started', 'Use Place City Here to begin with one hut. Your Sylvexians are tiny companions (~10cm). Build, expand, and save your progress anytime from the menu.');
     });
 
     startCameraBackground();
