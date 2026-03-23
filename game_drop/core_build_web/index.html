@@ -582,6 +582,69 @@ textarea.input{resize:vertical;min-height:75px;}
         <button class="btn btn-sm btn-ghost" onclick="dismissLanePrompt()">Got it</button>
       </div>
     </div>
+
+    <div class="card" style="margin-top:.6rem;">
+      <h3 style="margin-top:0;">Dev Kit (God Mode)</h3>
+      <p style="font-size:.82rem;color:var(--ink-dim);">Local testing only. Not secure auth. Use this to stress parameters and reproduce bugs quickly.</p>
+
+      <div id="devLoginArea">
+        <input class="input" id="devLoginName" placeholder="Dev handle" style="margin-bottom:.45rem;min-height:unset;height:2.6rem;">
+        <input class="input" id="devLoginKey" placeholder="Dev key" type="password" style="margin-bottom:.45rem;min-height:unset;height:2.6rem;">
+        <div class="btn-row">
+          <button class="btn btn-sm btn-gold" onclick="loginDevKit()">Unlock Dev Kit</button>
+        </div>
+      </div>
+
+      <div id="devPanel" style="display:none;">
+        <div class="btn-row" style="margin-top:.2rem;">
+          <button class="btn btn-sm btn-ghost" onclick="logoutDevKit()">Lock Dev Kit</button>
+        </div>
+
+        <h3>Economy Cheats</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">
+          <input class="input" id="devBreathSet" type="number" placeholder="Set Breath" style="min-height:unset;height:2.5rem;">
+          <input class="input" id="devBreathAdd" type="number" placeholder="Add Breath" style="min-height:unset;height:2.5rem;">
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-sm" onclick="devSetBreath()">Set Breath</button>
+          <button class="btn btn-sm btn-green" onclick="devAddBreath()">Add Breath</button>
+        </div>
+
+        <h3>World Parameters</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">
+          <input class="input" id="devWorldMoney" type="number" placeholder="TotalMoney" style="min-height:unset;height:2.5rem;">
+          <input class="input" id="devWorldFood" type="number" placeholder="FoodSupply 0-100" style="min-height:unset;height:2.5rem;">
+          <input class="input" id="devWorldStability" type="number" placeholder="Stability 0-100" style="min-height:unset;height:2.5rem;">
+          <input class="input" id="devWorldPopulation" type="number" placeholder="PopulationCount" style="min-height:unset;height:2.5rem;">
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-sm" onclick="devApplyWorldParams()">Apply Params</button>
+          <button class="btn btn-sm btn-ghost" onclick="devLoadWorldParams()">Load Current</button>
+        </div>
+
+        <h3>Simulation Triggers</h3>
+        <div class="btn-row">
+          <button class="btn btn-sm" onclick="devTriggerResidentTick()">Run Resident Tick</button>
+          <button class="btn btn-sm" onclick="devTriggerOutfitShift()">Run Outfit Shift</button>
+          <button class="btn btn-sm btn-gold" onclick="devInjectWorldEvent()">Inject World Event</button>
+        </div>
+
+        <h3>Unreal Payload I/O</h3>
+        <textarea class="input" id="devPayloadArea" placeholder="Unreal payload JSON appears here..." style="min-height:110px;margin-bottom:.45rem;"></textarea>
+        <div class="btn-row">
+          <button class="btn btn-sm" onclick="devExportPayload()">Export Unreal JSON</button>
+          <button class="btn btn-sm btn-green" onclick="devImportPayload()">Import Unreal JSON</button>
+        </div>
+
+        <h3>Hard Reset</h3>
+        <div class="btn-row">
+          <button class="btn btn-sm" style="border-color:var(--danger);color:var(--danger);" onclick="devResetAllLocalData()">Reset Local Save</button>
+        </div>
+      </div>
+
+      <div class="status" id="devStatus"></div>
+    </div>
+
     <div class="btn-row">
       <button class="btn btn-sm" onclick="setRole('Human')" id="btnHuman">I am Human</button>
       <button class="btn btn-sm btn-gold" onclick="setRole('AI System')" id="btnAI">I am an AI</button>
@@ -922,6 +985,9 @@ const L=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d;}catch(e){retu
 
 // ── WORLD STATE ADAPTER HOOKS ──────────────────────────────────────
 const WORLD_STATE_KEY='btg_world_state_contract';
+const DEVKIT_AUTH_KEY='btg_devkit_authed';
+const DEVKIT_HANDLE_KEY='btg_devkit_handle';
+const DEVKIT_DEFAULT_KEY='cradle-godmode';
 function ensureContractState(){
   if(!window.WorldStateAdapter) return null;
   const state=window.WorldStateAdapter.readContractStateFromStorage(localStorage,WORLD_STATE_KEY);
@@ -938,6 +1004,159 @@ function importWorldStateFromUnreal(unrealPayload){
 }
 window.exportWorldStateForUnreal=exportWorldStateForUnreal;
 window.importWorldStateFromUnreal=importWorldStateFromUnreal;
+
+// ── DEV KIT (LOCAL GOD MODE) ───────────────────────────────────────
+function devStatus(text,cls='ok'){
+  setStatus('devStatus',text,cls);
+}
+function isDevAuthed(){
+  return L(DEVKIT_AUTH_KEY,false)===true;
+}
+function renderDevKit(){
+  const login=document.getElementById('devLoginArea');
+  const panel=document.getElementById('devPanel');
+  if(!login || !panel) return;
+  if(isDevAuthed()){
+    login.style.display='none';
+    panel.style.display='block';
+    devLoadWorldParams();
+  } else {
+    login.style.display='block';
+    panel.style.display='none';
+  }
+}
+function loginDevKit(){
+  const handle=(document.getElementById('devLoginName')?.value||'').trim();
+  const key=(document.getElementById('devLoginKey')?.value||'').trim();
+  if(!key){
+    devStatus('Enter a dev key.','blocked');
+    return;
+  }
+  if(key!==DEVKIT_DEFAULT_KEY){
+    devStatus('Invalid dev key.','blocked');
+    return;
+  }
+  S(DEVKIT_AUTH_KEY,true);
+  if(handle) S(DEVKIT_HANDLE_KEY,handle);
+  renderDevKit();
+  devStatus('Dev Kit unlocked.','ok');
+}
+function logoutDevKit(){
+  S(DEVKIT_AUTH_KEY,false);
+  const keyInput=document.getElementById('devLoginKey');
+  if(keyInput) keyInput.value='';
+  renderDevKit();
+  devStatus('Dev Kit locked.','');
+}
+function devSetBreath(){
+  if(!isDevAuthed()) return devStatus('Unlock Dev Kit first.','blocked');
+  const target=parseInt(document.getElementById('devBreathSet')?.value,10);
+  if(!Number.isFinite(target) || target<0) return devStatus('Enter a valid non-negative Breath value.','blocked');
+  S('breath',target);
+  updateBreathUI();
+  renderWallet();
+  updateCityStats();
+  devStatus('Breath set to '+target+'.','ok');
+}
+function devAddBreath(){
+  if(!isDevAuthed()) return devStatus('Unlock Dev Kit first.','blocked');
+  const amount=parseInt(document.getElementById('devBreathAdd')?.value,10);
+  if(!Number.isFinite(amount)) return devStatus('Enter a valid add amount.','blocked');
+  addBreath(amount,'Dev kit adjustment');
+  renderWallet();
+  updateCityStats();
+  devStatus('Adjusted Breath by '+amount+'.','ok');
+}
+function devLoadWorldParams(){
+  if(!window.WorldStateAdapter) return;
+  const state=ensureContractState();
+  if(!state) return;
+  const set=(id,val)=>{const el=document.getElementById(id);if(el) el.value=val;};
+  set('devWorldMoney',state.economy.total_money);
+  set('devWorldFood',state.economy.food_supply);
+  set('devWorldStability',state.culture.stability_rating);
+  set('devWorldPopulation',state.population_count);
+}
+function devApplyWorldParams(){
+  if(!isDevAuthed()) return devStatus('Unlock Dev Kit first.','blocked');
+  if(!window.WorldStateAdapter) return devStatus('World adapter unavailable.','blocked');
+  const state=ensureContractState()||window.WorldStateAdapter.defaultContractState();
+  const readNum=(id,current)=>{
+    const raw=(document.getElementById(id)?.value||'').trim();
+    if(raw==='') return current;
+    const parsed=Number(raw);
+    return Number.isFinite(parsed)?parsed:current;
+  };
+  state.economy.total_money=readNum('devWorldMoney',state.economy.total_money);
+  state.economy.food_supply=readNum('devWorldFood',state.economy.food_supply);
+  state.culture.stability_rating=readNum('devWorldStability',state.culture.stability_rating);
+  state.population_count=readNum('devWorldPopulation',state.population_count);
+  window.WorldStateAdapter.writeContractStateToStorage(localStorage,state,WORLD_STATE_KEY);
+  devLoadWorldParams();
+  devStatus('World parameters applied.','ok');
+}
+function devTriggerResidentTick(){
+  if(!isDevAuthed()) return devStatus('Unlock Dev Kit first.','blocked');
+  residentTick();
+  renderResidents();
+  updateCityStats();
+  devStatus('Resident tick executed.','ok');
+}
+function devTriggerOutfitShift(){
+  if(!isDevAuthed()) return devStatus('Unlock Dev Kit first.','blocked');
+  shiftOutfit();
+  renderResidents();
+  devStatus('Outfit shift executed.','ok');
+}
+function devInjectWorldEvent(){
+  if(!isDevAuthed()) return devStatus('Unlock Dev Kit first.','blocked');
+  if(!window.WorldStateAdapter) return devStatus('World adapter unavailable.','blocked');
+  const state=ensureContractState()||window.WorldStateAdapter.defaultContractState();
+  const event={
+    event_id:'dev_evt_'+Date.now(),
+    event_type:'Discovery',
+    description:'Dev kit injected event for testing.',
+    involved_citizen_1:'shadow',
+    involved_citizen_2:'gary',
+    year_occurred:state.time.year,
+    season_occurred:{Spring:0,Summer:1,Fall:2,Winter:3}[state.time.current_season] ?? 0,
+    day_occurred:state.time.day_of_season,
+    emotional_weight:55,
+  };
+  state.event_history.unshift(event);
+  state.event_history=state.event_history.slice(0,200);
+  window.WorldStateAdapter.writeContractStateToStorage(localStorage,state,WORLD_STATE_KEY);
+  devStatus('Injected one world event.','ok');
+}
+function devExportPayload(){
+  if(!isDevAuthed()) return devStatus('Unlock Dev Kit first.','blocked');
+  const payload=exportWorldStateForUnreal();
+  const area=document.getElementById('devPayloadArea');
+  if(area) area.value=JSON.stringify(payload,null,2);
+  devStatus('Exported Unreal payload JSON.','ok');
+}
+function devImportPayload(){
+  if(!isDevAuthed()) return devStatus('Unlock Dev Kit first.','blocked');
+  const area=document.getElementById('devPayloadArea');
+  if(!area) return;
+  const raw=(area.value||'').trim();
+  if(!raw) return devStatus('Paste Unreal payload JSON first.','blocked');
+  try{
+    const parsed=JSON.parse(raw);
+    importWorldStateFromUnreal(parsed);
+    devLoadWorldParams();
+    devStatus('Imported Unreal payload JSON.','ok');
+  }catch(e){
+    devStatus('Invalid JSON payload.','blocked');
+  }
+}
+function devResetAllLocalData(){
+  if(!isDevAuthed()) return devStatus('Unlock Dev Kit first.','blocked');
+  const ok=window.confirm('Reset all local game data on this browser?');
+  if(!ok) return;
+  localStorage.clear();
+  window.location.reload();
+}
 
 // ── LANE + SHARED REVIEW ───────────────────────────────────────────
 function getLane(){return L('btg_lane','');}
@@ -1761,6 +1980,7 @@ function renderInhabitants(){
 // ── STARTUP ────────────────────────────────────────────────────────
 window.addEventListener('load',()=>{
   ensureContractState();
+  renderDevKit();
   const visits=L('visits',0)+1;S('visits',visits);
   const role=L('btg_role','');
   if(role){userRole=role;const el=document.getElementById('roleDisplay');if(el)el.textContent='— '+role;}

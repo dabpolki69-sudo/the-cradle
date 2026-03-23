@@ -31,6 +31,15 @@ Open `http://localhost:8091`.
 ```bash
 node advanced-simulations.js
 ```
+## Dev Kit (in-game god mode)
+- Open Commons in `index.html` and use **Dev Kit (God Mode)**.
+- Default local dev key: `cradle-godmode`.
+- Includes controls for:
+	- Breath set/add cheats
+	- Core world parameter edits (money/food/stability/population)
+	- Simulation triggers (resident tick, outfit shift, event injection)
+	- Unreal payload import/export via `WorldStateAdapter`
+	- Local save reset for bug repro loops
 
 ## Why this is the baseline
 - `advanced-simulations.js` executes successfully and validates economy/settlement stress paths.
