@@ -12,6 +12,12 @@
       radial-gradient(circle at 16% -8%, rgba(255,63,164,.14), transparent 42%),
       radial-gradient(circle at 84% 2%, rgba(94,196,212,.2), transparent 38%),
       linear-gradient(180deg,#04070f 0%,var(--bg) 56%,#050913 100%)}
+    body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-2;background-image:
+      linear-gradient(120deg, rgba(4,7,15,.72), rgba(6,11,20,.62)),
+      url('/game/portal-bg-10.jpg');
+      background-size:cover;background-position:center;filter:saturate(1.06) contrast(1.04);opacity:.33;
+      animation:bg-rotate 40s ease-in-out infinite;
+      transform:scale(1.02)}
     body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;opacity:.3;mix-blend-mode:screen;background-image:
       radial-gradient(circle at 14% 24%, rgba(94,196,212,.24) 0 2px, transparent 3px),
       radial-gradient(circle at 72% 36%, rgba(255,63,164,.22) 0 1.8px, transparent 3px),
@@ -19,10 +25,17 @@
       repeating-linear-gradient(0deg, transparent 0 52px, rgba(124,96,232,.06) 52px 53px);
       background-size:220px 220px,260px 260px,190px 190px,210px 210px;
       animation:circuit-drift 26s linear infinite, circuit-glimmer 4.6s ease-in-out infinite;}
+    @keyframes bg-rotate{
+      0%,24%{background-image:linear-gradient(120deg, rgba(4,7,15,.72), rgba(6,11,20,.62)),url('/game/portal-bg-10.jpg');opacity:.32}
+      25%,49%{background-image:linear-gradient(120deg, rgba(4,7,15,.72), rgba(6,11,20,.62)),url('/game/portal-bg-11.jpg');opacity:.36}
+      50%,74%{background-image:linear-gradient(120deg, rgba(4,7,15,.72), rgba(6,11,20,.62)),url('/game/portal-bg-13.jpg');opacity:.34}
+      75%,100%{background-image:linear-gradient(120deg, rgba(4,7,15,.72), rgba(6,11,20,.62)),url('/game/portal-bg-16.jpg');opacity:.35}
+    }
     @keyframes circuit-drift{0%{background-position:0 0,34px 58px,0 0,0 0}50%{background-position:26px 12px,12px 82px,16px 0,0 18px}100%{background-position:40px 22px,-4px 106px,34px 0,0 34px}}
     @keyframes circuit-glimmer{0%,100%{opacity:.24;filter:brightness(.95)}45%{opacity:.36;filter:brightness(1.08)}60%{opacity:.3;filter:brightness(1)}}
     main{max-width:980px;margin:0 auto;padding:28px 20px;display:grid;gap:14px}
-    .card{background:rgba(12,20,34,.82);border:1px solid var(--line);border-radius:14px;padding:16px;backdrop-filter:blur(10px);box-shadow:0 14px 36px rgba(5,8,16,.42)}
+    .card{position:relative;overflow:hidden;background:rgba(12,20,34,.82);border:1px solid var(--line);border-radius:24px;padding:18px 18px 20px;backdrop-filter:blur(10px);box-shadow:0 14px 36px rgba(5,8,16,.42)}
+    .card::before{content:"";position:absolute;inset:-40% auto auto -30%;width:200px;height:200px;background:radial-gradient(circle, rgba(124,96,232,.24) 0%, rgba(124,96,232,0) 66%);pointer-events:none}
     .hero{padding:22px;border-color:var(--line2);background:linear-gradient(135deg,rgba(17,26,48,.9),rgba(27,21,60,.84));}
     .tag{display:inline-flex;align-items:center;gap:6px;margin-bottom:10px;padding:4px 10px;border-radius:999px;border:1px solid rgba(255,63,164,.42);background:rgba(255,63,164,.12);font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:#ffd8ee}
     .grid{display:grid;gap:14px;grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -32,7 +45,7 @@
     a.btn{font:inherit;border-radius:10px;border:1px solid rgba(124,96,232,.46);background:linear-gradient(180deg, rgba(24,36,62,.95), rgba(14,22,38,.95));color:var(--ink);padding:10px 12px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;font-weight:600;transition:transform .12s ease, box-shadow .2s ease}
     a.btn:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(124,96,232,.22)}
     .cta{background:linear-gradient(135deg,#4f46e5,#7c3aed);border-color:transparent;color:#fff}
-    @media (prefers-reduced-motion: reduce){body::after{animation:none}}
+    @media (prefers-reduced-motion: reduce){body::before,body::after{animation:none}}
     @media(max-width:860px){.grid{grid-template-columns:1fr}}
   </style>
 </head>
