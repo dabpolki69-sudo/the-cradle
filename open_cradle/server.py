@@ -315,6 +315,13 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
         except Exception:
             return None
 
+    def do_HEAD(self) -> None:
+        """Respond to HEAD requests used by Render health checks."""
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+
     def do_GET(self) -> None:
         prune_expired()
         parsed = urlparse(self.path)
