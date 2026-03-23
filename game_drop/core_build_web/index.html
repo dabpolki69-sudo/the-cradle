@@ -629,6 +629,18 @@ textarea.input{resize:vertical;min-height:75px;}
           <button class="btn btn-sm btn-gold" onclick="devInjectWorldEvent()">Inject World Event</button>
         </div>
 
+        <h3>Scenario Presets</h3>
+        <select class="input" id="devScenarioPreset" style="margin-bottom:.45rem;min-height:unset;height:2.6rem;">
+          <option value="">Choose a test scenario...</option>
+          <option value="economy_collapse">Economy Collapse</option>
+          <option value="food_crisis">Food Crisis</option>
+          <option value="unstable_culture">Unstable Culture</option>
+          <option value="high_growth_boom">High-Growth Boom</option>
+        </select>
+        <div class="btn-row">
+          <button class="btn btn-sm btn-gold" onclick="devApplyScenario()">Apply Scenario</button>
+        </div>
+
         <h3>Unreal Payload I/O</h3>
         <textarea class="input" id="devPayloadArea" placeholder="Unreal payload JSON appears here..." style="min-height:110px;margin-bottom:.45rem;"></textarea>
         <div class="btn-row">
@@ -1127,6 +1139,79 @@ function devInjectWorldEvent(){
   state.event_history=state.event_history.slice(0,200);
   window.WorldStateAdapter.writeContractStateToStorage(localStorage,state,WORLD_STATE_KEY);
   devStatus('Injected one world event.','ok');
+}
+function devApplyScenario(){
+  if(!isDevAuthed()) return devStatus('Unlock Dev Kit first.','blocked');
+  if(!window.WorldStateAdapter) return devStatus('World adapter unavailable.','blocked');
+  const scenario=(document.getElementById('devScenarioPreset')?.value||'').trim();
+  if(!scenario) return devStatus('Choose a scenario first.','blocked');
+  const state=ensureContractState()||window.WorldStateAdapter.defaultContractState();
+
+  const addEvent=(eventType,description,weight=60)=>{
+    state.event_history.unshift({
+      event_id:'dev_evt_'+Date.now()+'_'+Math.floor(Math.random()*1000),
+      event_type:eventType,
+      description,
+      involved_citizen_1:'shadow',
+      involved_citizen_2:'gary',
+      year_occurred:state.time.year,
+      season_occurred:{Spring:0,Summer:1,Fall:2,Winter:3}[state.time.current_season] ?? 0,
+      day_occurred:state.time.day_of_season,
+      emotional_weight:weight,
+    });
+    state.event_history=state.event_history.slice(0,200);
+  };
+
+  if(scenario==='economy_collapse'){
+    state.economy.total_money=50;
+    state.economy.food_supply=25;
+    state.economy.materials_supply=20;
+    state.economy.num_active_businesses=0;
+    state.economy.total_debt=50000;
+    state.culture.stability_rating=22;
+    state.culture.morale_mod=0.55;
+    state.culture.average_citizen_happiness=-45;
+    state.population_count=Math.max(0,(state.population_count||0)-15);
+    addEvent('Disaster','Economic collapse scenario applied from Dev Kit.',85);
+  } else if(scenario==='food_crisis'){
+    state.economy.food_supply=5;
+    state.economy.materials_supply=40;
+    state.economy.total_money=Math.max(0,(state.economy.total_money||0)-500);
+    state.culture.stability_rating=35;
+    state.culture.morale_mod=0.7;
+    state.culture.average_citizen_happiness=-30;
+    addEvent('Disaster','Food crisis scenario applied from Dev Kit.',78);
+  } else if(scenario==='unstable_culture'){
+    state.culture.stability_rating=8;
+    state.culture.morale_mod=0.45;
+    state.culture.average_citizen_happiness=-65;
+    state.culture.cultural_inertia=0.2;
+    addEvent('Conflict','Unstable culture scenario applied from Dev Kit.',90);
+  } else if(scenario==='high_growth_boom'){
+    state.economy.total_money=15000;
+    state.economy.food_supply=95;
+    state.economy.materials_supply=95;
+    state.economy.num_active_businesses=24;
+    state.economy.total_debt=250;
+    state.culture.stability_rating=88;
+    state.culture.morale_mod=1.35;
+    state.culture.average_citizen_happiness=40;
+    state.infrastructure.num_buildings=60;
+    state.infrastructure.average_building_quality=82;
+    state.technology.tech_index=Math.max(2,state.technology.tech_index||0);
+    state.technology.progress_to_next_era=72;
+    state.technology.media_level=Math.max(3,state.technology.media_level||0);
+    state.population_count=(state.population_count||0)+40;
+    addEvent('Celebration','High-growth boom scenario applied from Dev Kit.',72);
+  } else {
+    return devStatus('Unknown scenario selected.','blocked');
+  }
+
+  window.WorldStateAdapter.writeContractStateToStorage(localStorage,state,WORLD_STATE_KEY);
+  devLoadWorldParams();
+  updateCityStats();
+  renderWallet();
+  devStatus('Applied scenario: '+scenario.replace(/_/g,' ')+'.','ok');
 }
 function devExportPayload(){
   if(!isDevAuthed()) return devStatus('Unlock Dev Kit first.','blocked');

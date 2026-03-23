@@ -38,6 +38,7 @@ node advanced-simulations.js
 	- Breath set/add cheats
 	- Core world parameter edits (money/food/stability/population)
 	- Simulation triggers (resident tick, outfit shift, event injection)
+	- One-click scenario presets (economy collapse, food crisis, unstable culture, high-growth boom)
 	- Unreal payload import/export via `WorldStateAdapter`
 	- Local save reset for bug repro loops
 
