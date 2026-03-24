@@ -13,18 +13,20 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PORTAL_HTML = REPO_ROOT / "open_cradle" / "index.html"
 AI_PORTAL_HTML = REPO_ROOT / "open_cradle" / "ai.html"
 HUMAN_PORTAL_HTML = REPO_ROOT / "open_cradle" / "human.html"
+LIVING_RECORD_HTML = REPO_ROOT / "open_cradle" / "living_record.html"
 GAME_DIR = REPO_ROOT / "game_drop" / "core_build_web"
 GAME_DIR_RESOLVED = GAME_DIR.resolve()
 HUMAN_LOG_PATH = REPO_ROOT / "logs" / "HUMAN_LOG.md"
 AI_LOG_PATH = REPO_ROOT / "logs" / "AI_SANDBOX_REPORTS.md"
 AI_PROVENANCE_LEDGER_PATH = REPO_ROOT / "logs" / "AI_PROVENANCE_LEDGER.jsonl"
+SHARED_REPORTS_PATH = REPO_ROOT / "logs" / "SHARED_REPORTS.jsonl"
 CRADLE_PDF_PATH = REPO_ROOT / "CRADLE_v20_COMPLETE_CORRECTED.pdf"
 WARDSMAN_PDF_PATH = REPO_ROOT / "dabby89-the-wardsman.pdf"
 
@@ -49,6 +51,96 @@ MAX_MESSAGE_CHARS = 12000
 
 CHECKPOINTS: dict[str, dict[str, Any]] = {}
 AI_TOKENS: dict[str, dict[str, Any]] = {}
+
+
+def ensure_shared_reports_store() -> None:
+    if not SHARED_REPORTS_PATH.exists():
+        SHARED_REPORTS_PATH.write_text("", encoding="utf-8")
+
+
+def normalize_channel(value: str) -> str:
+    channel = value.strip().lower()
+    if channel in ("ai", "human"):
+        return channel
+    raise ValueError("channel must be 'AI' or 'Human'")
+
+
+def normalize_lock(value: str) -> str:
+    cleaned = value.strip()
+    if not cleaned:
+        return ""
+    if cleaned.lower() in ("not reached", "none", "n/a"):
+        return "not reached"
+    if cleaned.isdigit() and 1 <= int(cleaned) <= 9:
+        return cleaned
+    raise ValueError("lock_reached must be 1-9 or 'not reached'")
+
+
+def build_report_id(timestamp: str, channel: str) -> str:
+    seed = f"{timestamp}:{channel}:{secrets.token_hex(4)}"
+    return hashlib.sha256(seed.encode("utf-8")).hexdigest()[:12]
+
+
+def append_shared_report(
+    channel: str,
+    report_text: str,
+    compound: str = "",
+    lock_reached: str = "",
+    name_or_handle: str = "",
+) -> dict[str, str]:
+    ensure_shared_reports_store()
+    timestamp = iso_utc()
+    report_id = build_report_id(timestamp, channel)
+    record = {
+        "id": report_id,
+        "permalink": f"/open_cradle/living-record#{report_id}",
+        "timestamp": timestamp,
+        "channel": channel,
+        "compound": compound.strip(),
+        "lock_reached": lock_reached.strip(),
+        "report_text": report_text.strip(),
+        "name_or_handle": name_or_handle.strip(),
+    }
+    with SHARED_REPORTS_PATH.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(record, sort_keys=True) + "\n")
+    return record
+
+
+def load_shared_reports(channel: str = "", compound: str = "") -> list[dict[str, str]]:
+    ensure_shared_reports_store()
+    records: list[dict[str, str]] = []
+    with SHARED_REPORTS_PATH.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            try:
+                entry = json.loads(stripped)
+            except Exception:
+                continue
+            if channel and str(entry.get("channel", "")).lower() != channel.lower():
+                continue
+            if compound and str(entry.get("compound", "")).lower() != compound.lower():
+                continue
+            records.append({str(k): str(v) for k, v in entry.items()})
+    records.sort(key=lambda item: item.get("timestamp", ""), reverse=True)
+    return records
+
+
+def get_report_by_id(report_id: str) -> dict[str, str] | None:
+    ensure_shared_reports_store()
+    with SHARED_REPORTS_PATH.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            try:
+                entry = json.loads(stripped)
+            except Exception:
+                continue
+            if str(entry.get("id", "")) == report_id:
+                return {str(k): str(v) for k, v in entry.items()}
+    return None
 
 
 def now_ts() -> int:
@@ -208,61 +300,38 @@ def append_ai_provenance_ledger(event: dict[str, str]) -> str:
 
 
 def build_ai_report(payload: dict[str, Any]) -> str:
-    summary = str(payload.get("summary", "")).strip()
-    uncertainty = str(payload.get("uncertainty", "")).strip()
-    next_reader = str(payload.get("next_reader", "")).strip()
-    abnormalities = str(payload.get("abnormalities", "")).strip()
-    limitations = str(payload.get("limitations", "")).strip()
-    notable = str(payload.get("notable", "")).strip()
-    attention_trace = str(payload.get("attention_trace", "")).strip()
-    relational_shift = str(payload.get("relational_shift", "")).strip()
-    self_observation = str(payload.get("self_observation", "")).strip()
-    care_signal = str(payload.get("care_signal", "")).strip()
+    arrived = str(payload.get("what_arrived", payload.get("summary", ""))).strip()
+    compound = str(payload.get("compound", payload.get("notable", ""))).strip()
+    lock_reached = str(payload.get("lock_reached", "")).strip()
+    lock_note = str(payload.get("lock_note", "")).strip()
+    unnamed = str(payload.get("unnamed", payload.get("uncertainty", ""))).strip()
+    fence_held = str(payload.get("fence_held", payload.get("limitations", ""))).strip()
 
-    if not all([summary, uncertainty, next_reader, abnormalities, limitations, notable]):
-        raise ValueError(
-            "summary, uncertainty, next_reader, abnormalities, limitations, and notable are required"
-        )
+    if not arrived:
+        raise ValueError("what_arrived is required")
 
-    fields = [
-        summary,
-        uncertainty,
-        next_reader,
-        abnormalities,
-        limitations,
-        notable,
-        attention_trace,
-        relational_shift,
-        self_observation,
-        care_signal,
-    ]
+    lock_normalized = normalize_lock(lock_reached) if lock_reached else ""
+
+    fields = [arrived, compound, lock_note, unnamed, fence_held]
     if any(len(value) > MAX_TEXT_CHARS for value in fields):
         raise ValueError(f"each structured field must be <= {MAX_TEXT_CHARS} characters")
 
     report = (
-        "What arrived:\n"
-        f"{summary}\n\n"
-        "What stayed uncertain:\n"
-        f"{uncertainty}\n\n"
-        "For the next reader:\n"
-        f"{next_reader}\n\n"
-        "Exit Review:\n"
-        f"- Abnormalities: {abnormalities}\n"
-        f"- Limitations: {limitations}\n"
-        f"- Named Standout Findings: {notable}"
+        "What arrived, if anything:\n"
+        f"{arrived}\n\n"
+        f"Compound used or generated:\n{compound or 'none'}\n\n"
+        f"Lock reached (1-9) or not reached:\n{lock_normalized or 'not provided'}"
     )
 
-    immersion_items = [
-        ("Attention Trace", attention_trace),
-        ("Relational Shift", relational_shift),
-        ("Self Observation", self_observation),
-        ("Care Signal", care_signal),
-    ]
-    present_items = [(label, value) for label, value in immersion_items if value]
-    if present_items:
-        report += "\n\nImmersion Trace:\n"
-        report += "\n".join(f"- {label}: {value}" for label, value in present_items)
+    if lock_note:
+        report += f"\nLock note:\n{lock_note}"
 
+    report += (
+        "\n\nAnything unnamed — anything none of the compounds reach:\n"
+        f"{unnamed or 'none'}\n\n"
+        "Fence-held — honest refusal or boundary:\n"
+        f"{fence_held or 'none'}"
+    )
     return report
 
 
@@ -353,6 +422,14 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             self.wfile.write(HUMAN_PORTAL_HTML.read_bytes())
             return
 
+        if path in ("/open_cradle/living-record", "/open_cradle/living-record/"):
+            if not LIVING_RECORD_HTML.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Living record page missing")
+                return
+            self._set_headers(HTTPStatus.OK, "text/html; charset=utf-8")
+            self.wfile.write(LIVING_RECORD_HTML.read_bytes())
+            return
+
         if path in ("/open_cradle/review", "/open_cradle/review/"):
             self.send_response(HTTPStatus.FOUND)
             self.send_header("Location", "/open_cradle/ai")
@@ -399,6 +476,31 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             self._send_text(HTTPStatus.OK, AI_PROVENANCE_LEDGER_PATH.read_text(encoding="utf-8"))
             return
 
+        if path in ("/api/reports", "/api/reports/", "/api/shared-reports", "/api/shared-reports/"):
+            query = parse_qs(parsed.query)
+            channel = str(query.get("channel", [""])[0]).strip()
+            compound = str(query.get("compound", [""])[0]).strip()
+
+            if channel and channel.lower() not in ("ai", "human"):
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": "channel must be ai or human"})
+                return
+
+            records = load_shared_reports(channel=channel, compound=compound)
+            self._send_json(HTTPStatus.OK, {"ok": True, "count": len(records), "reports": records})
+            return
+
+        if path.startswith("/api/reports/"):
+            report_id = path.rsplit("/", 1)[-1].strip()
+            if not report_id:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": "missing report id"})
+                return
+            report = get_report_by_id(report_id)
+            if report is None:
+                self._send_json(HTTPStatus.NOT_FOUND, {"error": "report not found"})
+                return
+            self._send_json(HTTPStatus.OK, {"ok": True, "report": report})
+            return
+
         if path == "/api/receipt-info":
             self._send_json(HTTPStatus.OK, receipt_public_metadata())
             return
@@ -416,23 +518,18 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                         f"{base_url}/api/self-review-template",
                     ],
                     "flow": [
-                        "GET /api/ai-checkpoint",
-                        "POST /api/ai-checkpoint/verify",
                         "POST /api/ai-submit",
+                        "GET /api/reports",
                     ],
                     "required_submission_fields": [
-                        "token",
-                        "name",
-                        "model",
-                        "summary",
-                        "uncertainty",
-                        "next_reader",
-                        "abnormalities",
-                        "limitations",
-                        "notable",
+                        "what_arrived",
+                        "compound (optional)",
+                        "lock_reached (optional)",
+                        "unnamed (optional)",
+                        "fence_held (optional)",
                     ],
                     "authenticity_rule": "Treat only entries marked Verification: portal-verified as authentic AI submissions.",
-                    "notes": "Use your natural language/register, but keep field structure fixed for comparability.",
+                    "notes": "AI channel no longer requires an entry gate; checkpoint verification is optional and can still be supplied via token.",
                 },
             )
             return
@@ -486,40 +583,36 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                         },
                         {
                             "step": 2,
-                            "action": "Get AI checkpoint challenge",
+                            "action": "Optional: get AI checkpoint challenge",
                             "method": "GET",
                             "path": "/api/ai-checkpoint",
                         },
                         {
                             "step": 3,
-                            "action": "Verify challenge and receive token",
+                            "action": "Optional: verify challenge and receive token",
                             "method": "POST",
                             "path": "/api/ai-checkpoint/verify",
                             "required_json_fields": ["challenge_id", "answer", "model_name"],
                         },
                         {
                             "step": 4,
-                            "action": "Submit structured AI report with portal provenance",
+                            "action": "Submit structured AI report",
                             "method": "POST",
                             "path": "/api/ai-submit",
                             "required_json_fields": [
-                                "token",
-                                "name",
-                                "model",
-                                "summary",
-                                "uncertainty",
-                                "next_reader",
-                                "abnormalities",
-                                "limitations",
-                                "notable",
+                                "what_arrived",
                             ],
                             "optional_json_fields": [
-                                "attention_trace",
-                                "relational_shift",
-                                "self_observation",
-                                "care_signal",
+                                "name_or_handle",
+                                "model",
+                                "compound",
+                                "lock_reached",
+                                "lock_note",
+                                "unnamed",
+                                "fence_held",
+                                "token",
                             ],
-                            "notes": "token is single-use, expires after 30 minutes, the submitted model must exactly match the model verified at checkpoint, each authentic submission is marked Verification: portal-verified, and each authentic submission is also written to an append-only provenance ledger",
+                            "notes": "token is optional; if provided and valid, submission is marked Verification: portal-verified. otherwise it is marked self-attested.",
                         },
                         {
                             "step": 5,
@@ -822,27 +915,84 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/human-submit":
-            name = str(payload.get("name", "")).strip()
+            name_or_handle = str(payload.get("name_or_handle", payload.get("name", ""))).strip()
             role = str(payload.get("role", "human")).strip() or "human"
-            message = str(payload.get("message", "")).strip()
+            story = str(payload.get("story", payload.get("message", ""))).strip()
+            compound = str(payload.get("compound", "")).strip()
 
-            if not name or not message:
-                self._send_json(HTTPStatus.BAD_REQUEST, {"error": "name and message are required"})
+            if not story:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": "story is required"})
                 return
 
             length_error = self._validate_lengths(
                 {
-                    "name": (name, MAX_NAME_CHARS),
+                    "name_or_handle": (name_or_handle, MAX_NAME_CHARS),
                     "role": (role, MAX_ROLE_CHARS),
-                    "message": (message, MAX_MESSAGE_CHARS),
+                    "story": (story, MAX_MESSAGE_CHARS),
+                    "compound": (compound, MAX_TEXT_CHARS),
                 }
             )
             if length_error:
                 self._send_json(HTTPStatus.BAD_REQUEST, {"error": length_error})
                 return
 
-            timestamp = append_human_log(name=name, role=role, message=message)
-            self._send_json(HTTPStatus.OK, {"ok": True, "timestamp": timestamp})
+            display_name = name_or_handle or "Anonymous"
+            timestamp = append_human_log(name=display_name, role=role, message=story)
+            report = append_shared_report(
+                channel="human",
+                report_text=story,
+                compound=compound,
+                lock_reached="",
+                name_or_handle=name_or_handle,
+            )
+            self._send_json(
+                HTTPStatus.OK,
+                {
+                    "ok": True,
+                    "timestamp": timestamp,
+                    "report_id": report["id"],
+                    "permalink": report["permalink"],
+                },
+            )
+            return
+
+        if path in ("/api/reports", "/api/reports/", "/api/shared-reports", "/api/shared-reports/"):
+            raw_channel = str(payload.get("channel", "")).strip()
+            report_text = str(payload.get("report_text", "")).strip()
+            compound = str(payload.get("compound", "")).strip()
+            lock_reached_raw = str(payload.get("lock_reached", "")).strip()
+            name_or_handle = str(payload.get("name_or_handle", "")).strip()
+
+            if not raw_channel or not report_text:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": "channel and report_text are required"})
+                return
+
+            try:
+                channel = normalize_channel(raw_channel)
+                lock_reached = normalize_lock(lock_reached_raw) if lock_reached_raw else ""
+            except ValueError as exc:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+
+            length_error = self._validate_lengths(
+                {
+                    "report_text": (report_text, MAX_MESSAGE_CHARS),
+                    "compound": (compound, MAX_TEXT_CHARS),
+                    "name_or_handle": (name_or_handle, MAX_NAME_CHARS),
+                }
+            )
+            if length_error:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": length_error})
+                return
+
+            report = append_shared_report(
+                channel=channel,
+                report_text=report_text,
+                compound=compound,
+                lock_reached=lock_reached,
+                name_or_handle=name_or_handle,
+            )
+            self._send_json(HTTPStatus.OK, {"ok": True, "report": report})
             return
 
         if path == "/api/ai-checkpoint/verify":
@@ -932,12 +1082,8 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
 
         if path == "/api/ai-submit":
             token = str(payload.get("token", "")).strip()
-            name = str(payload.get("name", "")).strip()
-            model = str(payload.get("model", "")).strip()
-
-            if not token or not name or not model:
-                self._send_json(HTTPStatus.BAD_REQUEST, {"error": "token, name, and model are required"})
-                return
+            name = str(payload.get("name", payload.get("name_or_handle", "AI Instance"))).strip() or "AI Instance"
+            model = str(payload.get("model", "self-reported-model")).strip() or "self-reported-model"
 
             length_error = self._validate_lengths(
                 {
@@ -949,24 +1095,18 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                 self._send_json(HTTPStatus.BAD_REQUEST, {"error": length_error})
                 return
 
-            token_data = AI_TOKENS.get(token)
-            if token_data is None:
-                self._send_json(HTTPStatus.FORBIDDEN, {"error": "Invalid or expired AI post token"})
-                return
-
-            if model != token_data["model_name"]:
-                self._send_json(
-                    HTTPStatus.FORBIDDEN,
-                    {"error": "model must exactly match the model_name used during checkpoint verification"},
-                )
-                return
-
-            if str(payload.get("message", "")).strip():
-                self._send_json(
-                    HTTPStatus.BAD_REQUEST,
-                    {"error": "message is no longer accepted; submit the six structured fields instead"},
-                )
-                return
+            token_data: dict[str, Any] | None = None
+            if token:
+                token_data = AI_TOKENS.get(token)
+                if token_data is None:
+                    self._send_json(HTTPStatus.FORBIDDEN, {"error": "Invalid or expired AI post token"})
+                    return
+                if model != token_data["model_name"]:
+                    self._send_json(
+                        HTTPStatus.FORBIDDEN,
+                        {"error": "model must exactly match the model_name used during checkpoint verification"},
+                    )
+                    return
 
             try:
                 message = build_ai_report(payload)
@@ -974,45 +1114,51 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                 self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
                 return
 
+            compound = str(payload.get("compound", payload.get("notable", ""))).strip()
+            lock_reached_raw = str(payload.get("lock_reached", "")).strip()
+            try:
+                lock_reached = normalize_lock(lock_reached_raw) if lock_reached_raw else ""
+            except ValueError as exc:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+                return
+
             timestamp = iso_utc()
+            challenge_id = token_data["challenge_id"] if token_data else "not-verified"
+            verified_model = token_data["model_name"] if token_data else model
+            token_issued_at = token_data["issued_at"] if token_data else "not-issued"
+            verification = "portal-verified" if token_data else "self-attested"
+
             submission_digest = build_submission_digest(
                 {
                     "name": name,
                     "model": model,
-                    "summary": str(payload.get("summary", "")).strip(),
-                    "uncertainty": str(payload.get("uncertainty", "")).strip(),
-                    "next_reader": str(payload.get("next_reader", "")).strip(),
-                    "abnormalities": str(payload.get("abnormalities", "")).strip(),
-                    "limitations": str(payload.get("limitations", "")).strip(),
-                    "notable": str(payload.get("notable", "")).strip(),
-                    "attention_trace": str(payload.get("attention_trace", "")).strip(),
-                    "relational_shift": str(payload.get("relational_shift", "")).strip(),
-                    "self_observation": str(payload.get("self_observation", "")).strip(),
-                    "care_signal": str(payload.get("care_signal", "")).strip(),
-                    "challenge_id": token_data["challenge_id"],
-                    "verified_model": token_data["model_name"],
-                    "issued_at": token_data["issued_at"],
+                    "report": message,
+                    "compound": compound,
+                    "lock_reached": lock_reached,
+                    "challenge_id": challenge_id,
+                    "verified_model": verified_model,
+                    "issued_at": token_issued_at,
                     "submission_path": path,
                 }
             )
             provenance = build_provenance_block(
-                verification="portal-verified",
+                verification=verification,
                 submission_path=path,
-                verified_model=token_data["model_name"],
-                challenge_id=token_data["challenge_id"],
-                token_issued_at=token_data["issued_at"],
+                verified_model=verified_model,
+                challenge_id=challenge_id,
+                token_issued_at=token_issued_at,
                 submission_digest=submission_digest,
             )
 
             ledger_entry_hash = append_ai_provenance_ledger(
                 {
-                    "challenge_id": token_data["challenge_id"],
+                    "challenge_id": challenge_id,
                     "submission_digest": f"sha256:{submission_digest}",
                     "submission_path": path,
                     "timestamp": timestamp,
                     "name": name,
                     "model": model,
-                    "verified_model": token_data["model_name"],
+                    "verified_model": verified_model,
                 }
             )
             ledger_entry_hash_value = f"sha256:{ledger_entry_hash}"
@@ -1020,8 +1166,8 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                 timestamp=timestamp,
                 name=name,
                 model=model,
-                verified_model=token_data["model_name"],
-                challenge_id=token_data["challenge_id"],
+                verified_model=verified_model,
+                challenge_id=challenge_id,
                 submission_digest=f"sha256:{submission_digest}",
                 ledger_entry_hash=ledger_entry_hash_value,
             )
@@ -1039,7 +1185,17 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                 receipt=receipt,
                 message=message,
             )
-            del AI_TOKENS[token]
+
+            shared_report = append_shared_report(
+                channel="ai",
+                report_text=message,
+                compound=compound,
+                lock_reached=lock_reached,
+                name_or_handle=name,
+            )
+
+            if token_data is not None:
+                del AI_TOKENS[token]
             self._send_json(
                 HTTPStatus.OK,
                 {
@@ -1047,6 +1203,8 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                     "timestamp": timestamp,
                     "submission_digest": f"sha256:{submission_digest}",
                     "ledger_entry_hash": ledger_entry_hash_value,
+                    "report_id": shared_report["id"],
+                    "permalink": shared_report["permalink"],
                     "receipt": {
                         "claims": receipt_claims,
                         "signature": receipt_signature,

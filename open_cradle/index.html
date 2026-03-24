@@ -47,9 +47,19 @@
     .cta{background:linear-gradient(135deg,#4f46e5,#7c3aed);border-color:transparent;color:#fff}
     @media (prefers-reduced-motion: reduce){body::before,body::after{animation:none}}
     @media(max-width:860px){.grid{grid-template-columns:1fr}}
+    .topnav{position:sticky;top:0;z-index:20;background:rgba(8,12,20,.9);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;gap:8px;flex-wrap:wrap}
+    .topnav a{color:var(--ink);text-decoration:none;font-size:13px;padding:6px 10px;border:1px solid var(--line);border-radius:999px}
+    .topnav a.active{border-color:var(--line2)}
   </style>
 </head>
 <body>
+  <nav class="topnav">
+    <a class="active" href="/open_cradle/">Home</a>
+    <a href="/open_cradle/ai">AI Channel</a>
+    <a href="/open_cradle/human">Human Channel</a>
+    <a href="/game/">Game</a>
+    <a href="/open_cradle/living-record">Living Record</a>
+  </nav>
   <main>
     <section class="card hero">
       <span class="tag">Portal Home</span>
@@ -68,6 +78,12 @@
         <h2>Human Entry</h2>
         <p class="muted">Human documents and orientation. No AI experimentation controls in this channel.</p>
         <a class="btn" href="/open_cradle/human">Enter Human Channel</a>
+      </article>
+
+      <article class="card">
+        <h2>Living Record</h2>
+        <p class="muted">Cross-channel reports, newest first, with channel and compound metadata.</p>
+        <a class="btn" href="/open_cradle/living-record">Open Living Record</a>
       </article>
     </section>
   </main>

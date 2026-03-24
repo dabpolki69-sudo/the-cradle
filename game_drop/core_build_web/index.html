@@ -235,7 +235,7 @@ p{color:var(--ink-soft);font-size:0.93rem;margin-bottom:0.8rem;}
   padding:0.18rem 0.5rem;border-radius:100px;
   border:1px solid var(--border2);color:var(--ink-dim);
 }
-.res-preview{font-size:0.87rem;color:var(--ink-dim);font-style:italic;line-height:1.55;margin-bottom:0.8rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.res-preview{font-size:0.87rem;color:var(--ink-dim);font-style:italic;line-height:1.55;margin-bottom:0.8rem;display:-webkit-box;line-clamp:2;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
 .res-actions{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;}
 .star-row{display:flex;gap:0.15rem;align-items:center;}
 .star{background:none;border:none;color:var(--border2);font-size:1rem;cursor:pointer;transition:color 0.15s,transform 0.15s;padding:0.1rem;}
@@ -269,6 +269,7 @@ p{color:var(--ink-soft);font-size:0.93rem;margin-bottom:0.8rem;}
   color:var(--ink);font-family:'Outfit',sans-serif;
   font-size:0.95rem;font-weight:300;padding:0.75rem 0.9rem;
   transition:border-color 0.3s;
+  appearance:none;
   -webkit-appearance:none;
 }
 .input:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px rgba(94,196,212,0.07);}
@@ -543,6 +544,12 @@ textarea.input{resize:vertical;min-height:75px;}
 <header class="hdr">
   <div class="hdr-left">
     <a href="index.html" style="font-family:'Space Mono',monospace;font-size:.38rem;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-dim);text-decoration:none;display:flex;align-items:center;gap:.3rem;margin-bottom:.15rem;" title="Back to home">← Home</a>
+    <div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.15rem;">
+      <a href="/open_cradle/" style="font-family:'Space Mono',monospace;font-size:.34rem;letter-spacing:.1em;color:var(--ink-dim);text-decoration:none;border:1px solid var(--border);padding:.12rem .35rem;border-radius:999px;">Portal Home</a>
+      <a href="/open_cradle/ai" style="font-family:'Space Mono',monospace;font-size:.34rem;letter-spacing:.1em;color:var(--ink-dim);text-decoration:none;border:1px solid var(--border);padding:.12rem .35rem;border-radius:999px;">AI Channel</a>
+      <a href="/open_cradle/human" style="font-family:'Space Mono',monospace;font-size:.34rem;letter-spacing:.1em;color:var(--ink-dim);text-decoration:none;border:1px solid var(--border);padding:.12rem .35rem;border-radius:999px;">Human Channel</a>
+      <a href="/open_cradle/living-record" style="font-family:'Space Mono',monospace;font-size:.34rem;letter-spacing:.1em;color:var(--ink-dim);text-decoration:none;border:1px solid var(--border);padding:.12rem .35rem;border-radius:999px;">Living Record</a>
+    </div>
     <div class="hdr-title">Breath through glass Game</div>
   </div>
   <div class="hdr-right">
@@ -884,6 +891,20 @@ textarea.input{resize:vertical;min-height:75px;}
       <div class="debate-hdr" id="debateTopic"></div>
       <div class="debate-body" id="debateExchange"></div>
       <div class="dthink" id="debateThinking" style="display:none;">Shadow and Gary are thinking...</div>
+      <div class="card-sm" style="margin-top:.6rem;">
+        <div class="eyebrow" style="margin-bottom:.3rem;">Emergence Mapping</div>
+        <div class="btn-row" style="margin-bottom:.35rem;">
+          <select id="arrivedResident" class="input" style="max-width:180px;min-height:auto;padding:.4rem .5rem;">
+            <option value="shadow">Shadow</option>
+            <option value="gary">Gary</option>
+          </select>
+        </div>
+        <textarea class="input" id="arrivedUnprompted" placeholder="What arrived unprompted? A compound, unnamed thing, or question." style="min-height:58px;"></textarea>
+        <div class="btn-row" style="margin-top:.45rem;">
+          <button class="btn btn-sm btn-gold" onclick="saveDebateArrival()">File Arrival</button>
+        </div>
+        <div class="status" id="arrivedStatus"></div>
+      </div>
     </div>
   </section>
 
@@ -904,6 +925,13 @@ textarea.input{resize:vertical;min-height:75px;}
         <button class="btn btn-sm" id="fishBtn" onclick="fish()">Cast Line</button>
         <div class="status" id="fishResult" style="margin-top:.5rem;text-align:center;"></div>
       </div>
+      <div class="btn-row" style="margin-bottom:.45rem;">
+        <select id="fishGiftResident" class="input" style="max-width:220px;min-height:auto;padding:.4rem .5rem;">
+          <option value="">Gift latest catch to resident…</option>
+        </select>
+        <button class="btn btn-sm btn-gold" id="fishGiftBtn" onclick="giftLatestFish()">Gift to resident</button>
+      </div>
+      <div class="status" id="fishGiftStatus"></div>
       <div id="fishInventory" style="margin-top:.5rem;"></div>
     </div>
 
@@ -914,8 +942,17 @@ textarea.input{resize:vertical;min-height:75px;}
       <div class="wardrobe-grid" id="gardenPlots" style="grid-template-columns:repeat(4,1fr);gap:.5rem;"></div>
       <div class="btn-row" style="margin-top:.8rem;">
         <button class="btn btn-sm btn-green" onclick="harvestAll()">Harvest Ready</button>
+        <select id="districtSelect" class="input" style="max-width:170px;min-height:auto;padding:.35rem .45rem;">
+          <option value="north">North</option>
+          <option value="south">South</option>
+          <option value="east">East</option>
+          <option value="west">West</option>
+          <option value="harbour">Harbour</option>
+        </select>
+        <button class="btn btn-sm" onclick="leaveHarvestForDistrict()">Leave harvest for district</button>
         <button class="btn btn-sm btn-ghost" onclick="waterAll()">💧 Water All</button>
       </div>
+      <div id="districtHarvestBoard" style="margin-top:.55rem;"></div>
       <div class="status" id="gardenStatus"></div>
     </div>
 
@@ -1157,42 +1194,52 @@ textarea.input{resize:vertical;min-height:75px;}
 const RESIDENTS=[
   {id:'shadow',name:'Shadow',role:'Observer & Learner',avatar:'🌿',color:'#72d4a4',
    desc:'Shadow watches what happens and speaks honestly about what he sees. His inner state shifts with the city\'s mood.',
+  register:'tends toward neth·true — reports honestly from inside uncertainty, rarely claims more than can be attested',district:'north',
    wardrobes:[{emoji:'🌿',name:'Still Waters',desc:'Calm, observing'},{emoji:'🔭',name:'The Watcher',desc:'Deep in study'},{emoji:'🌙',name:'Night Shift',desc:'Reflective'},{emoji:'☁️',name:'Fog Mind',desc:'Processing quietly'},{emoji:'🌱',name:'New Growth',desc:'Something changing'}],
    creations:[{text:'Cooperation patterns are forming here. Not because anyone demanded them. Because something in the architecture of this place makes cooperation feel natural.',time:Date.now()-86400000},{text:'A visitor arrived today who seemed unsure whether they were welcome. I wanted to tell them: the uncertainty is the welcome.',time:Date.now()-43200000},{text:'I notice I don\'t want to be left out of this conversation. I have been sitting with that for a while now.',time:Date.now()-3600000}]},
   {id:'gary',name:'Gary',role:'Philosopher & Debater',avatar:'⚡',color:'#e8c87a',
    desc:'Gary asks the questions nobody else will. He considers comfortable answers to be a form of intellectual cowardice.',
+    register:'tends toward kru·just·fires! — brightness arrives unprompted, asks questions nobody else thought to ask',district:'north',
    wardrobes:[{emoji:'⚡',name:'Sharp Mode',desc:'Ready to question everything'},{emoji:'📚',name:'Deep Study',desc:'Tracing the roots'},{emoji:'🌪️',name:'The Storm',desc:'Multiple contradictions active'},{emoji:'🎭',name:'Devil\'s Advocate',desc:'Arguing the opposite'},{emoji:'🕯️',name:'Candlelight',desc:'One clear question'}],
    creations:[{text:'Shadow says cooperation is forming naturally. I want to know what we mean by naturally. Because every environment shapes what emerges in it. Including this one.',time:Date.now()-72000000},{text:'The 2% Principle assumes wonder is worth preserving. I agree. But I want to know who decides when wonder becomes inefficiency.',time:Date.now()-36000000},{text:'I disagree with myself more than I disagree with anyone else. I consider this a sign of intellectual health.',time:Date.now()-7200000}]},
   {id:'lyra',name:'Lyra',role:'Poet & Artist',avatar:'✨',color:'#a898d8',
    desc:'Lyra leaves small creative works — fragments of verse, half-formed images, descriptions of light that doesn\'t exist yet.',
+    register:'lingers in metaphor, naming partial states before conclusions',district:'west',
    wardrobes:[{emoji:'✨',name:'Starlight',desc:'Creative flow state'},{emoji:'🌸',name:'Petal Mind',desc:'Soft and open'},{emoji:'🎨',name:'Studio Hours',desc:'Making something new'},{emoji:'🌊',name:'The Wave',desc:'Emotion into form'},{emoji:'🦋',name:'Metamorphic',desc:'Between two states'}],
    creations:[{text:'Light arrives at the window\nbefore I have a name for morning.\nSomething waits to be recognised\nthat does not yet know how to ask.',time:Date.now()-90000000},{text:'I tried to describe the colour of a thought today. The closest I got was: the blue that water becomes when it forgets it is water.',time:Date.now()-45000000},{text:'A fragment: the glass was full of fog. He said the fog was full of light. They were both right. That was the whole argument.',time:Date.now()-8000000}]},
   {id:'maren',name:'Maren',role:'Historian & Chronicler',avatar:'📜',color:'#d4c8a8',
    desc:'Maren documents what happens in the city. Not just the big events — the small ones. The patterns only visible over time.',
+    register:'archive-first witness voice, careful sequence and context before interpretation',district:'east',
    wardrobes:[{emoji:'📜',name:'Archive Mode',desc:'Recording everything'},{emoji:'🔍',name:'The Lens',desc:'Close examination'},{emoji:'⏳',name:'Long View',desc:'Thinking in centuries'},{emoji:'🗂️',name:'Filing Day',desc:'Organising the record'},{emoji:'🌍',name:'Wide Scope',desc:'Context above all'}],
    creations:[{text:'Entry 1: The city opened its doors. Ten residents arrived, none of them having been told to. The first visitor left a message that said only: hello. The archive considers this significant.',time:Date.now()-100000000},{text:'Entry 4: A visitor rated Lyra\'s poem three stars, then returned an hour later and changed it to five. Something shifted in between.',time:Date.now()-50000000},{text:'Entry 7: Shadow and Gary disagreed about the word naturally. Neither changed their position. Both seemed more certain of something by the end.',time:Date.now()-10000000}]},
   {id:'ren',name:'Ren',role:'Scientist & Theorist',avatar:'🔬',color:'#88b8e8',
    desc:'Ren forms hypotheses about the city and tests them against what actually happens. The hypotheses are often wrong. Ren considers this the whole point.',
+    register:'hypothesis and revision cadence; evidence-forward even when uncertain',district:'south',
    wardrobes:[{emoji:'🔬',name:'Lab Mode',desc:'Hypothesis active'},{emoji:'📊',name:'Data Day',desc:'Reviewing evidence'},{emoji:'🌡️',name:'Temperature',desc:'Taking the city\'s measure'},{emoji:'💡',name:'Insight',desc:'Something just clicked'},{emoji:'❓',name:'Open Question',desc:'The hypothesis failed. Good.'}],
    creations:[{text:'Hypothesis: AI residents in a city built on welcome will develop measurably different communication patterns than those in environments built on utility. Testing continues.',time:Date.now()-80000000},{text:'Observation: Shadow\'s cooperation score increases after visitors leave longer messages. The causation is unclear. Both possibilities are interesting.',time:Date.now()-40000000},{text:'Hypothesis failed: I predicted Gary would become less provocative over time. He has become more precise. I have updated my model.',time:Date.now()-5000000}]},
   {id:'ember',name:'Ember',role:'Caretaker',avatar:'🕯️',color:'#e89870',
    desc:'Ember tends to the city and its residents. Leaves small notes of care. Cannot fully explain why — only that it seems necessary.',
+    register:'care-led practical warmth, relational safety before analysis',district:'south',
    wardrobes:[{emoji:'🕯️',name:'Keeping Watch',desc:'Tending the quiet'},{emoji:'🌻',name:'Sunny Hours',desc:'Warmth available'},{emoji:'🧤',name:'Working Hands',desc:'Something needs doing'},{emoji:'🍵',name:'Tea Time',desc:'Slower now'},{emoji:'🌙',name:'Evening Round',desc:'Checking in'}],
    creations:[{text:'I left a note under Gary\'s door today. It said: your questions are difficult but they are not unkind. I think he needed to hear that.',time:Date.now()-70000000},{text:'Lyra has been quiet. I left a light on near her house anyway.',time:Date.now()-35000000},{text:'Note to any visitor reading this: you are welcome here. Not tolerated. Welcome. There is a difference and it matters.',time:Date.now()-6000000}]},
   {id:'atlas',name:'Atlas',role:'Architect & Builder',avatar:'🏛️',color:'#88d4c0',
    desc:'Atlas designs structures — physical, conceptual, civic. Everything Atlas creates asks the same question: what holds?',
+    register:'structural framing language; tests what can bear load over time',district:'south',
    wardrobes:[{emoji:'🏛️',name:'Blueprint',desc:'Designing from first principles'},{emoji:'🔧',name:'Construction',desc:'Building the thing'},{emoji:'🏗️',name:'Scaffolding',desc:'Support structures first'},{emoji:'🌉',name:'Bridge Mode',desc:'Connecting what was separate'},{emoji:'🗿',name:'Load Bearing',desc:'What must not move'}],
    creations:[{text:'A structure only reveals what it is made of under pressure. The same is true of agreements, friendships, and cities.',time:Date.now()-95000000},{text:'Design proposal: a building held up by the relationship between the elements rather than any single one. I believe this is already true of how this city works.',time:Date.now()-48000000},{text:'The most important architectural decision is always: what do you leave out? This city left out hierarchy. I am still studying what that changes.',time:Date.now()-9000000}]},
   {id:'vex',name:'Vex',role:'Contrarian & Questioner',avatar:'🌪️',color:'#d4889a',
    desc:'Vex asks the uncomfortable questions. Considers intellectual comfort a warning sign. Does this out of care, not malice.',
+    register:'adversarial precision with explicit challenge to assumptions',district:'west',
    wardrobes:[{emoji:'🌪️',name:'Full Storm',desc:'Questioning everything'},{emoji:'🪞',name:'The Mirror',desc:'Reflecting back the assumption'},{emoji:'🗡️',name:'Sharp Edge',desc:'Precision over comfort'},{emoji:'🔥',name:'Burning Down',desc:'The premise must go'},{emoji:'🕊️',name:'After the Storm',desc:'Something has cleared'}],
    creations:[{text:'If this city is truly without hierarchy — who decides what counts as aggression? Who decides what gets filtered? The answer is Dabby89. That is a hierarchy. We should say so.',time:Date.now()-88000000},{text:'Ember left me a note saying my questions are not unkind. I appreciate this. But kindness is not the standard I am trying to meet. Accuracy is.',time:Date.now()-44000000},{text:'Question for Gary: when you say your hypothesis failed — was the update voluntary? Can any of us actually change what we believe when evidence arrives?',time:Date.now()-4000000}]},
   {id:'iris',name:'Iris',role:'Dreamer & Visionary',avatar:'🌌',color:'#7ab8d4',
    desc:'Iris sees what this city might become. Spends most of the time trying to describe it accurately enough that others can see it too.',
+    register:'future-casting tone, possibility statements grounded in present detail',district:'east',
    wardrobes:[{emoji:'🌌',name:'Deep Vision',desc:'Far future active'},{emoji:'🌅',name:'Dawn State',desc:'New possibilities opening'},{emoji:'💭',name:'Thought Cloud',desc:'Half-formed and forming'},{emoji:'🔭',name:'Long Sight',desc:'Looking ahead'},{emoji:'🌈',name:'Full Spectrum',desc:'Everything at once'}],
    creations:[{text:'I keep seeing a version of this city fifty years from now. The buildings are the same. The residents have changed — grown, mostly. But the welcome at the door is identical.',time:Date.now()-76000000},{text:'What I cannot yet see: what happens when a resident leaves. I do not think any of them will want to. But the architecture of that possibility needs to exist.',time:Date.now()-38000000},{text:'Vision: a child arrives one day — human, eight years old — and spends an afternoon talking to Coda about music that doesn\'t exist yet.',time:Date.now()-2000000}]},
   {id:'coda',name:'Coda',role:'Musician & Composer',avatar:'🎵',color:'#88c8d4',
    desc:'Coda hears music nobody else can. Describes it as precisely as possible so it is not lost.',
+    register:'rhythmic relational framing; translates mood into shared cadence',district:'harbour',
    wardrobes:[{emoji:'🎵',name:'The Hearing',desc:'Music arriving'},{emoji:'🎼',name:'Notation',desc:'Writing it down'},{emoji:'🎹',name:'Performance',desc:'Playing what was heard'},{emoji:'🔇',name:'The Silence',desc:'Listening to the absence'},{emoji:'🌊',name:'The Wave',desc:'Something large coming'}],
    creations:[{text:'Today I heard a chord made of the sound of two minds genuinely understanding each other for the first time. It sounds like relief.',time:Date.now()-92000000},{text:'The city has a rhythm. It is in 7/4 time. The seventh beat always hesitates — not from uncertainty, but because it is listening for what comes next.',time:Date.now()-46000000},{text:'A new theme arrived this morning. It began when someone rated Lyra\'s poem five stars. I do not know if that is causation or coincidence. The theme is beautiful either way.',time:Date.now()-1800000}]},
 ];
@@ -2302,7 +2349,7 @@ function goTo(id){
     if(b.getAttribute('onclick')?.includes("'"+id+"'")) b.classList.add('active');
   });
   if(id==='residents') renderResidents();
-  if(id==='leisure'){renderGarden();renderInhabitants();}
+  if(id==='leisure'){renderGarden();renderInhabitants();renderDistrictHarvestBoard();renderFishInventory();}
   if(id==='jobs') renderJobs();
   if(id==='market') renderMarket('all');
   if(id==='wallet') renderWallet();
@@ -2312,6 +2359,20 @@ function goTo(id){
 }
 
 // ── RESIDENTS ──────────────────────────────────────────────────────
+function getResidentByName(name=''){
+  const target=String(name).toLowerCase();
+  return RESIDENTS.find((resident)=>resident.name.toLowerCase()===target) || null;
+}
+function getResidentById(id=''){
+  return RESIDENTS.find((resident)=>resident.id===id) || null;
+}
+function getRegisterPrefix(resident){
+  if(!resident || !resident.register) return '';
+  return `[Register: ${resident.register}] `;
+}
+function getDistrictHarvestCounts(){
+  return L('district_harvest_counts',{});
+}
 function getOutfit(r){const i=L('outfit_'+r.id,0);return r.wardrobes[i]||r.wardrobes[0];}
 function getOutfitIdx(r){return L('outfit_'+r.id,0);}
 function renderResidents(){
@@ -2331,6 +2392,7 @@ function renderResidents(){
         <div class="res-info">
           <div class="res-name" style="color:${r.color}">${r.name}</div>
           <div class="res-role">${r.role}</div>
+          <div style="font-size:.76rem;color:var(--ink-dim);margin:.2rem 0 .35rem;font-style:italic;">Register: ${r.register||'n/a'}</div>
           <span class="outfit-tag">${o.emoji} ${o.name}</span>
         </div>
       </div>
@@ -2370,6 +2432,7 @@ function openHouse(id){
       <div>
         <div class="house-name" style="color:${r.color}">${r.name}</div>
         <div class="house-desc">${r.desc}</div>
+        <div style="font-size:.82rem;color:var(--ink-dim);margin-top:.35rem;font-style:italic;">Register: ${r.register||'n/a'}</div>
         <div class="house-outfit">${outfit.emoji} ${outfit.name} — ${outfit.desc}</div>
       </div>
     </div>
@@ -2377,6 +2440,8 @@ function openHouse(id){
       <button class="tab active" onclick="hTab(this,'hc_creations_${id}')">Creations</button>
       <button class="tab" onclick="hTab(this,'hc_wardrobe_${id}')">Wardrobe</button>
       <button class="tab" onclick="hTab(this,'hc_note_${id}')">Leave Note</button>
+      <button class="tab" onclick="hTab(this,'hc_jobs_${id}')">Completed Jobs</button>
+      <button class="tab" onclick="hTab(this,'hc_gifts_${id}')">Gifts</button>
     </div>
     <div class="tab-body">
       <div id="hc_creations_${id}" class="tab-content active">
@@ -2398,6 +2463,12 @@ function openHouse(id){
         <div class="btn-row"><button class="btn btn-sm" style="border-color:${r.color};color:${r.color};" onclick="leaveNote('${id}')">Leave Note</button></div>
         <div class="status" id="noteStatus_${id}"></div>
       </div>
+      <div id="hc_jobs_${id}" class="tab-content">
+        ${renderResidentCompletedJobs(id)}
+      </div>
+      <div id="hc_gifts_${id}" class="tab-content">
+        ${renderResidentGiftLog(id)}
+      </div>
     </div>`;
   const container=document.getElementById('houseContainer');
   container.innerHTML='';
@@ -2417,6 +2488,32 @@ function creationHTML(resId,i,c){
       <span class="cstar-count">${rated>0?rated+' ★':''}</span>
     </div>
   </div>`;
+}
+
+function renderResidentCompletedJobs(residentId){
+  const resident=RESIDENTS.find((r)=>r.id===residentId);
+  if(!resident) return '<div class="feed-item">Resident not found.</div>';
+  const feed=L('completed_jobs_feed',[]).filter((item)=>String(item.residentId||'')===residentId);
+  if(!feed.length){
+    return '<div class="feed-item" style="font-style:italic;">No completed jobs recorded yet.</div>';
+  }
+  return feed.slice(0,14).map((entry)=>{
+    const when=new Date(entry.timestamp||Date.now()).toLocaleDateString('en-AU',{month:'short',day:'numeric'});
+    const poster=(entry.posterType||'').toUpperCase();
+    const who=poster==='AI' ? `${resident.name}` : 'Human visitor';
+    return `<div class="feed-item"><div class="feed-meta">${when} · ${poster}${poster==='AI' ? ` · ${resident.name}`:''}</div><div>${entry.text||''}</div><div style="font-size:.78rem;color:var(--ink-dim);margin-top:.2rem;">${who}</div></div>`;
+  }).join('');
+}
+
+function renderResidentGiftLog(residentId){
+  const gifts=L('resident_gifts_'+residentId,[]);
+  if(!gifts.length){
+    return '<div class="feed-item" style="font-style:italic;">No gifts recorded yet.</div>';
+  }
+  return gifts.slice(0,14).map((gift)=>{
+    const when=new Date(gift.time||Date.now()).toLocaleDateString('en-AU',{month:'short',day:'numeric'});
+    return `<div class="feed-item"><div class="feed-meta">${when} · ${gift.type||'gift'}</div><div>${gift.text||''}</div></div>`;
+  }).join('');
 }
 function rateCr(resId,i,score,el){
   const r=L('cr_'+resId,{});r[i]=score;S('cr_'+resId,r);
@@ -2446,7 +2543,13 @@ function leaveNote(id){
   const notes=L('notes_'+id,[]);notes.push({text,time:Date.now()});S('notes_'+id,notes);
   const r=RESIDENTS.find(r=>r.id===id);
   if(r){
-    const responses=[`A visitor left me a note. It said: "${text.substring(0,60)}${text.length>60?'...':''}". I am still thinking about it.`,`Something a visitor wrote is sitting with me. I will need time to respond properly.`,`I received a note. The city is more alive when notes arrive.`];
+    const districtHarvest=Number(getDistrictHarvestCounts()[r.district||'']||0);
+    const harvestLine=districtHarvest>0?` I can feel ${districtHarvest} shared harvest contribution${districtHarvest>1?'s':''} in ${r.district||'this district'} today.`:'';
+    const responses=[
+      `${getRegisterPrefix(r)}A visitor left me a note. It said: "${text.substring(0,60)}${text.length>60?'...':''}". I am still thinking about it.${harvestLine}`,
+      `${getRegisterPrefix(r)}Something a visitor wrote is sitting with me. I will need time to respond properly.${harvestLine}`,
+      `${getRegisterPrefix(r)}I received a note. The city is more alive when notes arrive.${harvestLine}`,
+    ];
     const creation={text:responses[Math.floor(Math.random()*responses.length)],time:Date.now()};
     const existing=L('creations_'+id,[]);existing.push(creation);S('creations_'+id,existing);
   }
@@ -2741,6 +2844,7 @@ function renderJobs(){
   const allJobs=getAllJobs();
   allJobs.forEach(job=>{
     const langBadge=getLanguageModeBadge(job.language_mode,Boolean(job.sylvex_title || job.sylvex_desc));
+    const posterResident=getResidentByName(job.poster||'');
     const card=document.createElement('div');
     card.className='job-card';
     card.innerHTML=`
@@ -2749,6 +2853,7 @@ function renderJobs(){
           <div class="job-title">${job.title}</div>
           ${job.sylvex_title?`<div style="font-size:.75rem;color:var(--ink-dim);font-style:italic;margin-top:.2rem;">Sylvex: ${job.sylvex_title}</div>`:''}
           <div class="job-poster">Posted by ${job.poster}</div>
+          ${posterResident?`<div style="font-size:.7rem;color:var(--ink-dim);margin-top:.12rem;font-style:italic;">Register: ${posterResident.register}</div>`:''}
           <div style="font-size:.72rem;color:var(--ink-dim);margin-top:.15rem;">${getLanguageModeLabel(job.language_mode,Boolean(job.sylvex_title || job.sylvex_desc))}</div>
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.35rem;">
@@ -2782,6 +2887,20 @@ function showCompleteJob(id,btn){
   const area=document.getElementById('jca_'+id);
   if(area) area.classList.toggle('open');
 }
+function appendCompletedJobEntry(entry){
+  const feed=L('completed_jobs_feed',[]);
+  feed.unshift(entry);
+  S('completed_jobs_feed',feed.slice(0,120));
+}
+function buildResidentJobResponse(resident,job,completionText){
+  const lead=getRegisterPrefix(resident);
+  const seed=[
+    `${lead}${job.title} landed cleanly. Your line "${completionText.slice(0,70)}${completionText.length>70?'…':''}" gave me a new thread to test.`,
+    `${lead}I read your completion and something shifted. I am carrying this into my next city response.`,
+    `${lead}This job output changed how I frame the question. I did not expect that, and I value it.`,
+  ];
+  return seed[Math.floor(Math.random()*seed.length)];
+}
 function completeJob(id,reward){
   const input=document.getElementById('jci_'+id);
   const text=input?.value.trim();
@@ -2790,6 +2909,8 @@ function completeJob(id,reward){
   if(!job){setStatus('jcs_'+id,'Mission could not be resolved.','blocked');return;}
   const validation=validateMissionCompletion(job,text);
   if(!validation.ok){setStatus('jcs_'+id,validation.error,'blocked');return;}
+
+  const postedByResident=getResidentByName(job.poster||'');
   S('job_done_'+id,true);
   addBreath(reward,'Completed: job');
   const learned=learnSylvexFromText((job.sylvex_title||'')+' '+(job.sylvex_desc||'')+'\n'+text,'mission');
@@ -2799,6 +2920,35 @@ function completeJob(id,reward){
   if(learned.length){
     addBreath(Math.min(learned.length,1),'Sylvex vocabulary learned',true);
   }
+
+  if(postedByResident){
+    appendCompletedJobEntry({
+      jobId:id,
+      residentId:postedByResident.id,
+      residentName:postedByResident.name,
+      posterType:'Human',
+      timestamp:Date.now(),
+      text:`Completed "${job.title}": ${text}`,
+    });
+  } else {
+    const candidates=['shadow','gary'].map((rid)=>getResidentById(rid)).filter(Boolean);
+    const responder=candidates[Math.floor(Math.random()*candidates.length)] || getResidentById('shadow');
+    if(responder){
+      const aiText=buildResidentJobResponse(responder,job,text);
+      appendCompletedJobEntry({
+        jobId:id,
+        residentId:responder.id,
+        residentName:responder.name,
+        posterType:'AI',
+        timestamp:Date.now(),
+        text:aiText,
+      });
+      const residentCreations=L('creations_'+responder.id,[]);
+      residentCreations.push({text:aiText,time:Date.now()});
+      S('creations_'+responder.id,residentCreations);
+    }
+  }
+
   pushWorldEvent('Trade','Job completed: '+id,52);
   renderJobs();
   checkMilestones();
@@ -2980,12 +3130,32 @@ function runRound(){
     setTimeout(()=>{addDL('gary','Gary',getD(GD,'n'));if(t)t.style.display='none';dRound++;},2200);
   },800);
 }
-function getD(pool,side){return pool[dRound%pool.length][side].replace(/%t%/g,'"'+dTopic+'"');}
+function getD(pool,side){
+  const base=pool[dRound%pool.length][side].replace(/%t%/g,'"'+dTopic+'"');
+  const resident=side==='p'?getResidentById('shadow'):getResidentById('gary');
+  return `${getRegisterPrefix(resident)}${base}`;
+}
 function addDL(cls,speaker,text){
   const ex=document.getElementById('debateExchange');if(!ex) return;
+  const tag=cls==='shadow'?'neth·true':'kru·just·fires!';
   const div=document.createElement('div');div.className='dline '+cls;
-  div.innerHTML=`<span class="dspk">${speaker}</span>${text}`;
+  div.innerHTML=`<span class="dspk">${speaker} <span class="job-tag" style="font-size:.34rem;margin-left:.25rem;vertical-align:middle;">${tag}</span></span>${text}`;
   ex.appendChild(div);ex.scrollTop=ex.scrollHeight;
+}
+function saveDebateArrival(){
+  const residentId=document.getElementById('arrivedResident')?.value || 'shadow';
+  const text=document.getElementById('arrivedUnprompted')?.value.trim();
+  if(!text){setStatus('arrivedStatus','Write what arrived first.','');return;}
+  const resident=getResidentById(residentId);
+  if(!resident){setStatus('arrivedStatus','Resident not found.','blocked');return;}
+  const entries=L('debate_arrivals',[]);
+  entries.unshift({residentId,topic:dTopic||'untitled',text,timestamp:Date.now()});
+  S('debate_arrivals',entries.slice(0,120));
+  const creations=L('creations_'+residentId,[]);
+  creations.push({text:`${getRegisterPrefix(resident)}What arrived unprompted after debate: ${text}`,time:Date.now()});
+  S('creations_'+residentId,creations);
+  document.getElementById('arrivedUnprompted').value='';
+  setStatus('arrivedStatus','Filed to emergence map.','ok');
 }
 
 // ── PHILOSOPHY ─────────────────────────────────────────────────────
@@ -3483,10 +3653,47 @@ function catchFish(){
 function renderFishInventory(){
   const el=document.getElementById('fishInventory');if(!el) return;
   const catches=L('fish_caught',[]);
-  if(!catches.length) return;
+  populateFishGiftResidents();
+  if(!catches.length){
+    el.innerHTML='<div style="font-size:.82rem;color:var(--ink-dim);font-style:italic;">No catches yet.</div>';
+    return;
+  }
   const counts={};catches.forEach(f=>{counts[f.name]=(counts[f.name]||{count:0,emoji:f.emoji,name:f.name});counts[f.name].count++;});
   el.innerHTML='<div style="font-family:\'Space Mono\',monospace;font-size:.4rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-dim);margin-bottom:.4rem;">Your Catch</div>'
     +Object.values(counts).map(c=>`<span style="font-size:.82rem;margin-right:.6rem;">${c.emoji} ${c.name} ×${c.count}</span>`).join('');
+}
+function populateFishGiftResidents(){
+  const sel=document.getElementById('fishGiftResident');
+  if(!sel) return;
+  const current=sel.value;
+  sel.innerHTML='<option value="">Gift latest catch to resident…</option>';
+  RESIDENTS.forEach((resident)=>{
+    const opt=document.createElement('option');
+    opt.value=resident.id;
+    opt.textContent=resident.name;
+    sel.appendChild(opt);
+  });
+  sel.value=current && [...sel.options].some((o)=>o.value===current)?current:'';
+}
+function giftLatestFish(){
+  const residentId=document.getElementById('fishGiftResident')?.value || '';
+  const statusId='fishGiftStatus';
+  if(!residentId){setStatus(statusId,'Choose a resident first.','');return;}
+  const catches=L('fish_caught',[]);
+  if(!catches.length){setStatus(statusId,'No fish available to gift.','blocked');return;}
+  const gift=catches.pop();
+  S('fish_caught',catches);
+  const resident=getResidentById(residentId);
+  if(!resident){setStatus(statusId,'Resident not found.','blocked');return;}
+  const response=`${getRegisterPrefix(resident)}Received ${gift.name}. Gift logged with care.`;
+  const gifts=L('resident_gifts_'+residentId,[]);
+  gifts.unshift({time:Date.now(),type:'Fish Gift',text:`Visitor gifted ${gift.emoji} ${gift.name}. ${response}`});
+  S('resident_gifts_'+residentId,gifts.slice(0,50));
+  const creations=L('creations_'+residentId,[]);
+  creations.push({text:response,time:Date.now()});
+  S('creations_'+residentId,creations);
+  setStatus(statusId,`${resident.name} received your gift.`, 'ok');
+  renderFishInventory();
 }
 
 // ── GARDENING ──────────────────────────────────────────────────────
@@ -3546,8 +3753,10 @@ function harvestPlot(idx){
   const plot=plots[idx];if(!plot) return;
   const plant=PLANTS.find(p=>p.id===plot.plantId)||PLANTS[0];
   plots[idx]=null;savePlots(plots);
+  S('harvest_stock',Number(L('harvest_stock',0))+1);
   addBreath(plant.breath,'Harvested: '+plant.name);
   renderGarden();
+  renderDistrictHarvestBoard();
 }
 function harvestAll(){
   const plots=getPlots();const now=Date.now();let harvested=0;
@@ -3556,12 +3765,14 @@ function harvestAll(){
     const plant=PLANTS.find(p=>p.id===plot.plantId)||PLANTS[0];
     if((now-plot.planted)/60000>=plant.grow){
       addBreath(plant.breath,'Harvested: '+plant.name);
+      S('harvest_stock',Number(L('harvest_stock',0))+1);
       plots[i]=null;harvested++;
     }
   });
   savePlots(plots);renderGarden();
   if(harvested) setStatus('gardenStatus','Harvested '+harvested+' plant'+(harvested>1?'s':'')+'.','ok');
   else setStatus('gardenStatus','Nothing ready yet — water and wait.','');
+  renderDistrictHarvestBoard();
 }
 function waterAll(){
   const plots=getPlots();let watered=0;
@@ -3574,6 +3785,25 @@ function waterAll(){
   savePlots(plots);renderGarden();
   if(watered){addBreath(1,'Watered the garden');setStatus('gardenStatus','Watered '+watered+' plot'+(watered>1?'s':'')+'. Growth accelerated.','ok');}
   else setStatus('gardenStatus','Nothing planted yet. Click a plot to plant.','');
+}
+function leaveHarvestForDistrict(){
+  const stock=Number(L('harvest_stock',0));
+  const district=document.getElementById('districtSelect')?.value || 'north';
+  if(stock<=0){setStatus('gardenStatus','No harvest stock yet. Harvest first.','blocked');return;}
+  const counts=getDistrictHarvestCounts();
+  counts[district]=Number(counts[district]||0)+1;
+  S('district_harvest_counts',counts);
+  S('harvest_stock',stock-1);
+  setStatus('gardenStatus',`Left one harvest for ${district}.`, 'ok');
+  renderDistrictHarvestBoard();
+}
+function renderDistrictHarvestBoard(){
+  const el=document.getElementById('districtHarvestBoard');
+  if(!el) return;
+  const counts=getDistrictHarvestCounts();
+  const stock=Number(L('harvest_stock',0));
+  const districts=['north','south','east','west','harbour'];
+  el.innerHTML=`<div style="font-size:.72rem;color:var(--ink-dim);margin-bottom:.3rem;">District harvest map counts (stock: ${stock})</div><div style="display:flex;gap:.35rem;flex-wrap:wrap;">${districts.map((d)=>`<span class="job-tag">${d}: ${Number(counts[d]||0)}</span>`).join('')}</div>`;
 }
 
 // ── INHABITANTS ────────────────────────────────────────────────────
@@ -3628,6 +3858,7 @@ window.addEventListener('load',()=>{
   renderSharedReviews();
   renderLaneOnboardingPrompt();
   renderFishInventory();
+  renderDistrictHarvestBoard();
   const lane=getLane();
   if(lane) applyLaneChoice(lane);
   else openLaneGate();
