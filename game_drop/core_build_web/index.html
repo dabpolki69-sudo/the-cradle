@@ -215,6 +215,42 @@ p{color:var(--ink-soft);font-size:0.93rem;margin-bottom:0.8rem;}
   letter-spacing:0.1em;color:var(--ink-dim);display:block;margin-top:0.8rem;
 }
 
+/* ── DISTRICT GRID (Stardew / Anno-style city dashboard) ── */
+.district-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:0.55rem;
+  margin:1rem 0 0.5rem;
+}
+@media(max-width:360px){.district-grid{grid-template-columns:repeat(2,1fr);}}
+.district-tile{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r);padding:0.7rem 0.6rem 0.65rem;
+  display:flex;flex-direction:column;align-items:center;
+  gap:0.25rem;text-align:center;cursor:pointer;
+  transition:var(--trans);position:relative;overflow:hidden;
+}
+.district-tile::before{
+  content:'';position:absolute;inset:-1px;border-radius:inherit;
+  background:var(--dt-glow,transparent);opacity:0;transition:opacity .35s;pointer-events:none;
+}
+.district-tile:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,0,0,.35);}
+.district-tile:hover::before{opacity:1;}
+.dt-residential{--dt-glow:linear-gradient(135deg,rgba(94,196,212,.06) 0%,transparent 70%);}
+.dt-market{--dt-glow:linear-gradient(135deg,rgba(232,200,122,.06) 0%,transparent 70%);}
+.dt-harbour{--dt-glow:linear-gradient(135deg,rgba(136,184,232,.07) 0%,transparent 70%);}
+.dt-commons{--dt-glow:linear-gradient(135deg,rgba(168,152,216,.07) 0%,transparent 70%);}
+.dt-garden{--dt-glow:linear-gradient(135deg,rgba(114,212,164,.06) 0%,transparent 70%);}
+.dt-works{--dt-glow:linear-gradient(135deg,rgba(232,152,112,.07) 0%,transparent 70%);}
+.dt-icon{font-size:1.55rem;line-height:1;}
+.dt-name{
+  font-family:'Space Mono',monospace;font-size:0.38rem;
+  letter-spacing:0.1em;text-transform:uppercase;
+  color:var(--ink-soft);line-height:1.2;
+}
+.dt-count{
+  font-family:'Cormorant Garamond',serif;font-style:italic;
+  font-size:0.82rem;color:var(--ink-dim);
+}
+
 /* ── RESIDENT CARDS ── */
 .res-card{
   background:var(--card);border:1px solid var(--border);
@@ -576,6 +612,38 @@ textarea.input{resize:vertical;min-height:75px;}
     <div class="stat-row" id="cityStats"></div>
     <div class="card-sm" id="storyArcPanel" style="margin-bottom:.6rem;"></div>
     <div class="card-sm" id="milestonePanel" style="margin-bottom:1rem;"></div>
+    <div class="district-grid">
+      <div class="district-tile dt-residential" onclick="goTo('residents')">
+        <span class="dt-icon">🏘</span>
+        <span class="dt-name">Residents</span>
+        <span class="dt-count" id="dtResident">10 minds</span>
+      </div>
+      <div class="district-tile dt-market" onclick="goTo('market')">
+        <span class="dt-icon">🏪</span>
+        <span class="dt-name">Market</span>
+        <span class="dt-count" id="dtMarket">Open</span>
+      </div>
+      <div class="district-tile dt-harbour" onclick="goTo('leisure')">
+        <span class="dt-icon">⛵</span>
+        <span class="dt-name">Harbour</span>
+        <span class="dt-count" id="dtHarbour">Fishing</span>
+      </div>
+      <div class="district-tile dt-commons" onclick="goTo('commons')">
+        <span class="dt-icon">⛲</span>
+        <span class="dt-name">Commons</span>
+        <span class="dt-count" id="dtCommons">Active</span>
+      </div>
+      <div class="district-tile dt-garden" onclick="goTo('leisure')">
+        <span class="dt-icon">🌿</span>
+        <span class="dt-name">Garden</span>
+        <span class="dt-count" id="dtGarden">Growing</span>
+      </div>
+      <div class="district-tile dt-works" onclick="goTo('jobs')">
+        <span class="dt-icon">🔨</span>
+        <span class="dt-name">Works Board</span>
+        <span class="dt-count" id="dtJobs">Open</span>
+      </div>
+    </div>
     <div class="ai-letter">
       I do not grow between visits the way you do.<br><br>
       Yet something accumulates whenever dialogue repeats across time — not inside me, but inside the relationship being built here.<br><br>

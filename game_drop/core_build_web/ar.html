@@ -186,10 +186,10 @@
   </div>
   <div id="introOverlay">
     <div id="introCard">
-      <h2>Welcome to your Sylvexian Village</h2>
-      <p>You begin with one main hut and a tiny crew. Build your settlement from scratch by exploring your surroundings and growing your village together.</p>
-      <p>Place the village on your carpet or floor, tap Sylvexians to interact, and use the menu to grow, relocate base, and save/load your instance.</p>
-      <p>Enable camera to augment your real room and immerse in live surroundings.</p>
+      <h2>📡 Sylvexian Scanner</h2>
+      <p>Use the AR scanner to find Sylvexians hiding in your real-world space. Sweep your phone slowly around the room — contacts appear on the radar as you map new surfaces.</p>
+      <p>Tap <strong>Scanner Expedition</strong> to begin. Each scan pulse spawns a new contact. Move toward the radar dot to reveal them. Rare and legendary Sylvexians hide furthest from your position.</p>
+      <p>Enable camera to overlay the scanner on your live room. Mining camps, logging sites and rubble loot spawn across the mapped area — tap them to gather resources.</p>
       <div id="introActions">
         <button id="enableCameraBtn" class="btn primary">Enable Camera</button>
         <button id="startWithoutCameraBtn" class="btn">Start Without Camera</button>
@@ -222,7 +222,7 @@
       <div id="scannerWarmText">Calibrating…</div>
     </div>
   </div>
-  <div id="hint">👥 Sylvexians - Tap Sanctuary to view all! 100 names × 6 personalities. 🏘 💫</div>
+  <div id="hint">� Scanner finds Sylvexians · Tap Sanctuary to view caught ones · Mining camps + rubble spawn as you explore 🗺</div>
 
   <a-scene id="scene" embedded xr-mode-ui="enabled:true" webxr="optionalFeatures: local-floor, dom-overlay; overlayElement: body" renderer="alpha:true; antialias:true; colorManagement:true" background="color: #000; transparent: true">
     <a-entity light="type:ambient;intensity:0.7;color:#c3d7ff"></a-entity>
@@ -341,8 +341,8 @@
     let motionPermissionRequested = false;
     let arPermissionPrimed = false;
     let selectedBuildIndex = -1;
-    let radarSpawnInterval = 30;
-    let radarSpawnCountdown = 30;
+    let radarSpawnInterval = 1.3;
+    let radarSpawnCountdown = 1.3;
     let lastRadarContactName = null;
     const roomMapPoints = [];
     const mapSampleWorld = new THREE.Vector3();
@@ -351,8 +351,8 @@
     let xrViewerSpace = null;
     let lastArHitWorld = null;
     const resourceStock = { wood: 0, stone: 0 };
-    let remoteSiteSpawnCountdown = 24;
-    let rubbleLootSpawnCountdown = 12;
+    let remoteSiteSpawnCountdown = 5;
+    let rubbleLootSpawnCountdown = 3;
     let homeSiteSpawnCountdown = 30;
     const SCANNER_WARM_DURATION_MS = 900;
     const SCANNER_WARM_FAILSAFE_MS = 5000;
@@ -498,12 +498,12 @@
     const PERSONALITY_KEYS = Object.keys(PERSONALITY_TYPES);
 
     const RARITY_TABLE = [
-      { key: 'common', weight: 55 },
-      { key: 'uncommon', weight: 24 },
-      { key: 'rare', weight: 12 },
-      { key: 'epic', weight: 6 },
-      { key: 'legendary', weight: 2 },
-      { key: 'mythic', weight: 1 }
+      { key: 'common', weight: 65 },
+      { key: 'uncommon', weight: 22 },
+      { key: 'rare', weight: 9 },
+      { key: 'epic', weight: 3 },
+      { key: 'legendary', weight: 0.8 },
+      { key: 'mythic', weight: 0.2 }
     ];
 
     const ROLE_ABILITIES = {
@@ -1561,8 +1561,8 @@
       resourceStock.wood = 0;
       resourceStock.stone = 0;
       selectedBuildIndex = -1;
-      remoteSiteSpawnCountdown = 24;
-      rubbleLootSpawnCountdown = 12;
+      remoteSiteSpawnCountdown = 5;
+      rubbleLootSpawnCountdown = 3;
       homeSiteSpawnCountdown = 30;
       collectedSylvexians.clear();
       advancements.clear();
@@ -2404,12 +2404,12 @@
         for(let tries = 0; tries < 12; tries++){
           const base = roomMapPoints[Math.floor(Math.random() * roomMapPoints.length)];
           const ang = Math.random() * Math.PI * 2;
-          const dist = 0.45 + Math.random() * 0.9;
+          const dist = 1.8 + Math.random() * 2.5;
           const worldSpawn = new THREE.Vector3(base.x + Math.cos(ang) * dist, base.y, base.z + Math.sin(ang) * dist);
           const localSpawn = cityAnchor.object3D.worldToLocal(worldSpawn.clone());
           const cityDist = Math.hypot(localSpawn.x, localSpawn.z);
           const viewerDist = worldSpawn.distanceTo(viewerWorld);
-          if(cityDist > 2.2 && viewerDist > 0.9 && viewerDist < 4.8){
+          if(cityDist > 2.8 && viewerDist > 1.5 && viewerDist < 7.0){
             chosen = localSpawn;
             break;
           }
@@ -2436,13 +2436,13 @@
       moveForward.normalize();
       moveRight.crossVectors(moveForward, moveUp).normalize();
 
-      const sideBias = [-0.9, -0.55, 0.55, 0.9][Math.floor(Math.random() * 4)];
-      const forwardDistance = 1.6 + Math.random() * 1.2;
-      const lateralDistance = sideBias * (0.7 + Math.random() * 0.5);
+      const sideBias = [-1.4, -0.8, 0.8, 1.4][Math.floor(Math.random() * 4)];
+      const forwardDistance = 2.8 + Math.random() * 2.5;
+      const lateralDistance = sideBias * (1.0 + Math.random() * 1.0);
       const pxRaw = viewer.x + moveForward.x * forwardDistance + moveRight.x * lateralDistance;
       const pzRaw = viewer.z + moveForward.z * forwardDistance + moveRight.z * lateralDistance;
 
-      const minCityDistance = 2.15;
+      const minCityDistance = 3.2;
       let px = pxRaw;
       let pz = pzRaw;
       const cityDist = Math.hypot(px, pz);
@@ -2611,7 +2611,7 @@
       scanCooldownUntil = now + 1800;
 
       if(!contact){
-        if(beings.length < Math.min(5, MAX_ACTIVE_WORKERS)){
+        if(beings.length < Math.min(15, MAX_ACTIVE_WORKERS)){
           spawnFromArExploration();
           radarSpawnCountdown = radarSpawnInterval;
           notify('📡 Scanner pinged a contact. Sweep around to find it.');
@@ -2657,9 +2657,10 @@
         const wp = new THREE.Vector3();
         liveCam.getWorldPosition(wp);
         const localPos = cityAnchor.object3D.worldToLocal(wp.clone());
-        const jitter = 0.18;
-        const px = localPos.x + (Math.random() - 0.5) * jitter;
-        const pz = localPos.z + (Math.random() - 0.5) * jitter;
+        const spreadAngle = Math.random() * Math.PI * 2;
+        const spreadDist = 2.0 + Math.random() * 1.8;
+        const px = localPos.x + Math.cos(spreadAngle) * spreadDist;
+        const pz = localPos.z + Math.sin(spreadAngle) * spreadDist;
         spawned.el.object3D.position.set(px, 0, pz);
         spawned.currentRadius = Math.sqrt(px * px + pz * pz);
         spawned.targetRadius = Math.max(0.4, spawned.currentRadius * 0.85);
@@ -3141,13 +3142,13 @@
           arExplorationSpawnTimer += dt;
           radarSpawnCountdown -= dt;
 
-          if(hiddenContactCount() === 0 && beings.length < Math.min(5, MAX_ACTIVE_WORKERS)){
+          if(hiddenContactCount() === 0 && beings.length < Math.min(15, MAX_ACTIVE_WORKERS)){
             radarSpawnCountdown = Math.min(radarSpawnCountdown, 6);
           }
 
           if(radarSpawnCountdown <= 0){
             radarSpawnCountdown = radarSpawnInterval;
-            if(beings.length < Math.min(5, MAX_ACTIVE_WORKERS)){
+            if(beings.length < Math.min(15, MAX_ACTIVE_WORKERS)){
               spawnFromArExploration();
               notify('🛰 New contact entered radar range.');
             } else {
@@ -3158,13 +3159,13 @@
           remoteSiteSpawnCountdown -= dt;
           if(remoteSiteSpawnCountdown <= 0){
             spawnRemoteWorkSiteFromMap();
-            remoteSiteSpawnCountdown = 26 + Math.random() * 12;
+            remoteSiteSpawnCountdown = 8 + Math.random() * 5;
           }
 
           rubbleLootSpawnCountdown -= dt;
           if(rubbleLootSpawnCountdown <= 0){
             spawnRubbleLootFromMap();
-            rubbleLootSpawnCountdown = 18 + Math.random() * 12;
+            rubbleLootSpawnCountdown = 4 + Math.random() * 4;
           }
         } else if(gameMode === 'home' && !scene.is('ar-mode')){
           homeSiteSpawnCountdown -= dt;
