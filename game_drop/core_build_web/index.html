@@ -734,7 +734,6 @@ textarea.input{resize:vertical;min-height:75px;}
     <div class="eyebrow">Economy</div>
     <h2>Marketplace</h2>
     <p>Spend your Breath on land, art, clothes, and pets. All items are yours permanently.</p>
-    <p>Spend your Breath on land, art, clothes, and pets. All items are yours permanently.</p>
     <div class="market-tabs" id="marketTabs">
       <button class="mtab active" onclick="filterMarket('all',this)">All</button>
       <button class="mtab" onclick="filterMarket('land',this)">🏞️ Land</button>
@@ -3133,9 +3132,15 @@ function renderMarket(cat){
   });
 }
 function buyItem(id,price,name){
+  if(L('owned_'+id,false)){
+    showToast('Already owned.');
+    return;
+  }
   if(!spendBreath(price)){showToast('Not enough Breath — need '+price);return;}
   S('owned_'+id,true);
-  const owned=L('owned_items',[]);owned.push({id,name,time:Date.now()});S('owned_items',owned);
+  const owned=L('owned_items',[]);
+  if(!owned.some(item=>item.id===id)) owned.push({id,name,time:Date.now()});
+  S('owned_items',owned);
   const tx=L('transactions',[]);tx.unshift({amount:-price,reason:'Bought: '+name,time:Date.now()});S('transactions',tx.slice(0,30));
   mutateWorldState((state)=>{
     state.economy.total_money=(state.economy.total_money||0)+price;
@@ -3147,6 +3152,30 @@ function buyItem(id,price,name){
   renderMarket(currentMarketFilter);
   renderMilestones();
   checkMilestones();
+}
+
+function toggleEquipItem(itemId){
+  const item=MARKET_ITEMS.find(i=>i.id===itemId);
+  if(!item){showToast('Item not found.');return;}
+  const equipableCats=['clothes','pets','relics'];
+  if(!equipableCats.includes(item.cat)){
+    showToast('This item cannot be equipped.');
+    return;
+  }
+  if(!L('owned_'+item.id,false)){
+    showToast('Buy this item first.');
+    return;
+  }
+  const key='equipped_'+item.cat;
+  const current=L(key,null);
+  if(current===item.id){
+    S(key,null);
+    showToast(`Unequipped ${item.name}.`);
+  }else{
+    S(key,item.id);
+    showToast(`Equipped ${item.name}.`);
+  }
+  renderWallet();
 }
 
 // ── WALLET ─────────────────────────────────────────────────────────
@@ -3166,9 +3195,31 @@ function renderWallet(){
   if(invEl){
     const owned=L('owned_items',[]);
     if(!owned.length){invEl.innerHTML='<div style="font-size:.85rem;color:var(--ink-dim);font-style:italic;">Nothing yet. Visit the Marketplace to spend your Breath.</div>';return;}
-    invEl.innerHTML=owned.map(o=>{
+    const clothesId=L('equipped_clothes',null);
+    const petsId=L('equipped_pets',null);
+    const relicsId=L('equipped_relics',null);
+    const clothesItem=MARKET_ITEMS.find(i=>i.id===clothesId);
+    const petItem=MARKET_ITEMS.find(i=>i.id===petsId);
+    const relicItem=MARKET_ITEMS.find(i=>i.id===relicsId);
+    const equippedSummary=`
+      <div class="feed-item" style="border:1px dashed var(--border);margin-bottom:.55rem;">
+        <div class="feed-meta">Equipped</div>
+        <div style="font-size:.83rem;color:var(--ink);line-height:1.4;">
+          Outfit: ${clothesItem?`${clothesItem.emoji} ${clothesItem.name}`:'None'}<br>
+          Companion: ${petItem?`${petItem.emoji} ${petItem.name}`:'None'}<br>
+          Relic: ${relicItem?`${relicItem.emoji} ${relicItem.name}`:'None'}
+        </div>
+      </div>`;
+    invEl.innerHTML=equippedSummary+owned.map(o=>{
       const item=MARKET_ITEMS.find(i=>i.id===o.id);
-      return `<div class="feed-item">${item?item.emoji:''} <strong>${o.name}</strong></div>`;
+      if(!item) return `<div class="feed-item"><strong>${o.name}</strong></div>`;
+      const equipable=item.cat==='clothes' || item.cat==='pets' || item.cat==='relics';
+      const key='equipped_'+item.cat;
+      const equipped=L(key,null)===item.id;
+      return `<div class="feed-item" style="display:flex;justify-content:space-between;align-items:center;gap:.6rem;">
+        <div>${item.emoji} <strong>${o.name}</strong><div class="feed-meta" style="margin-top:.18rem;">${item.cat}</div></div>
+        ${equipable?`<button class="btn btn-sm" onclick="toggleEquipItem('${item.id}')">${equipped?'Unequip':'Equip'}</button>`:''}
+      </div>`;
     }).join('');
   }
 }

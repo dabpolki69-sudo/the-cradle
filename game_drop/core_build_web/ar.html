@@ -1835,21 +1835,118 @@
       return buddy;
     }
 
+    function getCollectionSeedFromBuddy(buddy){
+      if(!buddy) return {};
+      const personalityKey = Object.entries(PERSONALITY_TYPES).find(([, val])=>val === buddy.personality)?.[0] || null;
+      return {
+        skin: buddy.skin ? { ...buddy.skin } : null,
+        personalityKey,
+        role: buddy.role,
+        stats: buddy.stats ? { ...buddy.stats } : null,
+        uniqueBuff: buddy.uniqueBuff || null
+      };
+    }
+
     function upsertCollectionEntry(name, seed = {}){
-      if(!name || collectedSylvexians.has(name)) return;
-      const skin = seed.skin ? { ...seed.skin } : randomSkinRoll();
+      if(!name) return;
+      const existing = collectedSylvexians.get(name);
+      const skin = seed.skin ? { ...seed.skin } : (existing?.skin ? { ...existing.skin } : randomSkinRoll());
       const personalityKey = seed.personalityKey && PERSONALITY_TYPES[seed.personalityKey]
         ? seed.personalityKey
-        : PERSONALITY_KEYS[Math.floor(Math.random() * PERSONALITY_KEYS.length)];
+        : (existing
+          ? (Object.entries(PERSONALITY_TYPES).find(([, val])=>val === existing.personality)?.[0] || PERSONALITY_KEYS[0])
+          : PERSONALITY_KEYS[Math.floor(Math.random() * PERSONALITY_KEYS.length)]);
       const personality = PERSONALITY_TYPES[personalityKey];
       collectedSylvexians.set(name, {
         name,
         skin,
         personality,
-        role: seed.role || (ROLE_ABILITIES[skin.role] || ROLE_ABILITIES.builder).title,
-        stats: seed.stats || calculateBuddyStats(skin.rarity, LEGENDARY_PROFILES[name] || null),
-        uniqueBuff: seed.uniqueBuff || LEGENDARY_PROFILES[name]?.uniqueBuff || null
+        role: seed.role || existing?.role || (ROLE_ABILITIES[skin.role] || ROLE_ABILITIES.builder).title,
+        stats: seed.stats || existing?.stats || calculateBuddyStats(skin.rarity, LEGENDARY_PROFILES[name] || null),
+        uniqueBuff: seed.uniqueBuff || existing?.uniqueBuff || LEGENDARY_PROFILES[name]?.uniqueBuff || null
       });
+    }
+
+    function removeActiveBuddy(buddy){
+      if(!buddy) return;
+      const idx = beings.indexOf(buddy);
+      if(idx >= 0) beings.splice(idx, 1);
+      if(buddy.el?.parentNode) buddy.el.parentNode.removeChild(buddy.el);
+    }
+
+    function deploySanctuaryBuddy(name){
+      if(!name) return;
+      if(beings.some((b)=>b.name===name)){
+        notify(`${name} is already on your active team.`);
+        return;
+      }
+      if(beings.length >= MAX_ACTIVE_WORKERS){
+        notify(`👥 Team full (${MAX_ACTIVE_WORKERS} active). Unequip someone first.`);
+        return;
+      }
+      const profile = collectedSylvexians.get(name);
+      if(!profile){
+        notify('Sylvexian profile missing. Try scanning again.');
+        return;
+      }
+
+      const skin = profile.skin || randomSkinRoll();
+      const roleAbility = ROLE_ABILITIES[skin.role] || ROLE_ABILITIES.builder;
+      const root = document.createElement('a-entity');
+      const i = beings.length;
+      const radius = 1.35 + Math.random()*0.9;
+      const angle = (Math.PI*2*(i+1))/Math.max(4,i+2);
+      const spawnRadius = radius + 1.2 + Math.random()*0.6;
+      root.innerHTML = humanoidMarkup(skin);
+      root.classList.add('tap-target');
+      const scale = skin.scale || 0.5;
+      root.object3D.scale.set(scale, scale, scale);
+      root.object3D.position.set(Math.cos(angle)*spawnRadius, 0, Math.sin(angle)*spawnRadius);
+      root.setAttribute('animation__spawn', `property: scale; from: 0.05 0.05 0.05; to: ${scale} ${scale} ${scale}; dur: 700; easing: easeOutBack`);
+
+      const buddy = {
+        name,
+        skin,
+        personality: profile.personality || PERSONALITY_TYPES[PERSONALITY_KEYS[0]],
+        role: profile.role || roleAbility.title,
+        roleBonus: roleAbility.bonus,
+        uniqueBuff: profile.uniqueBuff || null,
+        stats: profile.stats || calculateBuddyStats(skin.rarity, LEGENDARY_PROFILES[name] || null),
+        baseArmTilt: skin.armTilt,
+        currentRadius: spawnRadius,
+        targetRadius: spawnRadius,
+        el: root,
+        radius,
+        angle,
+        speed: 0.25 + Math.random()*0.2,
+        bob: Math.random()*6,
+        hideAffinity: skin.hideAffinity || 1,
+        hiding: false,
+        searchHidden: false,
+        searchAnchor: null,
+        searchRadius: 0.32 + Math.random()*0.22,
+        searchPhase: Math.random()*Math.PI*2,
+        hideProp: null,
+        activeAnimation: null,
+        animationTime: 0,
+        animationDuration: 0
+      };
+
+      root.addEventListener('click', ()=>collectSylvexian(buddy));
+      npcLayer.appendChild(root);
+      beings.push(buddy);
+      updateCollectionUI();
+      updateTeamUI();
+      notify(`✅ Equipped ${name} to active team.`);
+    }
+
+    function recallTeamBuddy(buddy){
+      if(!buddy) return;
+      upsertCollectionEntry(buddy.name, getCollectionSeedFromBuddy(buddy));
+      removeActiveBuddy(buddy);
+      updateCollectionUI();
+      updateTeamUI();
+      notify(`📖 ${buddy.name} moved back to Sanctuary.`);
     }
 
     function collectSylvexian(buddy){
@@ -1859,12 +1956,8 @@
         notify(`👀 ${buddy.name} stirred behind cover.`);
         return;
       }
-      if(!collectedSylvexians.has(buddy.name)){
-        collectedSylvexians.set(buddy.name, buddy);
-      }
-      const idx = beings.indexOf(buddy);
-      if(idx >= 0) beings.splice(idx, 1);
-      if(buddy.el.parentNode) buddy.el.parentNode.removeChild(buddy.el);
+      upsertCollectionEntry(buddy.name, getCollectionSeedFromBuddy(buddy));
+      removeActiveBuddy(buddy);
       updateCollectionUI();
       updateTeamUI();
       const rarity = (buddy.skin.rarity || 'common').toUpperCase();
@@ -1876,6 +1969,7 @@
       const grid = document.getElementById('collectionGrid');
       if(!grid) return;
       grid.innerHTML = '';
+      const activeByName = new Set(beings.map((b)=>b.name));
 
       function profileImageDataUri(skin, personality, isUnknown = false){
         const headColor = isUnknown ? '#9aa7b7' : (skin?.headColor || '#d7e7f8');
@@ -1937,6 +2031,7 @@
             : `${buddy.personality.name} Variant`;
           const outfit = resolveClothingForSkin(buddy.skin);
           const profileSrc = profileImageDataUri(buddy.skin, buddy.personality, false);
+          const isActive = activeByName.has(buddy.name);
           card.innerHTML = `
             <div class="profileWrap"><img class="profilePic" src="${profileSrc}" alt="${buddy.name} profile" /></div>
             <div class="roleIcon">${buddy.personality.icon}</div>
@@ -1945,9 +2040,27 @@
             <div class="rarity" style="background:${color}30;border-color:${color}">${buddy.skin.rarity.toUpperCase()}</div>
             <div style="font-size:10px;color:var(--ink2)">${buddy.role}</div>
             <div style="font-size:10px;color:var(--ink2)">${outfit.name}</div>
+            <div style="font-size:10px;color:${isActive?'#77e4a5':'var(--ink2)'}">${isActive?'Active team':'Sanctuary'}</div>
             <div style="font-size:10px;color:var(--ink2)">P${buddy.stats.power} A${buddy.stats.agility} F${buddy.stats.focus} R${buddy.stats.resilience} I${buddy.stats.insight}</div>
             ${buddy.uniqueBuff ? `<div style="font-size:10px;color:${color}">${buddy.uniqueBuff}</div>` : ''}
           `;
+
+          const actionBtn = document.createElement('button');
+          actionBtn.className = 'btn';
+          actionBtn.style.marginTop = '.45rem';
+          actionBtn.style.fontSize = '10px';
+          actionBtn.style.padding = '.24rem .5rem';
+          actionBtn.textContent = isActive ? 'Unequip' : 'Equip';
+          actionBtn.addEventListener('click', (event)=>{
+            event.stopPropagation();
+            if(isActive){
+              const activeBuddy = beings.find((b)=>b.name===buddy.name);
+              if(activeBuddy) recallTeamBuddy(activeBuddy);
+            } else {
+              deploySanctuaryBuddy(buddy.name);
+            }
+          });
+          card.appendChild(actionBtn);
 
           card.addEventListener('click', ()=>{
             showSpeech(
@@ -2026,8 +2139,16 @@
             <div class="teamSub">${buddy.role} • ${(buddy.skin.rarity || 'common').toUpperCase()}</div>
             <div class="teamSub">${outfit.name}</div>
             <div class="teamState ${stateClass}">${state}</div>
+            <button class="btn" type="button" style="margin-top:.4rem;font-size:10px;padding:.24rem .5rem;">Unequip</button>
           </div>
         `;
+        const unequipBtn = card.querySelector('button');
+        if(unequipBtn){
+          unequipBtn.addEventListener('click', (event)=>{
+            event.stopPropagation();
+            recallTeamBuddy(buddy);
+          });
+        }
         card.addEventListener('click', ()=>focusTeamBuddy(buddy));
         grid.appendChild(card);
       }
