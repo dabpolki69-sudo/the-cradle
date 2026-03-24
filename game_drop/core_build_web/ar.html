@@ -20,7 +20,7 @@
     .btn{border:1px solid rgba(124,96,232,.5);background:linear-gradient(180deg,rgba(26,36,64,.95),rgba(13,20,36,.95));color:var(--ink);padding:9px 12px;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer}
     .btn.primary{background:linear-gradient(135deg,#4f46e5,#7c3aed);border-color:transparent;color:#fff}
     .btn.ok{border-color:rgba(109,224,178,.55)}
-    #status{position:fixed;top:58px;left:10px;right:10px;z-index:50;padding:8px 10px;background:var(--card);border:1px solid var(--line);border-radius:10px;color:var(--ink2);font-size:13px;backdrop-filter:blur(8px)}
+    #status{position:fixed;top:58px;left:10px;right:138px;z-index:50;padding:8px 10px;background:var(--card);border:1px solid var(--line);border-radius:10px;color:var(--ink2);font-size:13px;backdrop-filter:blur(8px)}
     #modeBadge{position:fixed;top:58px;right:12px;z-index:58;padding:6px 9px;border-radius:999px;border:1px solid var(--line);background:rgba(8,14,26,.86);font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--ink2);backdrop-filter:blur(8px)}
     #modeBadge.home{border-color:rgba(109,224,178,.5);color:#9df0ca}
     #modeBadge.expedition{border-color:rgba(124,96,232,.55);color:#cab6ff}
@@ -97,7 +97,7 @@
     body.layout-minimal #joystickWrap{width:96px;height:96px;left:10px;bottom:10px}
     body.layout-minimal #joystickKnob{left:28px;top:28px}
     body.layout-minimal #speech{bottom:72px;max-width:min(520px,90vw)}
-    .hidden{display:none}a-scene{position:fixed;inset:0;z-index:1}@media (max-width:700px){#hint{max-width:56vw}#collectionGrid{grid-template-columns:repeat(auto-fill,minmax(100px,1fr))}}
+    .hidden{display:none}a-scene{position:fixed;inset:0;z-index:1}@media (max-width:700px){#status{top:94px;right:10px}#modeBadge{top:58px}#hint{max-width:56vw}#collectionGrid{grid-template-columns:repeat(auto-fill,minmax(100px,1fr))}}
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.4.2/aframe.min.js"></script>
 </head>
@@ -308,6 +308,7 @@
     let homeSiteSpawnCountdown = 30;
     const SCANNER_WARM_DURATION_MS = 900;
     const SCANNER_WARM_FAILSAFE_MS = 5000;
+    const SCANNER_START_TIMEOUT_MS = 7000;
     const MAX_ACTIVE_WORKERS = 20;
     const SAVE_FILE_VERSION = 1;
     const SAVE_PBKDF2_ITERATIONS = 150000;
@@ -845,25 +846,46 @@
       }
     }
 
+    function setEntityVisible(entity, visible){
+      if(!entity) return;
+      entity.setAttribute('visible', visible);
+      if(entity.object3D) entity.object3D.visible = visible;
+    }
+
+    function syncBuddyVisibility(){
+      const expeditionPhase = gameMode === 'expedition' || goFindStartInProgress || scene.is('ar-mode');
+      for(const buddy of beings){
+        if(!buddy?.el?.object3D) continue;
+        if(!expeditionPhase){
+          buddy.el.object3D.visible = true;
+          continue;
+        }
+        if(buddy.searchHidden) continue;
+        const expeditionPresence = !!buddy.searchAnchor || !!buddy.workerTask?.site?.expedition;
+        buddy.el.object3D.visible = expeditionPresence;
+      }
+    }
+
     function updateModeUi(){
       enterArBtn.textContent = gameMode === 'expedition' ? 'Return Home' : 'Scanner Expedition';
       scanBtn.textContent = gameMode === 'expedition' ? 'Scan' : 'Enter AR';
-      const showHome = gameMode === 'home' && !scene.is('ar-mode');
+      const showHome = gameMode === 'home' && !scene.is('ar-mode') && !goFindStartInProgress;
       if(placeCityBtn) placeCityBtn.style.display = showHome ? 'none' : '';
       if(relocateBaseBtn) relocateBaseBtn.style.display = showHome ? 'none' : '';
       if(growBtn){
         growBtn.textContent = showHome ? 'Scout in AR' : 'Grow City';
       }
-      if(cityBaseDisk) cityBaseDisk.setAttribute('visible', showHome);
-      if(cityBaseRing) cityBaseRing.setAttribute('visible', showHome);
-      if(valleyLayer) valleyLayer.setAttribute('visible', showHome);
-      if(buildingLayer) buildingLayer.setAttribute('visible', showHome);
-      if(propLayer) propLayer.setAttribute('visible', showHome);
-      if(workSiteLayer) workSiteLayer.setAttribute('visible', showHome);
-      if(resourceLayer) resourceLayer.setAttribute('visible', showHome);
-      if(advancementMarkerLayer) advancementMarkerLayer.setAttribute('visible', showHome);
-      if(expeditionResourceLayer) expeditionResourceLayer.setAttribute('visible', !showHome);
-      if(expeditionSiteLayer) expeditionSiteLayer.setAttribute('visible', !showHome);
+      setEntityVisible(cityBaseDisk, showHome);
+      setEntityVisible(cityBaseRing, showHome);
+      setEntityVisible(valleyLayer, showHome);
+      setEntityVisible(buildingLayer, showHome);
+      setEntityVisible(propLayer, showHome);
+      setEntityVisible(workSiteLayer, showHome);
+      setEntityVisible(resourceLayer, showHome);
+      setEntityVisible(advancementMarkerLayer, showHome);
+      setEntityVisible(expeditionResourceLayer, !showHome);
+      setEntityVisible(expeditionSiteLayer, !showHome);
+      syncBuddyVisibility();
       if(modeBadgeEl){
         modeBadgeEl.classList.toggle('home', gameMode === 'home');
         modeBadgeEl.classList.toggle('expedition', gameMode === 'expedition');
@@ -1132,13 +1154,15 @@
       speechName.textContent = name;
       speechText.textContent = text;
       speechBox.style.display = 'block';
+      if(hintEl) hintEl.style.display = 'none';
       clearTimeout(showSpeech._t);
-      showSpeech._t = setTimeout(()=>speechBox.style.display='none', 4200);
+      showSpeech._t = setTimeout(closeSpeech, 4200);
     }
 
     function closeSpeech(){
       clearTimeout(showSpeech._t);
       speechBox.style.display = 'none';
+      if(hintEl) hintEl.style.display = '';
     }
 
     function makeProp(kind, pos){
@@ -1258,6 +1282,8 @@
       while(buildingLayer.firstChild) buildingLayer.removeChild(buildingLayer.firstChild);
       while(resourceLayer.firstChild) resourceLayer.removeChild(resourceLayer.firstChild);
       while(workSiteLayer.firstChild) workSiteLayer.removeChild(workSiteLayer.firstChild);
+      while(expeditionResourceLayer.firstChild) expeditionResourceLayer.removeChild(expeditionResourceLayer.firstChild);
+      while(expeditionSiteLayer.firstChild) expeditionSiteLayer.removeChild(expeditionSiteLayer.firstChild);
       while(advancementMarkerLayer.firstChild) advancementMarkerLayer.removeChild(advancementMarkerLayer.firstChild);
       props.length = 0;
       beings.length = 0;
@@ -2881,7 +2907,10 @@
           return;
         }
         if(!scene.is('ar-mode')){
-          await scene.enterAR().catch(()=>{});
+          await Promise.race([
+            scene.enterAR().then(()=>true).catch(()=>false),
+            new Promise((resolve)=>setTimeout(()=>resolve(false), SCANNER_START_TIMEOUT_MS))
+          ]);
         }
         await ensureArHitTestSource();
         if(!scene.is('ar-mode')){
