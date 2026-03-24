@@ -1415,6 +1415,7 @@ const PLAYER_STATS_KEY='btg_player_stats';
 const AR_SHARED_PROFILES_KEY='btg_ar_sylvexian_profiles';
 const SYLVEX_MAIN_PROGRESS_KEY='btg_sylvex_main_progress';
 const SYLVEX_CITY_STATE_KEY='btg_sylvex_city_state';
+const SYLVEX_ACTIVITY_LOG_KEY='btg_sylvex_activity_log';
 const MAIN_GAME_FILE_BACKUP_KEY='btg_main_file_backup';
 const MAIN_SAVE_FILE_VERSION=1;
 
@@ -3217,45 +3218,70 @@ function renderWallet(){
   const txEl=document.getElementById('txList');
   if(txEl){
     const txs=L('transactions',[]);
-    if(!txs.length){txEl.innerHTML='<div style="font-size:.85rem;color:var(--ink-dim);padding:.5rem 0;font-style:italic;">No transactions yet. Complete jobs and rate creations to earn Breath.</div>';return;}
-    txEl.innerHTML=txs.slice(0,10).map(t=>{
-      const d=new Date(t.time);
-      const ds=d.toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'})+' '+d.toLocaleDateString('en-AU',{month:'short',day:'numeric'});
-      return `<div class="tx-item"><span class="tx-desc">${t.reason}</span><span class="tx-amount ${t.amount>0?'earn':'spend'}">${t.amount>0?'+':''}${t.amount} 🌿</span></div>`;
-    }).join('');
+    if(!txs.length){
+      txEl.innerHTML='<div style="font-size:.85rem;color:var(--ink-dim);padding:.5rem 0;font-style:italic;">No transactions yet. Complete jobs and rate creations to earn Breath.</div>';
+    } else {
+      txEl.innerHTML=txs.slice(0,10).map(t=>{
+        const d=new Date(t.time);
+        const ds=d.toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'})+' '+d.toLocaleDateString('en-AU',{month:'short',day:'numeric'});
+        return `<div class="tx-item"><span class="tx-desc">${t.reason}</span><span class="tx-amount ${t.amount>0?'earn':'spend'}">${t.amount>0?'+':''}${t.amount} 🌿</span></div>`;
+      }).join('');
+    }
   }
   const invEl=document.getElementById('inventoryList');
   if(invEl){
     const owned=L('owned_items',[]);
-    if(!owned.length){invEl.innerHTML='<div style="font-size:.85rem;color:var(--ink-dim);font-style:italic;">Nothing yet. Visit the Marketplace to spend your Breath.</div>';return;}
-    const clothesId=L('equipped_clothes',null);
-    const petsId=L('equipped_pets',null);
-    const relicsId=L('equipped_relics',null);
-    const clothesItem=MARKET_ITEMS.find(i=>i.id===clothesId);
-    const petItem=MARKET_ITEMS.find(i=>i.id===petsId);
-    const relicItem=MARKET_ITEMS.find(i=>i.id===relicsId);
-    const equippedSummary=`
-      <div class="feed-item" style="border:1px dashed var(--border);margin-bottom:.55rem;">
-        <div class="feed-meta">Equipped</div>
-        <div style="font-size:.83rem;color:var(--ink);line-height:1.4;">
-          Outfit: ${clothesItem?`${clothesItem.emoji} ${clothesItem.name}`:'None'}<br>
-          Companion: ${petItem?`${petItem.emoji} ${petItem.name}`:'None'}<br>
-          Relic: ${relicItem?`${relicItem.emoji} ${relicItem.name}`:'None'}
-        </div>
-      </div>`;
-    invEl.innerHTML=equippedSummary+owned.map(o=>{
-      const item=MARKET_ITEMS.find(i=>i.id===o.id);
-      if(!item) return `<div class="feed-item"><strong>${o.name}</strong></div>`;
-      const equipable=item.cat==='clothes' || item.cat==='pets' || item.cat==='relics';
-      const key='equipped_'+item.cat;
-      const equipped=L(key,null)===item.id;
-      return `<div class="feed-item" style="display:flex;justify-content:space-between;align-items:center;gap:.6rem;">
-        <div>${item.emoji} <strong>${o.name}</strong><div class="feed-meta" style="margin-top:.18rem;">${item.cat}</div></div>
-        ${equipable?`<button class="btn btn-sm" onclick="toggleEquipItem('${item.id}')">${equipped?'Unequip':'Equip'}</button>`:''}
-      </div>`;
-    }).join('');
+    if(!owned.length){
+      invEl.innerHTML='<div style="font-size:.85rem;color:var(--ink-dim);font-style:italic;">Nothing yet. Visit the Marketplace to spend your Breath.</div>';
+    } else {
+      const clothesId=L('equipped_clothes',null);
+      const petsId=L('equipped_pets',null);
+      const relicsId=L('equipped_relics',null);
+      const clothesItem=MARKET_ITEMS.find(i=>i.id===clothesId);
+      const petItem=MARKET_ITEMS.find(i=>i.id===petsId);
+      const relicItem=MARKET_ITEMS.find(i=>i.id===relicsId);
+      const equippedSummary=`
+        <div class="feed-item" style="border:1px dashed var(--border);margin-bottom:.55rem;">
+          <div class="feed-meta">Equipped</div>
+          <div style="font-size:.83rem;color:var(--ink);line-height:1.4;">
+            Outfit: ${clothesItem?`${clothesItem.emoji} ${clothesItem.name}`:'None'}<br>
+            Companion: ${petItem?`${petItem.emoji} ${petItem.name}`:'None'}<br>
+            Relic: ${relicItem?`${relicItem.emoji} ${relicItem.name}`:'None'}
+          </div>
+        </div>`;
+      invEl.innerHTML=equippedSummary+owned.map(o=>{
+        const item=MARKET_ITEMS.find(i=>i.id===o.id);
+        if(!item) return `<div class="feed-item"><strong>${o.name}</strong></div>`;
+        const equipable=item.cat==='clothes' || item.cat==='pets' || item.cat==='relics';
+        const key='equipped_'+item.cat;
+        const equipped=L(key,null)===item.id;
+        return `<div class="feed-item" style="display:flex;justify-content:space-between;align-items:center;gap:.6rem;">
+          <div>${item.emoji} <strong>${o.name}</strong><div class="feed-meta" style="margin-top:.18rem;">${item.cat}</div></div>
+          ${equipable?`<button class="btn btn-sm" onclick="toggleEquipItem('${item.id}')">${equipped?'Unequip':'Equip'}</button>`:''}
+        </div>`;
+      }).join('');
+    }
   }
   renderSylvexMainPanel();
+}
+
+function getSylvexActivityLog(){
+  const entries=L(SYLVEX_ACTIVITY_LOG_KEY,[]);
+  return Array.isArray(entries)?entries:[];
+}
+function pushSylvexActivity(type,detail){
+  const log=getSylvexActivityLog();
+  log.unshift({type:String(type||'event'),detail:String(detail||''),time:Date.now()});
+  S(SYLVEX_ACTIVITY_LOG_KEY,log.slice(0,30));
+}
+function syncArSylvexiansNow(){
+  const payload=L(AR_SHARED_PROFILES_KEY,{profiles:[]});
+  const count=Array.isArray(payload?.profiles)?payload.profiles.length:0;
+  const syncedAt=payload?.synced_at?new Date(payload.synced_at).toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'}):'unknown';
+  pushSylvexActivity('sync',`Synced ${count} Sylvexian profile${count===1?'':'s'} from AR (${syncedAt}).`);
+  showToast(`Synced ${count} Sylvexians from AR.`);
+  renderSylvexMainPanel();
+  updateCityStats();
 }
 
 function getArSylvexProfiles(){
@@ -3308,6 +3334,7 @@ function upgradeSylvexianFromMain(encodedName){
   const tx=L('transactions',[]);
   tx.unshift({amount:-cost,reason:'Sylvexian upgrade: '+name,time:Date.now()});
   S('transactions',tx.slice(0,30));
+  pushSylvexActivity('upgrade',`${name} upgraded to level ${entry.level} (cost ${cost} Breath).`);
   updateBreathUI();
   showToast(`⬆ Upgraded ${name} to Lv ${entry.level}`);
   renderWallet();
@@ -3335,6 +3362,7 @@ function assignSylvexianCityWork(encodedName){
 
   S(SYLVEX_MAIN_PROGRESS_KEY,progress);
   S(SYLVEX_CITY_STATE_KEY,city);
+  pushSylvexActivity('build',`${name} contributed ${gain} city points. City level ${city.level}.`);
   showToast(`🏗 ${name} contributed +${gain} city points`);
   renderWallet();
   updateCityStats();
@@ -3344,13 +3372,35 @@ function renderSylvexMainPanel(){
   if(!panel) return;
   const roster=getMergedSylvexians();
   const city=getSylvexCityState();
+  const payload=L(AR_SHARED_PROFILES_KEY,{profiles:[],synced_at:null});
+  const syncedText=payload?.synced_at
+    ?new Date(payload.synced_at).toLocaleString('en-AU',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})
+    :'never';
+  const log=getSylvexActivityLog();
+  const logHtml=log.length
+    ?log.slice(0,8).map((entry)=>{
+      const when=new Date(entry.time||Date.now()).toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'});
+      return `<div style="font-size:.76rem;color:var(--ink-dim);line-height:1.35;padding:.2rem 0;border-bottom:1px solid var(--border);">${when} · ${entry.detail}</div>`;
+    }).join('')
+    :'<div style="font-size:.78rem;color:var(--ink-dim);font-style:italic;">No activity yet.</div>';
 
   if(!roster.length){
-    panel.innerHTML='<div class="feed-item" style="font-size:.85rem;color:var(--ink-dim);font-style:italic;">No Sylvexians synced yet. Use the AR Scanner to catch Sylvexians, then return here to upgrade and assign city work.</div>';
+    panel.innerHTML=`<div class="feed-item" style="margin-bottom:.55rem;border:1px dashed var(--border);">
+      <div class="feed-meta">AR Sync</div>
+      <div style="font-size:.82rem;color:var(--ink-dim);margin-bottom:.45rem;">Last sync: ${syncedText}</div>
+      <div class="btn-row" style="margin:0;"><button class="btn btn-sm" onclick="syncArSylvexiansNow()">🔄 Sync Now</button></div>
+    </div>
+    <div class="feed-item" style="font-size:.85rem;color:var(--ink-dim);font-style:italic;">No Sylvexians synced yet. Use the AR Scanner to catch Sylvexians, then return here to upgrade and assign city work.</div>
+    <div class="feed-item" style="margin-top:.55rem;"><div class="feed-meta">Activity</div>${logHtml}</div>`;
     return;
   }
 
   panel.innerHTML=`
+    <div class="feed-item" style="margin-bottom:.55rem;border:1px dashed var(--border);">
+      <div class="feed-meta">AR Sync</div>
+      <div style="font-size:.82rem;color:var(--ink-dim);margin-bottom:.45rem;">Last sync: ${syncedText}</div>
+      <div class="btn-row" style="margin:0;"><button class="btn btn-sm" onclick="syncArSylvexiansNow()">🔄 Sync Now</button></div>
+    </div>
     <div class="feed-item" style="margin-bottom:.6rem;border:1px dashed var(--border);">
       <div class="feed-meta">Sylvexian City Project</div>
       <div style="font-size:.85rem;color:var(--ink);line-height:1.45;">City Level: <strong>${city.level}</strong> · Progress: <strong>${city.points}/${city.level*20}</strong></div>
@@ -3373,6 +3423,7 @@ function renderSylvexMainPanel(){
         </div>
       </div>`;
     }).join('')}
+    <div class="feed-item" style="margin-top:.55rem;"><div class="feed-meta">Activity</div>${logHtml}</div>
   `;
 }
 
@@ -3393,6 +3444,7 @@ function saveMainGameFile(){
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+    pushSylvexActivity('save',`Main game save file exported (${payload.created_at}).`);
     showToast('Main game save exported.');
   }catch(_){
     showToast('Failed to export main save file.');
@@ -3448,6 +3500,9 @@ function loadMainGameFile(event){
       Object.entries(state).forEach(([key,val])=>{
         if(!key.startsWith(DEVKIT_SNAPSHOT_PREFIX)) localStorage.setItem(key,String(val));
       });
+      const importedLog=getSylvexActivityLog();
+      importedLog.unshift({type:'load',detail:'Main game save file loaded.',time:Date.now()});
+      S(SYLVEX_ACTIVITY_LOG_KEY,importedLog.slice(0,30));
 
       showToast('Save loaded. Reloading...');
       setTimeout(()=>window.location.reload(),160);
