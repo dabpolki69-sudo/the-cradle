@@ -1416,6 +1416,7 @@ const AR_SHARED_PROFILES_KEY='btg_ar_sylvexian_profiles';
 const SYLVEX_MAIN_PROGRESS_KEY='btg_sylvex_main_progress';
 const SYLVEX_CITY_STATE_KEY='btg_sylvex_city_state';
 const SYLVEX_ACTIVITY_LOG_KEY='btg_sylvex_activity_log';
+const SYLVEX_LAST_SYNC_MARKER_KEY='btg_sylvex_last_sync_marker';
 const MAIN_GAME_FILE_BACKUP_KEY='btg_main_file_backup';
 const MAIN_SAVE_FILE_VERSION=1;
 
@@ -3274,14 +3275,25 @@ function pushSylvexActivity(type,detail){
   log.unshift({type:String(type||'event'),detail:String(detail||''),time:Date.now()});
   S(SYLVEX_ACTIVITY_LOG_KEY,log.slice(0,30));
 }
-function syncArSylvexiansNow(){
+function autoSyncArSylvexians(notifyUser=false,force=false){
   const payload=L(AR_SHARED_PROFILES_KEY,{profiles:[]});
   const count=Array.isArray(payload?.profiles)?payload.profiles.length:0;
-  const syncedAt=payload?.synced_at?new Date(payload.synced_at).toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'}):'unknown';
-  pushSylvexActivity('sync',`Synced ${count} Sylvexian profile${count===1?'':'s'} from AR (${syncedAt}).`);
-  showToast(`Synced ${count} Sylvexians from AR.`);
+  const marker=String(payload?.synced_at || ('profiles:'+count));
+  const previous=L(SYLVEX_LAST_SYNC_MARKER_KEY,'');
+  if(!force && marker===previous) return false;
+  S(SYLVEX_LAST_SYNC_MARKER_KEY,marker);
+
+  const syncedAt=payload?.synced_at
+    ?new Date(payload.synced_at).toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'})
+    :'now';
+  pushSylvexActivity('sync',`${force?'Manual':'Auto'} sync: ${count} Sylvexian profile${count===1?'':'s'} (${syncedAt}).`);
+  if(notifyUser) showToast(`Synced ${count} Sylvexians from AR.`);
   renderSylvexMainPanel();
   updateCityStats();
+  return true;
+}
+function syncArSylvexiansNow(){
+  autoSyncArSylvexians(true,true);
 }
 
 function getArSylvexProfiles(){
@@ -4363,6 +4375,7 @@ window.addEventListener('load',()=>{
   if(hv) hv.textContent='Visit #'+visits;
   updateBreathUI();
   updateCityStats();
+  autoSyncArSylvexians(false,false);
   renderMilestones();
   renderStoryArcPanel();
   renderSharedReviews();
