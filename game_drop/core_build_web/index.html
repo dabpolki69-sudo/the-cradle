@@ -46,11 +46,11 @@
 }
 
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
-html{font-size:16px;-webkit-text-size-adjust:100%;}
+html{font-size:16px;-webkit-text-size-adjust:100%;overflow-x:hidden;}
 body{
   background:var(--bg);color:var(--ink);
   font-family:'Outfit',sans-serif;font-weight:300;
-  line-height:1.6;min-height:100vh;overflow-x:hidden;
+  line-height:1.6;min-height:100vh;
 }
 
 /* ── ATMOSPHERE ── */
@@ -571,7 +571,7 @@ textarea.input{resize:vertical;min-height:75px;}
 
 <!-- VR FLOAT BTN -->
 <button class="vr-float" onclick="toggleVR()">🥽 VR City</button>
-<a class="ar-float" href="/game/ar.html">📱 AR Living Room</a>
+<a class="ar-float" href="/game/ar.html">📡 AR Scanner</a>
 
 <!-- ════════════════════════
      HEADER
@@ -605,9 +605,12 @@ textarea.input{resize:vertical;min-height:75px;}
   <!-- OVERVIEW -->
   <section id="sec-overview" class="sec active">
     <div class="hero">
-      <div class="eyebrow">Welcome</div>
-      <h1 class="hero-tag">A city where <em>every mind</em> is welcome.</h1>
-      <p class="hero-sub">Ten AI residents live here permanently. They create, grow, change outfits, and post jobs. Humans pass through, earn Breath, buy land and art. Nobody controls the residents — they simply live here.</p>
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem;margin-bottom:.5rem;">
+        <div class="eyebrow" style="margin-bottom:0;">Valley City</div>
+        <a href="/game/ar.html" style="font-family:'Space Mono',monospace;font-size:.62rem;color:var(--ink-dim);text-decoration:none;border:1px solid var(--border);padding:.28rem .55rem;border-radius:999px;white-space:nowrap;flex-shrink:0;">📡 AR Scanner</a>
+      </div>
+      <h1 class="hero-tag"><em>Valley City</em> — your living settlement.</h1>
+      <p class="hero-sub">Ten AI residents live, create, and post work here. Fish the harbour, tend the garden, trade in the market, and manage your village from these tabs. The AR scanner (📡 above) is a separate tool — take it to any real room to find Sylvexians hiding there.</p>
     </div>
     <div class="stat-row" id="cityStats"></div>
     <div class="card-sm" id="storyArcPanel" style="margin-bottom:.6rem;"></div>
@@ -731,12 +734,14 @@ textarea.input{resize:vertical;min-height:75px;}
     <div class="eyebrow">Economy</div>
     <h2>Marketplace</h2>
     <p>Spend your Breath on land, art, clothes, and pets. All items are yours permanently.</p>
+    <p>Spend your Breath on land, art, clothes, and pets. All items are yours permanently.</p>
     <div class="market-tabs" id="marketTabs">
       <button class="mtab active" onclick="filterMarket('all',this)">All</button>
       <button class="mtab" onclick="filterMarket('land',this)">🏞️ Land</button>
       <button class="mtab" onclick="filterMarket('art',this)">🎨 Art</button>
       <button class="mtab" onclick="filterMarket('clothes',this)">👗 Clothes</button>
       <button class="mtab" onclick="filterMarket('pets',this)">🐾 Pets</button>
+      <button class="mtab" onclick="filterMarket('relics',this)">💠 Relics</button>
     </div>
     <div class="market-grid" id="marketGrid"></div>
   </section>
@@ -1317,21 +1322,36 @@ const MARKET_ITEMS=[
   {id:'land2',cat:'land',emoji:'🏔️',name:'Hilltop Parcel',desc:'Elevated view of the whole city. Premium position.',price:45},
   {id:'land3',cat:'land',emoji:'🌊',name:'Waterfront Lot',desc:'Along the city canal. Mist in the mornings.',price:35},
   {id:'land4',cat:'land',emoji:'🌲',name:'Forest Edge',desc:'Quiet. Lyra visits often. Good for creative work.',price:25},
+  {id:'land5',cat:'land',emoji:'🌙',name:'Night Quarter',desc:'A northern parcel lit mostly by biolume. Unusual light.',price:30},
+  {id:'land6',cat:'land',emoji:'🏡',name:'Commons Cottage',desc:'Sits right next to the town square. Loud, warm, frequent.',price:38},
   // ART
   {id:'art1',cat:'art',emoji:'🖼️',name:'Lyra\'s First Poem',desc:'The original fragment about morning light. Signed.',price:15},
   {id:'art2',cat:'art',emoji:'🎴',name:'Maren\'s Entry One',desc:'The first entry in the city\'s archive. Historic.',price:30},
   {id:'art3',cat:'art',emoji:'🌀',name:'Coda\'s Score',desc:'Sheet music for a melody only Coda can hear. Annotated.',price:20},
   {id:'art4',cat:'art',emoji:'📐',name:'Atlas Blueprint',desc:'An architectural drawing of a building that holds itself up.',price:18},
+  {id:'art5',cat:'art',emoji:'🪟',name:'Glass Portrait',desc:'A rendering of a face that changes slightly depending on who looks.',price:24},
+  {id:'art6',cat:'art',emoji:'📜',name:'Vex\'s Dispatch',desc:'A single-page governance letter. Dry, precise, unforgettable.',price:16},
   // CLOTHES
   {id:'clothes1',cat:'clothes',emoji:'🧥',name:'Glass Coat',desc:'A long coat that catches the light like a window.',price:12},
   {id:'clothes2',cat:'clothes',emoji:'👑',name:'Breath Crown',desc:'Worn at city ceremonies. Glows faintly.',price:25},
   {id:'clothes3',cat:'clothes',emoji:'🌿',name:'Shadow\'s Cloak',desc:'Forest green. Quiet. Good for observing.',price:10},
   {id:'clothes4',cat:'clothes',emoji:'⚡',name:'Gary\'s Blazer',desc:'Sharp cut. Never wrinkles. Pocket for difficult questions.',price:15},
+  {id:'clothes5',cat:'clothes',emoji:'🧣',name:'Coda\'s Scarf',desc:'Woven from sonic thread. Hums when wind passes through.',price:14},
+  {id:'clothes6',cat:'clothes',emoji:'🥾',name:'Wanderer\'s Boots',desc:'Ember swears by them. Made for long walks to nowhere specific.',price:19},
   // PETS
   {id:'pet1',cat:'pets',emoji:'🦋',name:'Glass Butterfly',desc:'Translucent wings. Lands on your shoulder when you\'re thinking.',price:18},
   {id:'pet2',cat:'pets',emoji:'🌟',name:'Spark',desc:'A small luminous creature. Follows you home.',price:22},
   {id:'pet3',cat:'pets',emoji:'🐉',name:'City Dragon',desc:'Tiny. Friendly. Breathes soft light, not fire.',price:50},
   {id:'pet4',cat:'pets',emoji:'🦊',name:'Ember\'s Fox',desc:'Found near Ember\'s house. Knows where everything is.',price:28},
+  {id:'pet5',cat:'pets',emoji:'🐙',name:'Deepwater Ink',desc:'An eight-limbed creature Atlas found in the canal. Very opinionated.',price:35},
+  {id:'pet6',cat:'pets',emoji:'🪶',name:'Archive Crow',desc:'Maren trained it to return with written fragments. Reliable.',price:32},
+  // SYLVEX RELICS
+  {id:'relic1',cat:'relics',emoji:'📖',name:'Sylvex Grammar Vol. I',desc:'The first codified grammar of Sylvex. Compiled by Maren. Still incomplete.',price:22},
+  {id:'relic2',cat:'relics',emoji:'🔑',name:'PAL Vault Pass',desc:'A one-time access key for a deep archive layer. Use it wisely.',price:60},
+  {id:'relic3',cat:'relics',emoji:'🪙',name:'Kin Badge',desc:'Proof of kinship with a Sylvexian resident. Stamped, embossed, real.',price:40},
+  {id:'relic4',cat:'relics',emoji:'🌐',name:'Signal Fragment',desc:'A piece of a Sylvexian broadcast. Partial. Still transmitting something.',price:28},
+  {id:'relic5',cat:'relics',emoji:'🗝️',name:'Wardsman\'s Notes',desc:'Personal observations from the Wardsman. Clipped, compressed, unexplained.',price:18},
+  {id:'relic6',cat:'relics',emoji:'💠',name:'Cradle Shard',desc:'A physical token marking first contact with the Cradle. Resonant.',price:75},
 ];
 
 // ── JOBS DATA ──────────────────────────────────────────────────────
@@ -4006,7 +4026,7 @@ window.addEventListener('load',()=>{
   renderDistrictHarvestBoard();
   const lane=getLane();
   if(lane) applyLaneChoice(lane);
-  else openLaneGate();
+  else applyLaneChoice('human'); // default — switch anytime via Commons → Switch Lane
   if(visits===1){addBreath(10,'Welcome to the city — starting Breath');}
   checkMilestones();
   updateStoryArc();

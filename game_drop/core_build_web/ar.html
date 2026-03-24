@@ -121,12 +121,12 @@
       <button id="fullscreenBtn" class="btn">Fullscreen</button>
       <button id="collectionBtn" class="btn">📖 Sanctuary</button>
       <button id="teamBtn" class="btn">👥 Team</button>
-      <button id="placeCityBtn" class="btn">Place City Here</button>
-      <button id="relocateBaseBtn" class="btn utility">Relocate Base</button>
-      <button id="growBtn" class="btn ok">Grow City</button>
-      <button id="buildPlannerBtn" class="btn utility">🏗 Build Planner</button>
-      <button id="saveInstanceBtn" class="btn utility">Save Instance</button>
-      <button id="loadInstanceBtn" class="btn utility">Load Instance</button>
+      <button id="placeCityBtn" class="btn" style="display:none">Place City Here</button>
+      <button id="relocateBaseBtn" class="btn utility" style="display:none">Relocate Base</button>
+      <button id="growBtn" class="btn ok" style="display:none">Grow City</button>
+      <button id="buildPlannerBtn" class="btn utility" style="display:none">🏗 Build Planner</button>
+      <button id="saveInstanceBtn" class="btn utility">💾 Save</button>
+      <button id="loadInstanceBtn" class="btn utility">📂 Load</button>
       <div id="hudTools">
         <label for="layoutModeSelect">HUD</label>
         <select id="layoutModeSelect">
@@ -985,29 +985,22 @@
     function updateModeUi(){
       enterArBtn.textContent = gameMode === 'expedition' ? 'Return Home' : 'Scanner Expedition';
       scanBtn.textContent = gameMode === 'expedition' ? 'Scan' : 'Enter AR';
-      const showHome = gameMode === 'home' && !scene.is('ar-mode') && !goFindStartInProgress;
-      if(placeCityBtn) placeCityBtn.style.display = showHome ? 'none' : '';
-      if(relocateBaseBtn) relocateBaseBtn.style.display = showHome ? 'none' : '';
-      if(buildPlannerBtn) buildPlannerBtn.style.display = showHome ? '' : 'none';
-      if(growBtn){
-        growBtn.textContent = showHome ? 'Scout in AR' : 'Grow City';
-      }
-      if(!showHome && buildModal) buildModal.classList.remove('active');
-      setEntityVisible(cityBaseDisk, showHome);
-      setEntityVisible(cityBaseRing, showHome);
-      setEntityVisible(valleyLayer, showHome);
-      setEntityVisible(buildingLayer, showHome);
-      setEntityVisible(propLayer, showHome);
-      setEntityVisible(workSiteLayer, showHome);
-      setEntityVisible(resourceLayer, showHome);
-      setEntityVisible(advancementMarkerLayer, showHome);
-      setEntityVisible(expeditionResourceLayer, !showHome);
-      setEntityVisible(expeditionSiteLayer, !showHome);
+      // Village lives in main game page — city anchor always hidden here
+      setEntityVisible(cityBaseDisk, false);
+      setEntityVisible(cityBaseRing, false);
+      setEntityVisible(valleyLayer, false);
+      setEntityVisible(buildingLayer, false);
+      setEntityVisible(propLayer, false);
+      setEntityVisible(workSiteLayer, false);
+      setEntityVisible(resourceLayer, false);
+      setEntityVisible(advancementMarkerLayer, false);
+      setEntityVisible(expeditionResourceLayer, gameMode === 'expedition');
+      setEntityVisible(expeditionSiteLayer, gameMode === 'expedition');
       syncBuddyVisibility();
       if(modeBadgeEl){
         modeBadgeEl.classList.toggle('home', gameMode === 'home');
         modeBadgeEl.classList.toggle('expedition', gameMode === 'expedition');
-        modeBadgeEl.textContent = gameMode === 'home' ? '🏞 HOME VALLEY' : '📡 EXPEDITION';
+        modeBadgeEl.textContent = gameMode === 'home' ? '📡 SCANNER READY' : '📡 EXPEDITION';
       }
       if(typeof joy !== 'undefined'){
         const showJoystick = gameMode === 'expedition' && scene.is('ar-mode');
@@ -2997,11 +2990,35 @@
     }
 
     async function saveInstanceToFile(){
+      function askPassphrase(title){
+        return new Promise((resolve)=>{
+          const modal = document.getElementById('passphraseModal');
+          document.getElementById('passphraseTitle').textContent = title;
+          const input = document.getElementById('passphraseInput');
+          input.value = '';
+          modal.style.display = 'flex';
+          setTimeout(()=>input.focus(), 80);
+          function finish(val){
+            modal.style.display = 'none';
+            document.getElementById('passConfirmBtn').removeEventListener('click', onConfirm);
+            document.getElementById('passCancelBtn').removeEventListener('click', onCancel);
+            input.removeEventListener('keydown', onKey);
+            resolve(val || null);
+          }
+          function onConfirm(){ finish(input.value); }
+          function onCancel(){ finish(null); }
+          function onKey(e){ if(e.key==='Enter') onConfirm(); else if(e.key==='Escape') onCancel(); }
+          document.getElementById('passConfirmBtn').addEventListener('click', onConfirm);
+          document.getElementById('passCancelBtn').addEventListener('click', onCancel);
+          input.addEventListener('keydown', onKey);
+        });
+      }
+
       if(!window.crypto?.subtle){
         notify('Secure save unavailable in this browser (Web Crypto not supported).');
         return;
       }
-      const passphrase = prompt('Create a save passphrase (needed to load this file):');
+      const passphrase = await askPassphrase('Create a save passphrase for this instance:');
       if(!passphrase) return;
 
       const snapshot = createGameSnapshot();
@@ -3042,7 +3059,7 @@
         const text = await file.text();
         const payload = JSON.parse(text);
         if(payload.format !== 'sylvexian-save') throw new Error('Unknown save format.');
-        const passphrase = prompt('Enter save passphrase:');
+        const passphrase = await askPassphrase('Enter your save passphrase:');
         if(!passphrase) return;
 
         const salt = fromBase64(payload.salt);
@@ -3420,14 +3437,13 @@
       gameMode = 'home';
       stopCameraBackground();
       seedCity();
-      setHomeCameraView();
       updateModeUi();
       if(primed){
         notify('AR mapping access granted at startup. Scanner Expedition is ready.');
       } else {
         notify('AR mapping permission not granted yet. You can retry from Scanner Expedition.');
       }
-      showSpeech('Home Valley', 'Rebuild your valley from ruins. Use Scanner Expedition to switch into AR and search for Sylvexians + rubble loot.');
+      showSpeech('📡 Scanner Ready', 'Tap Scanner Expedition to enter AR and find Sylvexians. Your village is in the main game page.');
     });
 
     startWithoutCameraBtn.addEventListener('click', async ()=>{
@@ -3435,18 +3451,16 @@
       const primed = await primeArMappingPermission();
       introOverlay.style.display = 'none';
       cityAnchor.object3D.position.set(0, 0, 0);
-      cityAnchor.setAttribute('visible', true);
       gameMode = 'home';
       stopCameraBackground();
       seedCity();
-      setHomeCameraView();
       updateModeUi();
       if(primed){
         notify('AR mapping access granted at startup. Scanner Expedition is ready.');
       } else {
         notify('AR mapping permission not granted yet. You can retry from Scanner Expedition.');
       }
-      showSpeech('Home Valley', 'Rebuild your town first, then use Scanner Expedition for AR discovery runs.');
+      showSpeech('📡 Scanner Ready', 'Tap Scanner Expedition to enter AR and search for Sylvexians. Village is in the main game page.');
     });
 
     setCameraBackgroundVisible(false);
@@ -3457,7 +3471,7 @@
     //  this handler fires reliably on touchend and bypasses that issue)
     document.addEventListener('touchend', (e)=>{
       if(e.target.closest('#uiTop,#status,#speech,#hint,#joystickWrap,#collectionModal,#teamModal,#introOverlay,#scannerTutorial')) return;
-      if(!cityAnchor.getAttribute('visible')) return;
+      if(introOverlay && introOverlay.style.display !== 'none') return;
       const touch = e.changedTouches[0];
       if(!touch) return;
       const x = (touch.clientX / window.innerWidth) * 2 - 1;
@@ -3481,5 +3495,19 @@
 
     requestAnimationFrame(tick);
   </script>
+
+  <!-- Passphrase modal — replaces blocking prompt() for save/load -->
+  <div id="passphraseModal" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.8);align-items:center;justify-content:center;">
+    <div style="background:#0a1020;border:1px solid rgba(127,168,207,.5);border-radius:14px;padding:1.2rem;max-width:330px;width:90%;font-family:sans-serif;box-sizing:border-box;">
+      <p id="passphraseTitle" style="margin:0 0 .75rem;color:#d7e7f8;font-size:.88rem;line-height:1.45;"></p>
+      <input id="passphraseInput" type="password" placeholder="Passphrase…" autocomplete="off"
+        style="width:100%;padding:.55rem .7rem;border:1px solid rgba(127,168,207,.4);border-radius:8px;background:#070b14;color:#d7e7f8;font-size:.87rem;margin-bottom:.8rem;box-sizing:border-box;">
+      <div style="display:flex;gap:.5rem;justify-content:flex-end;">
+        <button id="passCancelBtn" style="padding:.44rem .8rem;border:1px solid rgba(127,168,207,.4);border-radius:8px;background:transparent;color:#93b4cc;font-size:.8rem;cursor:pointer;">Cancel</button>
+        <button id="passConfirmBtn" style="padding:.44rem .9rem;border:1px solid #7c60e8;border-radius:8px;background:rgba(124,96,232,.22);color:#d7e7f8;font-size:.8rem;cursor:pointer;">Confirm</button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>
