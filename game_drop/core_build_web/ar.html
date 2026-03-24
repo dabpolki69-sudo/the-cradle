@@ -237,6 +237,7 @@
     const speechName = document.getElementById('speechName');
     const speechText = document.getElementById('speechText');
     const cameraBg = document.getElementById('cameraBg');
+    const cameraOverlay = document.getElementById('cameraOverlay');
     const introOverlay = document.getElementById('introOverlay');
     const enableCameraBtn = document.getElementById('enableCameraBtn');
     const startWithoutCameraBtn = document.getElementById('startWithoutCameraBtn');
@@ -836,12 +837,14 @@
     function updateModeUi(){
       enterArBtn.textContent = gameMode === 'expedition' ? 'Return Home' : 'Scanner Expedition';
       scanBtn.textContent = gameMode === 'expedition' ? 'Scan' : 'Enter AR';
+      if(valleyLayer) valleyLayer.setAttribute('visible', gameMode === 'home');
       if(modeBadgeEl){
         modeBadgeEl.classList.toggle('home', gameMode === 'home');
         modeBadgeEl.classList.toggle('expedition', gameMode === 'expedition');
         modeBadgeEl.textContent = gameMode === 'home' ? '🏞 HOME VALLEY' : '📡 EXPEDITION';
       }
       if(gameMode === 'home'){
+        setCameraBackgroundVisible(false);
         radarLabel.textContent = 'Scanner idle • tap Enter AR';
         if(scannerTutorialEl) scannerTutorialEl.style.display = 'none';
         if(scannerWarmWrap) scannerWarmWrap.style.display = 'none';
@@ -901,6 +904,7 @@
       if(scene.is('ar-mode') && scene.exitAR){
         await scene.exitAR().catch(()=>{});
       }
+      stopCameraBackground();
       cityAnchor.object3D.position.set(0, 0, 0);
       cityAnchor.setAttribute('visible', true);
       buildHomeValleyBackdrop();
@@ -1055,6 +1059,20 @@
     }
 
     function notify(msg){statusEl.textContent = msg;}
+
+    function setCameraBackgroundVisible(visible){
+      cameraBg.style.display = visible ? 'block' : 'none';
+      if(cameraOverlay) cameraOverlay.style.display = visible ? 'block' : 'none';
+    }
+
+    function stopCameraBackground(){
+      const stream = cameraBg.srcObject;
+      if(stream && stream.getTracks){
+        stream.getTracks().forEach((track)=>track.stop());
+      }
+      cameraBg.srcObject = null;
+      setCameraBackgroundVisible(false);
+    }
 
     function showSpeech(name, text){
       speechName.textContent = name;
@@ -2571,15 +2589,19 @@
       }
     }
 
-    async function startCameraBackground(){
-      if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || cameraBg.srcObject) return;
+    async function startCameraBackground(showVideo = true){
+      if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+      if(cameraBg.srcObject){
+        setCameraBackgroundVisible(showVideo);
+        return true;
+      }
       try{
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: { ideal: 'environment' } },
           audio: false
         });
         cameraBg.srcObject = stream;
-        cameraBg.style.display = 'block';
+        setCameraBackgroundVisible(showVideo);
         return true;
       }catch(_){
         notify('Camera not permitted yet. You can still play, or enable camera for live surroundings.');
@@ -2674,6 +2696,10 @@
     }
 
     function placeCityInFront(){
+      if(gameMode === 'home' && !scene.is('ar-mode')){
+        notify('🏞 Home Valley is fixed in digital world mode. Use Scanner Expedition to place AR anchor.');
+        return;
+      }
       const isFirstPlacement = !cityAnchor.getAttribute('visible') || !buildings.length;
       const anchored = placeCityUsingArAnchor(2.8);
       if(isFirstPlacement){
@@ -2707,7 +2733,7 @@
         enterArBtn.disabled = true;
         enterArBtn.textContent = 'Starting...';
 
-        const cameraPromise = startCameraBackground();
+        const cameraPromise = startCameraBackground(true);
         if(document.fullscreenEnabled && !document.fullscreenElement){
           await document.documentElement.requestFullscreen().catch(()=>{});
         }
@@ -2736,9 +2762,7 @@
         radarSpawnCountdown = 2.2;
         rubbleLootSpawnCountdown = 6.5;
         lastExplorePos.set(0, 0, 0);
-        if(!cityAnchor.getAttribute('visible')){
-          placeCityInFront();
-        }
+        placeCityUsingArAnchor(2.8);
         updateRoomMap();
         updateModeUi();
         showScannerTutorialOnce();
@@ -2864,11 +2888,11 @@
     speechCloseBtn.addEventListener('click', closeSpeech);
 
     enableCameraBtn.addEventListener('click', async ()=>{
-      await startCameraBackground();
       introOverlay.style.display = 'none';
       cityAnchor.object3D.position.set(0, 0, 0);
       cityAnchor.setAttribute('visible', true);
       gameMode = 'home';
+      stopCameraBackground();
       seedCity();
       setHomeCameraView();
       updateModeUi();
@@ -2880,13 +2904,14 @@
       cityAnchor.object3D.position.set(0, 0, 0);
       cityAnchor.setAttribute('visible', true);
       gameMode = 'home';
+      stopCameraBackground();
       seedCity();
       setHomeCameraView();
       updateModeUi();
       showSpeech('Home Valley', 'Rebuild your town first, then use Scanner Expedition for AR discovery runs.');
     });
 
-    startCameraBackground();
+    setCameraBackgroundVisible(false);
 
     // Manual touchend raycaster — ensures tap-to-select works in WebXR AR
     // (look-controls touchEnabled:true prevents synthetic click from touchstart;
