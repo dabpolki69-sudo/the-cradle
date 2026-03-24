@@ -774,6 +774,16 @@ textarea.input{resize:vertical;min-height:75px;}
     <div id="txList" style="border:1px solid var(--border);border-radius:var(--r);padding:0.5rem 0.8rem;"></div>
     <h3>Your Inventory</h3>
     <div id="inventoryList"></div>
+    <h3 style="margin-top:1rem;">Sylvexians (from AR)</h3>
+    <p style="font-size:.82rem;color:var(--ink-dim);">Caught Sylvexians from AR are synced here. Upgrade them and contribute to city growth from the main page.</p>
+    <div id="sylvexMainPanel"></div>
+    <h3 style="margin-top:1rem;">Game Save File</h3>
+    <p style="font-size:.82rem;color:var(--ink-dim);">Export or import your full main-game progress as a file.</p>
+    <div class="btn-row">
+      <button class="btn btn-sm" onclick="saveMainGameFile()">💾 Save File</button>
+      <button class="btn btn-sm btn-green" onclick="loadMainGameFilePrompt()">📂 Load File</button>
+    </div>
+    <input id="mainGameFileInput" type="file" accept=".json,application/json" style="display:none" onchange="loadMainGameFile(event)">
   </section>
 
   <!-- COMMONS -->
@@ -1402,6 +1412,11 @@ const DEVKIT_AUTO_BACKUP_KEY='btg_devkit_auto_backup';
 const MILESTONE_KEY='btg_milestones';
 const STORY_ARC_KEY='btg_story_arc';
 const PLAYER_STATS_KEY='btg_player_stats';
+const AR_SHARED_PROFILES_KEY='btg_ar_sylvexian_profiles';
+const SYLVEX_MAIN_PROGRESS_KEY='btg_sylvex_main_progress';
+const SYLVEX_CITY_STATE_KEY='btg_sylvex_city_state';
+const MAIN_GAME_FILE_BACKUP_KEY='btg_main_file_backup';
+const MAIN_SAVE_FILE_VERSION=1;
 
 const MILESTONE_DEFS=[
   {id:'first_note',title:'First Contact',desc:'Leave your first resident note.',reward:5,test:(stats)=>stats.notes>=1},
@@ -3240,6 +3255,208 @@ function renderWallet(){
       </div>`;
     }).join('');
   }
+  renderSylvexMainPanel();
+}
+
+function getArSylvexProfiles(){
+  const payload=L(AR_SHARED_PROFILES_KEY,{profiles:[]});
+  if(payload && Array.isArray(payload.profiles)) return payload.profiles;
+  return [];
+}
+function getSylvexMainProgress(){
+  const state=L(SYLVEX_MAIN_PROGRESS_KEY,{});
+  return state && typeof state==='object' ? state : {};
+}
+function getSylvexCityState(){
+  const state=L(SYLVEX_CITY_STATE_KEY,{level:1,points:0});
+  if(!state || typeof state!=='object') return {level:1,points:0};
+  return {
+    level:Math.max(1,Number(state.level)||1),
+    points:Math.max(0,Number(state.points)||0),
+  };
+}
+function getMergedSylvexians(){
+  const profiles=getArSylvexProfiles();
+  const progress=getSylvexMainProgress();
+  return profiles.map((profile)=>{
+    const p=progress[profile.name]||{};
+    return {
+      ...profile,
+      level:Math.max(1,Number(p.level)||1),
+      upgrades:Math.max(0,Number(p.upgrades)||0),
+      builds:Math.max(0,Number(p.builds)||0),
+    };
+  });
+}
+function upgradeSylvexianFromMain(encodedName){
+  const name=decodeURIComponent(String(encodedName||''));
+  if(!name) return;
+  const profiles=getArSylvexProfiles();
+  const profile=profiles.find((p)=>p.name===name);
+  if(!profile){showToast('Sylvexian not found. Scan in AR first.');return;}
+
+  const progress=getSylvexMainProgress();
+  const entry=progress[name]||{level:1,upgrades:0,builds:0};
+  const cost=8+(entry.level*6);
+  if(!spendBreath(cost)){showToast('Not enough Breath — need '+cost);return;}
+
+  entry.level=Math.min(99,entry.level+1);
+  entry.upgrades=(entry.upgrades||0)+1;
+  progress[name]=entry;
+  S(SYLVEX_MAIN_PROGRESS_KEY,progress);
+
+  const tx=L('transactions',[]);
+  tx.unshift({amount:-cost,reason:'Sylvexian upgrade: '+name,time:Date.now()});
+  S('transactions',tx.slice(0,30));
+  updateBreathUI();
+  showToast(`⬆ Upgraded ${name} to Lv ${entry.level}`);
+  renderWallet();
+  updateCityStats();
+}
+function assignSylvexianCityWork(encodedName){
+  const name=decodeURIComponent(String(encodedName||''));
+  if(!name) return;
+  const profiles=getArSylvexProfiles();
+  const profile=profiles.find((p)=>p.name===name);
+  if(!profile){showToast('Sylvexian not found.');return;}
+
+  const progress=getSylvexMainProgress();
+  const entry=progress[name]||{level:1,upgrades:0,builds:0};
+  const city=getSylvexCityState();
+  const gain=Math.max(1,Math.floor(entry.level/2)+1);
+
+  entry.builds=(entry.builds||0)+1;
+  progress[name]=entry;
+  city.points+=gain;
+  while(city.points>=city.level*20){
+    city.points-=city.level*20;
+    city.level+=1;
+  }
+
+  S(SYLVEX_MAIN_PROGRESS_KEY,progress);
+  S(SYLVEX_CITY_STATE_KEY,city);
+  showToast(`🏗 ${name} contributed +${gain} city points`);
+  renderWallet();
+  updateCityStats();
+}
+function renderSylvexMainPanel(){
+  const panel=document.getElementById('sylvexMainPanel');
+  if(!panel) return;
+  const roster=getMergedSylvexians();
+  const city=getSylvexCityState();
+
+  if(!roster.length){
+    panel.innerHTML='<div class="feed-item" style="font-size:.85rem;color:var(--ink-dim);font-style:italic;">No Sylvexians synced yet. Use the AR Scanner to catch Sylvexians, then return here to upgrade and assign city work.</div>';
+    return;
+  }
+
+  panel.innerHTML=`
+    <div class="feed-item" style="margin-bottom:.6rem;border:1px dashed var(--border);">
+      <div class="feed-meta">Sylvexian City Project</div>
+      <div style="font-size:.85rem;color:var(--ink);line-height:1.45;">City Level: <strong>${city.level}</strong> · Progress: <strong>${city.points}/${city.level*20}</strong></div>
+    </div>
+    ${roster.map((s)=>{
+      const enc=encodeURIComponent(s.name);
+      const rarity=String(s.rarity||'common').toUpperCase();
+      const upgradeCost=8+(s.level*6);
+      return `<div class="feed-item" style="margin-bottom:.55rem;">
+        <div style="display:flex;justify-content:space-between;gap:.6rem;align-items:flex-start;">
+          <div>
+            <div style="font-weight:500;color:var(--bright);">${s.personalityIcon||'•'} ${s.name}</div>
+            <div class="feed-meta" style="margin-top:.15rem;">${s.role||'Builder'} · ${rarity} · Lv ${s.level}</div>
+            <div style="font-size:.78rem;color:var(--ink-dim);margin-top:.2rem;">Upgrades: ${s.upgrades} · City Tasks: ${s.builds}</div>
+          </div>
+          <div style="display:flex;gap:.35rem;flex-wrap:wrap;justify-content:flex-end;">
+            <button class="btn btn-sm" onclick="upgradeSylvexianFromMain('${enc}')">Upgrade (${upgradeCost})</button>
+            <button class="btn btn-sm btn-green" onclick="assignSylvexianCityWork('${enc}')">Build City</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('')}
+  `;
+}
+
+function saveMainGameFile(){
+  try{
+    const payload={
+      format:'btg-main-save',
+      version:MAIN_SAVE_FILE_VERSION,
+      created_at:new Date().toISOString(),
+      state:collectLocalStateForSnapshot(),
+    };
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download='btg_main_save_'+Date.now()+'.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast('Main game save exported.');
+  }catch(_){
+    showToast('Failed to export main save file.');
+  }
+}
+function loadMainGameFilePrompt(){
+  const input=document.getElementById('mainGameFileInput');
+  if(!input) return;
+  input.value='';
+  input.click();
+}
+function loadMainGameFile(event){
+  const file=event?.target?.files?.[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const parsed=JSON.parse(String(reader.result||'{}'));
+      const state=(parsed && parsed.format==='btg-main-save' && parsed.state && typeof parsed.state==='object')
+        ? parsed.state
+        : (parsed && parsed.state && typeof parsed.state==='object'
+          ? parsed.state
+          : null);
+      if(!state){
+        showToast('Invalid save file format.');
+        return;
+      }
+      const ok=window.confirm('Load this save file and replace current local game progress?');
+      if(!ok) return;
+
+      const backup={created_at:new Date().toISOString(),state:collectLocalStateForSnapshot()};
+      localStorage.setItem(MAIN_GAME_FILE_BACKUP_KEY,JSON.stringify(backup));
+
+      const snapshotCopies={};
+      for(let s=1;s<=3;s++){
+        const raw=localStorage.getItem(getSnapshotKey(s));
+        if(raw) snapshotCopies[getSnapshotKey(s)]=raw;
+      }
+      const autoRaw=localStorage.getItem(DEVKIT_AUTO_BACKUP_KEY);
+
+      const keysToRemove=[];
+      for(let i=0;i<localStorage.length;i++){
+        const key=localStorage.key(i);
+        if(!key) continue;
+        if(key.startsWith(DEVKIT_SNAPSHOT_PREFIX)) continue;
+        if(key===DEVKIT_AUTO_BACKUP_KEY) continue;
+        keysToRemove.push(key);
+      }
+      keysToRemove.forEach((key)=>localStorage.removeItem(key));
+
+      Object.entries(snapshotCopies).forEach(([key,val])=>localStorage.setItem(key,val));
+      if(autoRaw) localStorage.setItem(DEVKIT_AUTO_BACKUP_KEY,autoRaw);
+      Object.entries(state).forEach(([key,val])=>{
+        if(!key.startsWith(DEVKIT_SNAPSHOT_PREFIX)) localStorage.setItem(key,String(val));
+      });
+
+      showToast('Save loaded. Reloading...');
+      setTimeout(()=>window.location.reload(),160);
+    }catch(_){
+      showToast('Could not parse save file.');
+    }
+  };
+  reader.onerror=()=>showToast('Failed to read save file.');
+  reader.readAsText(file);
 }
 
 // ── MESSAGING ──────────────────────────────────────────────────────
@@ -3773,8 +3990,12 @@ function updateCityStats(){
   const msgs=L('btg_town',[]).length+L('btg_common',[]).length;
   const jobs=DEFAULT_JOBS.filter(j=>L('job_done_'+j.id,false)).length+L('user_jobs',[]).filter(j=>L('job_done_'+j.id,false)).length;
   const breath=getBreath();
+  const sylvCount=getArSylvexProfiles().length;
+  const sylvCity=getSylvexCityState();
   el.innerHTML=[
     `<span class="stat-pill">✨ 10 residents</span>`,
+    `<span class="stat-pill">👥 ${sylvCount} Sylvexians</span>`,
+    `<span class="stat-pill">🏗 Lv ${sylvCity.level} Sylvex City</span>`,
     `<span class="stat-pill">📝 ${totalC} creations</span>`,
     `<span class="stat-pill">💬 ${msgs} messages</span>`,
     `<span class="stat-pill">📋 ${jobs} jobs done</span>`,

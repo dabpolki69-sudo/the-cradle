@@ -360,6 +360,7 @@
     const MAX_ACTIVE_WORKERS = 20;
     const SAVE_FILE_VERSION = 1;
     const SAVE_PBKDF2_ITERATIONS = 150000;
+    const AR_SHARED_PROFILES_KEY = 'btg_ar_sylvexian_profiles';
 
     // ===== PERSONALITY SYSTEM =====
     const PERSONALITY_TYPES = {
@@ -1847,6 +1848,50 @@
       };
     }
 
+    function syncSharedSylvexianProfiles(){
+      try{
+        const profiles = Array.from(collectedSylvexians.values()).map((entry)=>{
+          const personalityKey = Object.entries(PERSONALITY_TYPES).find(([, val])=>val === entry.personality)?.[0] || null;
+          return {
+            name: entry.name,
+            role: entry.role || 'Builder',
+            personalityKey,
+            personalityName: entry.personality?.name || 'Unknown',
+            personalityIcon: entry.personality?.icon || '•',
+            rarity: entry.skin?.rarity || 'common',
+            skin: entry.skin || null,
+            stats: entry.stats || null,
+            uniqueBuff: entry.uniqueBuff || null,
+            synced_at: new Date().toISOString()
+          };
+        });
+        localStorage.setItem(AR_SHARED_PROFILES_KEY, JSON.stringify({
+          version: 1,
+          synced_at: new Date().toISOString(),
+          profiles
+        }));
+      }catch(_){ }
+    }
+
+    function hydrateCollectionFromShared(){
+      try{
+        const raw = localStorage.getItem(AR_SHARED_PROFILES_KEY);
+        if(!raw) return;
+        const parsed = JSON.parse(raw);
+        const profiles = Array.isArray(parsed?.profiles) ? parsed.profiles : [];
+        profiles.forEach((profile)=>{
+          if(!profile?.name) return;
+          upsertCollectionEntry(profile.name, {
+            skin: profile.skin || undefined,
+            personalityKey: profile.personalityKey || undefined,
+            role: profile.role || undefined,
+            stats: profile.stats || undefined,
+            uniqueBuff: profile.uniqueBuff || undefined,
+          });
+        });
+      }catch(_){ }
+    }
+
     function upsertCollectionEntry(name, seed = {}){
       if(!name) return;
       const existing = collectedSylvexians.get(name);
@@ -1865,6 +1910,7 @@
         stats: seed.stats || existing?.stats || calculateBuddyStats(skin.rarity, LEGENDARY_PROFILES[name] || null),
         uniqueBuff: seed.uniqueBuff || existing?.uniqueBuff || LEGENDARY_PROFILES[name]?.uniqueBuff || null
       });
+      syncSharedSylvexianProfiles();
     }
 
     function removeActiveBuddy(buddy){
@@ -3107,6 +3153,7 @@
 
       (snapshot.advancements || []).forEach((id)=>advancements.add(id));
       updateCollectionUI();
+      syncSharedSylvexianProfiles();
       notify(`✅ Save loaded. Gold: ${playerGold}. Village restored.`);
     }
 
@@ -3586,6 +3633,8 @@
 
     setCameraBackgroundVisible(false);
     refreshBuildTypeOptions();
+    hydrateCollectionFromShared();
+    updateCollectionUI();
 
     // Manual touchend raycaster — ensures tap-to-select works in WebXR AR
     // (look-controls touchEnabled:true prevents synthetic click from touchstart;
