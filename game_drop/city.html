@@ -46,6 +46,7 @@ body{
   line-height:1.6;min-height:100vh;
   overflow-y:auto;
   -webkit-overflow-scrolling:touch;
+  touch-action:pan-y;
 }
 
 /* ── ATMOSPHERE ── */
@@ -1578,8 +1579,16 @@ function renderInhabitants(){
   });
 }
 
+function ensureScrollUnlocked(){
+  document.documentElement.style.overflowY='auto';
+  document.body.style.overflowY='auto';
+  document.body.style.touchAction='pan-y';
+  document.body.style.position='static';
+}
+
 // ── STARTUP ────────────────────────────────────────────────────────
 window.addEventListener('load',()=>{
+  ensureScrollUnlocked();
   const visits=L('visits',0)+1;S('visits',visits);
   const role=L('btg_role','');
   if(role){userRole=role;const el=document.getElementById('roleDisplay');if(el)el.textContent='— '+role;}

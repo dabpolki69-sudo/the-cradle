@@ -53,6 +53,7 @@ body{
   line-height:1.6;min-height:100vh;
   overflow-y:auto;
   -webkit-overflow-scrolling:touch;
+  touch-action:pan-y;
 }
 
 /* ── ATMOSPHERE ── */
@@ -532,8 +533,9 @@ textarea.input{resize:vertical;min-height:75px;}
   position:fixed;inset:0;z-index:9998;display:none;
   background:rgba(5,9,15,0.9);backdrop-filter:blur(8px);
   align-items:center;justify-content:center;padding:1rem;
+  pointer-events:none;
 }
-.lane-gate.open{display:flex;}
+.lane-gate.open{display:flex;pointer-events:auto;}
 .lane-gate-card{
   width:min(560px,100%);
   background:var(--card2);border:1px solid var(--border2);border-radius:var(--r);
@@ -4104,6 +4106,15 @@ function initVisuals(){
   }
 }
 
+function ensureScrollUnlocked(){
+  document.documentElement.style.overflowY='auto';
+  document.body.style.overflowY='auto';
+  document.body.style.touchAction='pan-y';
+  document.body.style.position='static';
+  const gate=document.getElementById('laneGate');
+  if(gate && !gate.classList.contains('open')) gate.style.pointerEvents='none';
+}
+
 // ── OUTFIT AUTO-SHIFT ──────────────────────────────────────────────
 function shiftOutfit(){
   const r=RESIDENTS[Math.floor(Math.random()*RESIDENTS.length)];
@@ -4360,6 +4371,7 @@ function renderInhabitants(){
 
 // ── STARTUP ────────────────────────────────────────────────────────
 window.addEventListener('load',()=>{
+  ensureScrollUnlocked();
   bindAutoTrailMovementCancel();
   setupVrTouchControls();
   applyVrQualityProfile();
