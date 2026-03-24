@@ -416,6 +416,21 @@ textarea.input{resize:vertical;min-height:75px;}
 }
 .toast.show{opacity:1;}
 
+@media(max-width:700px){
+  .btn,.mtab,.tab{min-height:44px;}
+  .btn-sm{min-height:40px;}
+  .tabs,.market-tabs{
+    flex-wrap:nowrap;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior-x:contain;
+    scroll-snap-type:x proximity;
+    scrollbar-width:none;
+  }
+  .tabs::-webkit-scrollbar,.market-tabs::-webkit-scrollbar{display:none;}
+  .tab,.mtab{flex:0 0 auto;scroll-snap-align:start;}
+}
+
 @media(min-width:600px){
   .market-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));}
   .wardrobe-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));}

@@ -409,6 +409,21 @@ textarea.input{resize:vertical;min-height:75px;}
   background:rgba(114,212,164,0.1);border:1px solid rgba(114,212,164,0.25);
   color:var(--green);
 }
+
+@media(max-width:700px){
+  .btn,.mtab,.tab{min-height:44px;}
+  .btn-sm{min-height:40px;}
+  .tabs,.market-tabs{
+    flex-wrap:nowrap;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior-x:contain;
+    scroll-snap-type:x proximity;
+    scrollbar-width:none;
+  }
+  .tabs::-webkit-scrollbar,.market-tabs::-webkit-scrollbar{display:none;}
+  .tab,.mtab{flex:0 0 auto;scroll-snap-align:start;}
+}
 .market-owned-badge{
   font-family:'Space Mono',monospace;font-size:0.4rem;
   letter-spacing:0.08em;text-transform:uppercase;color:var(--green);
