@@ -2407,6 +2407,31 @@
         notify('Use Scanner Expedition before scanning for Sylvexians.');
         return;
       }
+
+      const liveReveals = revealHiddenContactsNearViewer(1.9);
+      if(liveReveals > 0){
+        scanCooldownUntil = performance.now() + 500;
+        notify(`📡 Live sweep revealed ${liveReveals} nearby contact${liveReveals > 1 ? 's' : ''}.`);
+        return;
+      }
+
+      const contact = nearestRadarContact();
+      if(contact && contact.hidden){
+        placeBuddyInFrontOfViewer(contact.buddy, 0.95);
+        revealHiddenBuddy(contact.buddy, 'scan');
+        scanCooldownUntil = performance.now() + 700;
+        return;
+      }
+
+      if(contact && !contact.hidden){
+        placeBuddyInFrontOfViewer(contact.buddy, 1.1);
+        if(contact.buddy.el?.object3D) contact.buddy.el.object3D.visible = true;
+        showSpawnIndicator(contact.buddy.el.object3D.position.x, contact.buddy.el.object3D.position.z);
+        notify(`📡 Contact confirmed: ${contact.buddy.name} in vicinity.`);
+        scanCooldownUntil = performance.now() + 700;
+        return;
+      }
+
       const now = performance.now();
       if(now < scanCooldownUntil){
         notify('Radar recharging...');
@@ -2414,13 +2439,6 @@
       }
       scanCooldownUntil = now + 1800;
 
-      const liveReveals = revealHiddenContactsNearViewer(1.9);
-      if(liveReveals > 0){
-        notify(`📡 Live sweep revealed ${liveReveals} nearby contact${liveReveals > 1 ? 's' : ''}.`);
-        return;
-      }
-
-      const contact = nearestRadarContact();
       if(!contact){
         if(beings.length < Math.min(5, MAX_ACTIVE_WORKERS)){
           spawnFromArExploration();
@@ -2430,16 +2448,6 @@
         }
         notify('📡 Scan clear. No hidden Sylvexians nearby.');
         return;
-      }
-      const target = contact.buddy;
-      showSpawnIndicator(target.el.object3D.position.x, target.el.object3D.position.z);
-      if(contact.hidden){
-        placeBuddyInFrontOfViewer(target, 0.95);
-        revealHiddenBuddy(target, 'scan');
-      } else {
-        placeBuddyInFrontOfViewer(target, 1.1);
-        if(target.el?.object3D) target.el.object3D.visible = true;
-        notify(`📡 Contact confirmed: ${target.name} in vicinity.`);
       }
     }
 
