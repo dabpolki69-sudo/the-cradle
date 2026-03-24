@@ -39,6 +39,7 @@
     #joystickKnob{position:absolute;left:40px;top:40px;width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#b8d6ff,#4d74c9);box-shadow:0 0 16px rgba(93,141,255,.45);pointer-events:none}
     #hint{position:fixed;right:12px;bottom:16px;z-index:55;max-width:46vw;padding:10px;border-radius:10px;background:rgba(8,14,26,.82);border:1px solid var(--line);font-size:12px;color:var(--ink2)}
     #radarPanel{position:fixed;right:12px;bottom:86px;z-index:56;width:148px;padding:10px;border-radius:14px;background:rgba(8,14,26,.86);border:1px solid var(--line);backdrop-filter:blur(8px);display:none;flex-direction:column;gap:8px}
+    #radarPanel.ready-ping{animation:scannerReadyPulse .56s ease-out}
     #radarHeader{display:flex;justify-content:space-between;align-items:center;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);font-weight:700}
     #scanBtn{padding:6px 8px;font-size:11px;border-radius:8px}
     #radarScope{position:relative;width:100px;height:100px;margin:0 auto;border-radius:50%;border:1px solid rgba(124,96,232,.34);background:radial-gradient(circle at 50% 50%,rgba(35,64,96,.46),rgba(7,11,20,.94));overflow:hidden}
@@ -54,6 +55,7 @@
     #scannerWarmBar{height:100%;width:0%;background:linear-gradient(90deg,#5ec4d4,#7c60e8);transition:width .16s linear}
     #scannerWarmText{font-size:10px;color:var(--ink2);text-align:center}
     @keyframes radarspin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+    @keyframes scannerReadyPulse{0%{box-shadow:0 0 0 rgba(109,224,178,0);border-color:var(--line)}35%{box-shadow:0 0 24px rgba(109,224,178,.42);border-color:rgba(109,224,178,.75)}100%{box-shadow:0 0 0 rgba(109,224,178,0);border-color:var(--line)}}
     #collectionModal{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100;display:none;overflow-y:auto;backdrop-filter:blur(4px)}
     #collectionModal.active{display:flex;flex-direction:column}
     #collectionHeader{padding:16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
@@ -277,6 +279,7 @@
     let scannerWarmUntil = 0;
     let pendingScannerKick = false;
     let scannerTutorialShown = false;
+    let scannerWarmWasActive = false;
     let goFindStartInProgress = false;
     let radarSpawnInterval = 30;
     let radarSpawnCountdown = 30;
@@ -879,11 +882,21 @@
       }, 9000);
     }
 
+    function triggerScannerReadyPing(){
+      if(!radarPanel) return;
+      radarPanel.classList.remove('ready-ping');
+      void radarPanel.offsetWidth;
+      radarPanel.classList.add('ready-ping');
+      setTimeout(()=>radarPanel.classList.remove('ready-ping'), 640);
+      radarLabel.textContent = 'Scanner ready • tap Scan';
+    }
+
     async function returnHomeFromExpedition(){
       explorationModeActive = false;
       gameMode = 'home';
       pendingScannerKick = false;
       scannerWarmUntil = 0;
+      scannerWarmWasActive = false;
       if(scannerWarmWrap) scannerWarmWrap.style.display = 'none';
       if(scene.is('ar-mode') && scene.exitAR){
         await scene.exitAR().catch(()=>{});
@@ -2054,9 +2067,14 @@
       radarPanel.style.display = isExploringInAr() ? 'flex' : 'none';
       if(!isExploringInAr()) return;
       if(renderScannerWarmup()){
+        scannerWarmWasActive = true;
         radarDot.style.opacity = '0';
         radarLabel.textContent = 'Scanner warming up…';
         return;
+      }
+      if(scannerWarmWasActive){
+        scannerWarmWasActive = false;
+        triggerScannerReadyPing();
       }
       const contact = nearestRadarContact();
       if(!contact || !scene.camera){
