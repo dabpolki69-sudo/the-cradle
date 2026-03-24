@@ -993,39 +993,62 @@
       radarLabel.textContent = 'Scanner ready • tap Scan';
     }
 
+    function placeBuddyInFrontOfViewer(buddy, distance = 1.0){
+      if(!buddy?.el?.object3D || !scene.camera || !cityAnchor?.object3D) return;
+      const camPos = new THREE.Vector3();
+      const camDir = new THREE.Vector3();
+      scene.camera.getWorldPosition(camPos);
+      scene.camera.getWorldDirection(camDir);
+      camDir.y = 0;
+      if(camDir.lengthSq() < 1e-6) camDir.set(0, 0, -1);
+      camDir.normalize();
+      const worldTarget = camPos.clone().add(camDir.multiplyScalar(distance));
+      const localTarget = cityAnchor.object3D.worldToLocal(worldTarget);
+      buddy.el.object3D.position.set(localTarget.x, 0, localTarget.z);
+      buddy.searchAnchor = { x: localTarget.x, z: localTarget.z };
+    }
+
     async function returnHomeFromExpedition(){
       if(modeTransitionInProgress) return;
       modeTransitionInProgress = true;
-      explorationModeActive = false;
-      gameMode = 'home';
-      pendingScannerKick = false;
-      scannerWarmUntil = 0;
-      scannerWarmStartedAt = 0;
-      scannerWarmWasActive = false;
-      if(scannerWarmWrap) scannerWarmWrap.style.display = 'none';
-      if(scene.is('ar-mode') && scene.exitAR){
-        await scene.exitAR().catch(()=>{});
-      }
-      stopCameraBackground();
-      cityAnchor.object3D.position.set(0, 0, 0);
-      cityAnchor.setAttribute('visible', true);
-      for(const buddy of beings){
-        buddy.searchHidden = false;
-        buddy.searchAnchor = null;
-        buddy.hiding = false;
-        buddy.hideProp = null;
-        buddy.hideOffset = null;
-        if(buddy.el?.object3D) buddy.el.object3D.visible = true;
-        if(buddy.workerTask?.site?.expedition){
-          buddy.workerTask = null;
-          setBuddyCargoVisual(buddy, null);
+      try{
+        explorationModeActive = false;
+        gameMode = 'home';
+        pendingScannerKick = false;
+        scannerWarmUntil = 0;
+        scannerWarmStartedAt = 0;
+        scannerWarmWasActive = false;
+        if(scannerWarmWrap) scannerWarmWrap.style.display = 'none';
+        if(scene.is('ar-mode') && scene.exitAR){
+          await Promise.race([
+            scene.exitAR().then(()=>true).catch(()=>false),
+            new Promise((resolve)=>setTimeout(()=>resolve(false), 2500))
+          ]);
         }
+        stopCameraBackground();
+        cityAnchor.object3D.position.set(0, 0, 0);
+        cityAnchor.setAttribute('visible', true);
+        for(const buddy of beings){
+          buddy.searchHidden = false;
+          buddy.searchAnchor = null;
+          buddy.hiding = false;
+          buddy.hideProp = null;
+          buddy.hideOffset = null;
+          if(buddy.el?.object3D) buddy.el.object3D.visible = true;
+          if(buddy.workerTask?.site?.expedition){
+            buddy.workerTask = null;
+            setBuddyCargoVisual(buddy, null);
+          }
+        }
+        buildHomeValleyBackdrop();
+        setHomeCameraView();
+        updateModeUi();
+        notify('🏞 Returned to Home Valley. Build your town, then launch scanner expeditions for Sylvexians and rubble loot.');
+      }catch(_){
+        notify('Return to Home Valley was interrupted. Try tapping Scanner Expedition again.');
+      }finally{
+        modeTransitionInProgress = false;
       }
-      buildHomeValleyBackdrop();
-      setHomeCameraView();
-      updateModeUi();
-      notify('🏞 Returned to Home Valley. Build your town, then launch scanner expeditions for Sylvexians and rubble loot.');
-      modeTransitionInProgress = false;
     }
 
     function getUpgradeTier(buildType, buildIndex){
@@ -2239,18 +2262,7 @@
       buddy.hideProp = null;
       buddy.hideOffset = null;
       if(reason === 'scan'){
-        const viewer = getPlayerAnchorLocalPosition();
-        const dx = buddy.el.object3D.position.x - viewer.x;
-        const dz = buddy.el.object3D.position.z - viewer.z;
-        const dist = Math.hypot(dx, dz);
-        if(dist > 1.4 || dist < 0.45){
-          const ang = Math.atan2(dz || 0.01, dx || 0.01);
-          const revealDist = 0.95;
-          const px = viewer.x + Math.cos(ang) * revealDist;
-          const pz = viewer.z + Math.sin(ang) * revealDist;
-          buddy.el.object3D.position.set(px, 0, pz);
-          buddy.searchAnchor = { x: px, z: pz };
-        }
+        placeBuddyInFrontOfViewer(buddy, 0.95);
       }
       buddy.el.object3D.visible = true;
       updateTeamUI();
@@ -2379,6 +2391,7 @@
       if(contact.hidden){
         setTimeout(()=>revealHiddenBuddy(target, 'scan'), 380);
       } else {
+        placeBuddyInFrontOfViewer(target, 1.1);
         if(target.el?.object3D) target.el.object3D.visible = true;
         notify(`📡 Contact confirmed: ${target.name} in vicinity.`);
       }
