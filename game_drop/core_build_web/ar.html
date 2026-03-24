@@ -296,6 +296,7 @@
     let modeTransitionInProgress = false;
     let geoPermissionRequested = false;
     let geoWatchId = null;
+    let motionPermissionRequested = false;
     let radarSpawnInterval = 30;
     let radarSpawnCountdown = 30;
     let lastRadarContactName = null;
@@ -862,9 +863,26 @@
       try{
         geoWatchId = navigator.geolocation.watchPosition(
           ()=>{},
-          ()=>{},
+          ()=>{
+            notify('Location permission was denied. Scanner can still work, but tracking quality may be lower.');
+          },
           { enableHighAccuracy: true, maximumAge: 10000, timeout: 12000 }
         );
+      }catch(_){
+      }
+    }
+
+    async function ensureMotionPermissionPrompt(){
+      if(motionPermissionRequested) return;
+      motionPermissionRequested = true;
+      try{
+        const requestFn = window.DeviceOrientationEvent && window.DeviceOrientationEvent.requestPermission;
+        if(typeof requestFn === 'function'){
+          const result = await requestFn.call(window.DeviceOrientationEvent).catch(()=>null);
+          if(result !== 'granted'){
+            notify('Motion permission was not granted. AR tracking may be limited on this device.');
+          }
+        }
       }catch(_){
       }
     }
@@ -921,7 +939,7 @@
         if(scannerWarmWrap) scannerWarmWrap.style.display = 'none';
         if(hintEl) hintEl.textContent = '🏞 Home Valley mode: restore camps and stock supplies. Use Scanner Expedition for AR scouting.';
       } else if(hintEl){
-        if(cameraBg && cameraBg.srcObject && !scene.is('ar-mode')) setCameraBackgroundVisible(true);
+        if(cameraBg && cameraBg.srcObject) setCameraBackgroundVisible(true);
         hintEl.textContent = '📡 Expedition mode: scan mapped space to reveal hidden contacts, rubble loot, and remote sites.';
       }
       updateTeamUI();
@@ -2254,6 +2272,8 @@
       let bestVisible = null;
       let bestVisibleDist = Infinity;
       for(const buddy of beings){
+        const expeditionPresence = !!buddy.searchHidden || !!buddy.searchAnchor || !!buddy.workerTask?.site?.expedition;
+        if(!expeditionPresence) continue;
         const worldPos = cityAnchor.object3D.localToWorld(buddy.el.object3D.position.clone());
         const dist = Math.hypot(worldPos.x - camPos.x, worldPos.z - camPos.z);
         if(buddy.searchHidden){
@@ -2359,6 +2379,7 @@
       if(contact.hidden){
         setTimeout(()=>revealHiddenBuddy(target, 'scan'), 380);
       } else {
+        if(target.el?.object3D) target.el.object3D.visible = true;
         notify(`📡 Contact confirmed: ${target.name} in vicinity.`);
       }
     }
@@ -2945,7 +2966,11 @@
         enterArBtn.textContent = 'Starting...';
 
         ensureLocationPermissionPrompt();
-        startCameraBackground(true);
+        ensureMotionPermissionPrompt();
+        const cameraReady = await startCameraBackground(true);
+        if(!cameraReady){
+          notify('Camera feed not available yet. Scanner can still run, but AR may appear dark.');
+        }
         if(document.fullscreenEnabled && !document.fullscreenElement){
           await document.documentElement.requestFullscreen().catch(()=>{});
         }
