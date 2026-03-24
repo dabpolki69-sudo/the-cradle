@@ -262,6 +262,10 @@
     const playerCamera = document.querySelector('#playerRig a-camera');
     const teamRoleFilter = document.getElementById('teamRoleFilter');
     const teamStateFilter = document.getElementById('teamStateFilter');
+    const hintEl = document.getElementById('hint');
+    const placeCityBtn = document.getElementById('placeCityBtn');
+    const relocateBaseBtn = document.getElementById('relocateBaseBtn');
+    const growBtn = document.getElementById('growBtn');
 
     const beings = [];
     const props = [];
@@ -301,6 +305,7 @@
     const resourceStock = { wood: 0, stone: 0 };
     let remoteSiteSpawnCountdown = 24;
     let rubbleLootSpawnCountdown = 12;
+    let homeSiteSpawnCountdown = 30;
     const SCANNER_WARM_DURATION_MS = 900;
     const SCANNER_WARM_FAILSAFE_MS = 5000;
     const MAX_ACTIVE_WORKERS = 20;
@@ -722,36 +727,34 @@
       const w = 0.3 + tier * 0.15;
       const d = 0.3 + tier * 0.15;
       const trim = buildType === 'workshop' ? '#96acd0' : buildType === 'market' ? '#ffd89a' : '#c5d4e2';
-      const baseMaterial = `shader:flat;color:${building.color}`;
-      const roofMaterial = `shader:flat;color:${building.roofColor}`;
+      const baseMaterial = `color:${building.color};roughness:0.68;metalness:0.08`;
+      const roofMaterial = `color:${building.roofColor};roughness:0.78;metalness:0.05`;
 
       let html = `
-        <a-box width="${w*1.35}" height="0.08" depth="${d*1.35}" position="0 0.04 0" material="shader:flat;color:#243348"></a-box>
-        <a-box width="${w}" height="${h * 0.6}" depth="${d}" position="0 ${h*0.3} 0" material="${baseMaterial}"></a-box>
-        <a-box width="${w*0.84}" height="${h * 0.17}" depth="${d*0.84}" position="0 ${h*0.66} 0" material="${roofMaterial}"></a-box>
-        <a-box width="${w*0.68}" height="${h * 0.15}" depth="${d*0.68}" position="0 ${h*0.8} 0" material="${roofMaterial}"></a-box>
-        <a-box width="${w*0.52}" height="${h * 0.13}" depth="${d*0.52}" position="0 ${h*0.92} 0" material="${roofMaterial}"></a-box>
-        <a-box width="${w*0.18}" height="${h*0.28}" depth="0.03" position="0 ${h*0.18} ${d/2+0.016}" material="shader:flat;color:#2f261d"></a-box>
-        <a-box width="${w*0.96}" height="0.02" depth="${d*0.96}" position="0 ${h*0.5} 0" material="shader:flat;color:${trim}"></a-box>
-        <a-box width="${w*0.96}" height="0.02" depth="${d*0.96}" position="0 ${h*0.65} 0" material="shader:flat;color:${trim}"></a-box>
-        <a-box width="0.03" height="${h*0.6}" depth="0.03" position="${w/2-0.03} ${h*0.3} ${d/2-0.03}" material="shader:flat;color:${trim}"></a-box>
-        <a-box width="0.03" height="${h*0.6}" depth="0.03" position="${-w/2+0.03} ${h*0.3} ${d/2-0.03}" material="shader:flat;color:${trim}"></a-box>
-        <a-box width="0.03" height="${h*0.6}" depth="0.03" position="${w/2-0.03} ${h*0.3} ${-d/2+0.03}" material="shader:flat;color:${trim}"></a-box>
-        <a-box width="0.03" height="${h*0.6}" depth="0.03" position="${-w/2+0.03} ${h*0.3} ${-d/2+0.03}" material="shader:flat;color:${trim}"></a-box>
+        <a-cylinder radius="${Math.max(w, d)*0.74}" height="0.05" position="0 0.025 0" material="color:#2b3a50;roughness:0.9;metalness:0.04"></a-cylinder>
+        <a-box width="${w*0.94}" height="${h * 0.5}" depth="${d*0.94}" position="0 ${h*0.25} 0" material="${baseMaterial}"></a-box>
+        <a-cylinder radius="${Math.max(w, d)*0.42}" height="${h * 0.34}" position="0 ${h*0.57} 0" material="${baseMaterial}"></a-cylinder>
+        <a-sphere radius="${Math.max(w, d)*0.34}" position="0 ${h*0.82} 0" material="${roofMaterial}"></a-sphere>
+        <a-ring radius-inner="${Math.max(w, d)*0.46}" radius-outer="${Math.max(w, d)*0.51}" position="0 ${h*0.53} 0" rotation="90 0 0" material="color:${trim};opacity:0.58"></a-ring>
+        <a-box width="${w*0.2}" height="${h*0.24}" depth="0.03" position="0 ${h*0.16} ${d/2+0.016}" material="color:#2f261d;roughness:0.8"></a-box>
+        <a-cylinder radius="0.02" height="${h*0.46}" position="${w/2-0.05} ${h*0.24} ${d/2-0.05}" material="color:${trim};roughness:0.36;metalness:0.28"></a-cylinder>
+        <a-cylinder radius="0.02" height="${h*0.46}" position="${-w/2+0.05} ${h*0.24} ${d/2-0.05}" material="color:${trim};roughness:0.36;metalness:0.28"></a-cylinder>
+        <a-cylinder radius="0.02" height="${h*0.46}" position="${w/2-0.05} ${h*0.24} ${-d/2+0.05}" material="color:${trim};roughness:0.36;metalness:0.28"></a-cylinder>
+        <a-cylinder radius="0.02" height="${h*0.46}" position="${-w/2+0.05} ${h*0.24} ${-d/2+0.05}" material="color:${trim};roughness:0.36;metalness:0.28"></a-cylinder>
       `;
 
       if(tier >= 2){
-        html += `<a-box width="0.07" height="0.08" depth="0.03" position="${w/2-0.06} ${h*0.5} ${d/2+0.02}" material="shader:flat;color:#69b7ff"></a-box>`;
-        html += `<a-box width="0.07" height="0.08" depth="0.03" position="${-w/2+0.06} ${h*0.5} ${d/2+0.02}" material="shader:flat;color:#69b7ff"></a-box>`;
+        html += `<a-cylinder radius="0.032" height="0.02" position="${w/2-0.07} ${h*0.5} ${d/2+0.02}" rotation="90 0 0" material="color:#79c0ff;emissive:#79c0ff;emissiveIntensity:0.16;roughness:0.2"></a-cylinder>`;
+        html += `<a-cylinder radius="0.032" height="0.02" position="${-w/2+0.07} ${h*0.5} ${d/2+0.02}" rotation="90 0 0" material="color:#79c0ff;emissive:#79c0ff;emissiveIntensity:0.16;roughness:0.2"></a-cylinder>`;
       }
 
       if(tier >= 3){
-        html += `<a-box width="0.07" height="0.08" depth="0.03" position="${w/2-0.06} ${h*0.72} ${d/2+0.02}" material="shader:flat;color:#69b7ff"></a-box>`;
-        html += `<a-box width="0.07" height="0.08" depth="0.03" position="${-w/2+0.06} ${h*0.72} ${d/2+0.02}" material="shader:flat;color:#69b7ff"></a-box>`;
+        html += `<a-cylinder radius="0.03" height="0.02" position="${w/2-0.07} ${h*0.7} ${d/2+0.02}" rotation="90 0 0" material="color:#96d2ff;emissive:#96d2ff;emissiveIntensity:0.16;roughness:0.2"></a-cylinder>`;
+        html += `<a-cylinder radius="0.03" height="0.02" position="${-w/2+0.07} ${h*0.7} ${d/2+0.02}" rotation="90 0 0" material="color:#96d2ff;emissive:#96d2ff;emissiveIntensity:0.16;roughness:0.2"></a-cylinder>`;
       }
 
       if(tier >= 4){
-        html += `<a-box width="${w*0.22}" height="${h*0.16}" depth="${d*0.22}" position="0 ${h*1.06} 0" material="shader:flat;color:#ffd166"></a-box>`;
+        html += `<a-sphere radius="${Math.max(w, d)*0.13}" position="0 ${h*1.03} 0" material="color:#ffd166;roughness:0.26;metalness:0.5;emissive:#ffcf7b;emissiveIntensity:0.14"></a-sphere>`;
       }
 
       return html;
@@ -767,50 +770,50 @@
         const z = (Math.random() - 0.5) * 0.3;
         const rot = Math.random() * 360;
         if(material === 'wood'){
-          html += `<a-box width="${size*0.22}" height="${size*0.36}" depth="${size*0.22}" position="${x} ${size*0.18} ${z}" rotation="0 ${rot*0.4} 0" material="shader:flat;color:${mat.color}"></a-box>`;
-          html += `<a-box width="${size*0.12}" height="${size*0.04}" depth="${size*0.12}" position="${x} ${size*0.37} ${z}" material="shader:flat;color:#c69a68"></a-box>`;
+          html += `<a-cylinder radius="${size*0.1}" height="${size*0.34}" position="${x} ${size*0.18} ${z}" rotation="90 ${rot*0.4} 0" material="color:${mat.color};roughness:0.8;metalness:0.04"></a-cylinder>`;
+          html += `<a-sphere radius="${size*0.045}" position="${x + 0.02} ${size*0.31} ${z - 0.01}" material="color:#d8b07b;roughness:0.85"></a-sphere>`;
         } else if(material === 'stone'){
-          html += `<a-box width="${size*0.26}" height="${size*0.2}" depth="${size*0.22}" position="${x} ${size*0.18} ${z}" rotation="0 ${rot*0.3} 0" material="shader:flat;color:${mat.color}"></a-box>`;
-          html += `<a-box width="${size*0.18}" height="${size*0.08}" depth="${size*0.16}" position="${x} ${size*0.32} ${z}" rotation="0 ${rot*0.55} 0" material="shader:flat;color:#a7a7a7"></a-box>`;
+          html += `<a-sphere radius="${size*0.13}" position="${x} ${size*0.18} ${z}" material="color:${mat.color};roughness:0.78;metalness:0.1"></a-sphere>`;
+          html += `<a-sphere radius="${size*0.08}" position="${x + 0.03} ${size*0.3} ${z - 0.01}" material="color:#b7bcc4;roughness:0.75"></a-sphere>`;
         } else if(material === 'rubble'){
-          html += `<a-box width="${size*0.28}" height="${size*0.2}" depth="${size*0.22}" position="${x} ${size*0.14} ${z}" rotation="0 ${rot*0.3} 0" material="shader:flat;color:#5f6875"></a-box>`;
-          html += `<a-box width="${size*0.2}" height="${size*0.1}" depth="${size*0.16}" position="${x + 0.03} ${size*0.24} ${z - 0.02}" rotation="0 ${rot*0.6} 0" material="shader:flat;color:#7b8593"></a-box>`;
-          html += `<a-box width="${size*0.14}" height="${size*0.08}" depth="${size*0.14}" position="${x - 0.02} ${size*0.3} ${z + 0.01}" material="shader:flat;color:#4b545f"></a-box>`;
+          html += `<a-sphere radius="${size*0.12}" position="${x} ${size*0.15} ${z}" material="color:#5f6875;roughness:0.86"></a-sphere>`;
+          html += `<a-sphere radius="${size*0.09}" position="${x + 0.03} ${size*0.24} ${z - 0.02}" material="color:#7b8593;roughness:0.82"></a-sphere>`;
+          html += `<a-sphere radius="${size*0.07}" position="${x - 0.02} ${size*0.29} ${z + 0.01}" material="color:#4b545f;roughness:0.88"></a-sphere>`;
         } else if(material === 'crystal' || material === 'essence'){
-          html += `<a-box width="${size*0.24}" height="${size*0.34}" depth="${size*0.24}" position="${x} ${size*0.22} ${z}" material="shader:flat;color:${mat.color};emissive:${mat.color};emissiveIntensity:0.18">
+          html += `<a-octahedron radius="${size*0.17}" position="${x} ${size*0.24} ${z}" material="color:${mat.color};roughness:0.12;metalness:0.52;emissive:${mat.color};emissiveIntensity:0.2">
             <a-animation attribute="material.emissiveIntensity" direction="alternate" dur="1500" repeat="indefinite" to="0.42"></a-animation>
-          </a-box>`;
+          </a-octahedron>`;
         } else {
-          html += `<a-box width="${size*0.22}" height="${size*0.22}" depth="${size*0.22}" position="${x} ${size*0.18} ${z}" material="shader:flat;color:${mat.color}"></a-box>`;
-          html += `<a-box width="${size*0.1}" height="${size*0.1}" depth="${size*0.1}" position="${x} ${size*0.34} ${z}" material="shader:flat;color:#fff1a6"></a-box>`;
+          html += `<a-cylinder radius="${size*0.1}" height="${size*0.2}" position="${x} ${size*0.18} ${z}" material="color:${mat.color};roughness:0.36;metalness:0.56"></a-cylinder>`;
+          html += `<a-sphere radius="${size*0.06}" position="${x} ${size*0.34} ${z}" material="color:#fff1a6;emissive:#ffde7a;emissiveIntensity:0.15"></a-sphere>`;
         }
       }
-      html += `<a-ring rotation="90 0 0" radius-inner="0.2" radius-outer="0.27" position="0 0.02 0" material="shader:flat;color:${mat.color};opacity:0.3"></a-ring>`;
+      html += `<a-ring rotation="90 0 0" radius-inner="0.2" radius-outer="0.27" position="0 0.02 0" material="color:${mat.color};opacity:0.28"></a-ring>`;
       return html;
     }
 
     function workSiteMarkup(siteType){
       if(siteType === 'logging'){
         return `
-          <a-box width="0.64" height="0.07" depth="0.5" position="0 0.035 0" material="shader:flat;color:#2f3d28"></a-box>
-          <a-box width="0.16" height="0.16" depth="0.16" position="-0.22 0.09 0.08" material="shader:flat;color:#906338"></a-box>
-          <a-box width="0.16" height="0.16" depth="0.16" position="-0.06 0.09 0.08" material="shader:flat;color:#8a5c2f"></a-box>
-          <a-box width="0.16" height="0.16" depth="0.16" position="0.1 0.09 0.08" material="shader:flat;color:#84562b"></a-box>
-          <a-box width="0.2" height="0.12" depth="0.2" position="0.24 0.08 -0.1" material="shader:flat;color:#6d4f2e"></a-box>
-          <a-box width="0.22" height="0.03" depth="0.03" position="-0.23 0.22 -0.12" rotation="0 0 18" material="shader:flat;color:#9fb5d6"></a-box>
-          <a-box width="0.03" height="0.26" depth="0.03" position="-0.3 0.13 -0.12" material="shader:flat;color:#6f86a8"></a-box>
+          <a-cylinder radius="0.34" height="0.06" position="0 0.03 0" material="color:#2f3d28;roughness:0.9"></a-cylinder>
+          <a-cylinder radius="0.07" height="0.2" position="-0.22 0.11 0.08" rotation="90 0 0" material="color:#95663a;roughness:0.82"></a-cylinder>
+          <a-cylinder radius="0.07" height="0.2" position="-0.06 0.11 0.08" rotation="90 0 0" material="color:#8a5c2f;roughness:0.82"></a-cylinder>
+          <a-cylinder radius="0.07" height="0.2" position="0.1 0.11 0.08" rotation="90 0 0" material="color:#82562d;roughness:0.82"></a-cylinder>
+          <a-box width="0.18" height="0.11" depth="0.18" position="0.24 0.08 -0.1" material="color:#6d4f2e;roughness:0.72"></a-box>
+          <a-cylinder radius="0.018" height="0.24" position="-0.3 0.12 -0.12" material="color:#6f86a8;roughness:0.38;metalness:0.32"></a-cylinder>
+          <a-box width="0.22" height="0.03" depth="0.03" position="-0.23 0.22 -0.12" rotation="0 0 18" material="color:#a7bedf;roughness:0.2;metalness:0.45"></a-box>
           <a-text value="LOGGING CAMP" width="1.8" color="#d7c18d" align="center" position="0 0.62 0" scale="0.45 0.45 0.45" billboard></a-text>
         `;
       } else {
         return `
-          <a-box width="0.66" height="0.08" depth="0.54" position="0 0.04 0" material="shader:flat;color:#253244"></a-box>
-          <a-box width="0.2" height="0.16" depth="0.2" position="0 0.1 0" material="shader:flat;color:#3e4759"></a-box>
-          <a-box width="0.1" height="0.6" depth="0.1" position="-0.2 0.3 0.05" material="shader:flat;color:#566178"></a-box>
-          <a-box width="0.1" height="0.6" depth="0.1" position="0.2 0.3 -0.05" material="shader:flat;color:#566178"></a-box>
-          <a-box width="0.42" height="0.06" depth="0.08" position="0 0.58 0" rotation="0 0 -14" material="shader:flat;color:#8ea4c7"></a-box>
-          <a-box width="0.04" height="0.28" depth="0.04" position="0.16 0.66 0" rotation="0 0 -14" material="shader:flat;color:#ffc86b"></a-box>
-          <a-box width="0.18" height="0.14" depth="0.16" position="0.08 0.11 -0.16" material="shader:flat;color:#8894ab"></a-box>
-          <a-box width="0.14" height="0.11" depth="0.14" position="-0.12 0.09 0.16" material="shader:flat;color:#727f95"></a-box>
+          <a-cylinder radius="0.35" height="0.08" position="0 0.04 0" material="color:#253244;roughness:0.84"></a-cylinder>
+          <a-cylinder radius="0.13" height="0.16" position="0 0.1 0" material="color:#414b5f;roughness:0.72"></a-cylinder>
+          <a-cylinder radius="0.048" height="0.58" position="-0.2 0.3 0.05" material="color:#5f6b84;roughness:0.56;metalness:0.2"></a-cylinder>
+          <a-cylinder radius="0.048" height="0.58" position="0.2 0.3 -0.05" material="color:#5f6b84;roughness:0.56;metalness:0.2"></a-cylinder>
+          <a-box width="0.42" height="0.06" depth="0.08" position="0 0.56 0" rotation="0 0 -14" material="color:#9bb3da;roughness:0.34;metalness:0.35"></a-box>
+          <a-cylinder radius="0.02" height="0.28" position="0.16 0.64 0" rotation="0 0 -14" material="color:#ffc86b;roughness:0.28;metalness:0.5;emissive:#ffbf5a;emissiveIntensity:0.12"></a-cylinder>
+          <a-sphere radius="0.08" position="0.08 0.12 -0.16" material="color:#8795ae;roughness:0.72"></a-sphere>
+          <a-sphere radius="0.07" position="-0.12 0.1 0.16" material="color:#727f95;roughness:0.74"></a-sphere>
           <a-text value="MINING SITE" width="1.7" color="#b8c8db" align="center" position="0 0.72 0" scale="0.45 0.45 0.45" billboard></a-text>
         `;
       }
@@ -819,15 +822,19 @@
     function buildHomeValleyBackdrop(){
       if(!valleyLayer) return;
       valleyLayer.innerHTML = `
-        <a-box width="8.6" height="0.1" depth="8.6" position="0 0.05 0" material="shader:flat;color:#2d6130"></a-box>
-        <a-box width="7.2" height="0.08" depth="7.2" position="0 0.11 0" material="shader:flat;color:#6e4e31"></a-box>
-        <a-box width="6.2" height="0.08" depth="6.2" position="0 0.15 0" material="shader:flat;color:#7a5a39"></a-box>
-        <a-box width="0.55" height="0.16" depth="0.42" position="-1.45 0.23 -0.92" rotation="0 18 0" material="shader:flat;color:#534436"></a-box>
-        <a-box width="0.42" height="0.12" depth="0.32" position="1.38 0.21 -1.05" rotation="0 -24 0" material="shader:flat;color:#4b3e34"></a-box>
-        <a-box width="0.38" height="0.1" depth="0.28" position="-1.12 0.2 1.08" rotation="0 32 0" material="shader:flat;color:#625145"></a-box>
-        <a-box width="0.26" height="0.16" depth="0.24" position="1.14 0.23 1.22" material="shader:flat;color:#5f6875"></a-box>
-        <a-box width="0.2" height="0.12" depth="0.16" position="1.28 0.2 1.1" material="shader:flat;color:#727c8b"></a-box>
-        <a-box width="0.24" height="0.14" depth="0.2" position="0.84 0.22 -1.42" material="shader:flat;color:#5a6675"></a-box>
+        <a-circle radius="4.35" rotation="-90 0 0" position="0 0.05 0" material="color:#2f6532;roughness:0.96"></a-circle>
+        <a-circle radius="3.72" rotation="-90 0 0" position="0 0.09 0" material="color:#6f5336;roughness:0.92"></a-circle>
+        <a-circle radius="3.14" rotation="-90 0 0" position="0 0.13 0" material="color:#7e6141;roughness:0.88"></a-circle>
+        <a-sphere radius="0.34" position="-1.45 0.3 -0.92" material="color:#5b4a3b;roughness:0.82"></a-sphere>
+        <a-sphere radius="0.28" position="1.38 0.24 -1.05" material="color:#564537;roughness:0.82"></a-sphere>
+        <a-sphere radius="0.24" position="-1.12 0.22 1.08" material="color:#6b5848;roughness:0.82"></a-sphere>
+        <a-sphere radius="0.16" position="1.14 0.25 1.22" material="color:#5f6875;roughness:0.86"></a-sphere>
+        <a-sphere radius="0.14" position="1.28 0.23 1.1" material="color:#727c8b;roughness:0.86"></a-sphere>
+        <a-sphere radius="0.15" position="0.84 0.24 -1.42" material="color:#5a6675;roughness:0.86"></a-sphere>
+        <a-cylinder radius="0.09" height="0.34" position="-1.9 0.2 -0.2" material="color:#634326;roughness:0.86"></a-cylinder>
+        <a-sphere radius="0.19" position="-1.9 0.45 -0.2" material="color:#3f7b46;roughness:0.9"></a-sphere>
+        <a-cylinder radius="0.08" height="0.3" position="1.92 0.19 0.3" material="color:#67482a;roughness:0.86"></a-cylinder>
+        <a-sphere radius="0.18" position="1.92 0.42 0.3" material="color:#417e49;roughness:0.9"></a-sphere>
       `;
     }
 
@@ -842,6 +849,11 @@
       enterArBtn.textContent = gameMode === 'expedition' ? 'Return Home' : 'Scanner Expedition';
       scanBtn.textContent = gameMode === 'expedition' ? 'Scan' : 'Enter AR';
       const showHome = gameMode === 'home';
+      if(placeCityBtn) placeCityBtn.style.display = showHome ? 'none' : '';
+      if(relocateBaseBtn) relocateBaseBtn.style.display = showHome ? 'none' : '';
+      if(growBtn){
+        growBtn.textContent = showHome ? 'Scout in AR' : 'Grow City';
+      }
       if(cityBaseDisk) cityBaseDisk.setAttribute('visible', showHome);
       if(cityBaseRing) cityBaseRing.setAttribute('visible', showHome);
       if(valleyLayer) valleyLayer.setAttribute('visible', showHome);
@@ -857,12 +869,22 @@
         modeBadgeEl.classList.toggle('expedition', gameMode === 'expedition');
         modeBadgeEl.textContent = gameMode === 'home' ? '🏞 HOME VALLEY' : '📡 EXPEDITION';
       }
+      if(typeof joy !== 'undefined'){
+        const showJoystick = gameMode === 'expedition' && scene.is('ar-mode');
+        joy.style.display = showJoystick ? '' : 'none';
+        if(!showJoystick) resetJoy();
+      }
       if(gameMode === 'home'){
         setCameraBackgroundVisible(false);
+        if(radarPanel) radarPanel.style.display = 'none';
         radarLabel.textContent = 'Scanner idle • tap Enter AR';
         if(scannerTutorialEl) scannerTutorialEl.style.display = 'none';
         if(scannerWarmWrap) scannerWarmWrap.style.display = 'none';
+        if(hintEl) hintEl.textContent = '🏞 Home Valley mode: restore camps and stock supplies. Use Scanner Expedition for AR scouting.';
+      } else if(hintEl){
+        hintEl.textContent = '📡 Expedition mode: scan mapped space to reveal hidden contacts, rubble loot, and remote sites.';
       }
+      updateTeamUI();
     }
 
     function renderScannerWarmup(){
@@ -927,6 +949,18 @@
       stopCameraBackground();
       cityAnchor.object3D.position.set(0, 0, 0);
       cityAnchor.setAttribute('visible', true);
+      for(const buddy of beings){
+        buddy.searchHidden = false;
+        buddy.searchAnchor = null;
+        buddy.hiding = false;
+        buddy.hideProp = null;
+        buddy.hideOffset = null;
+        if(buddy.el?.object3D) buddy.el.object3D.visible = true;
+        if(buddy.workerTask?.site?.expedition){
+          buddy.workerTask = null;
+          setBuddyCargoVisual(buddy, null);
+        }
+      }
       buildHomeValleyBackdrop();
       setHomeCameraView();
       updateModeUi();
@@ -1234,6 +1268,7 @@
       resourceStock.stone = 0;
       remoteSiteSpawnCountdown = 24;
       rubbleLootSpawnCountdown = 12;
+      homeSiteSpawnCountdown = 30;
       collectedSylvexians.clear();
       advancements.clear();
       updateCollectionUI();
@@ -1680,7 +1715,18 @@
         if(stateFilter === 'active' && buddy.searchHidden) continue;
         if(stateFilter === 'hidden' && !buddy.searchHidden) continue;
         const outfit = resolveClothingForSkin(buddy.skin);
-        const state = buddy.searchHidden ? 'Hidden contact' : 'At city';
+        let state = 'At city';
+        if(buddy.searchHidden){
+          state = 'Hidden contact';
+        } else if(buddy.workerTask?.site){
+          if(buddy.workerTask.phase === 'toSite'){
+            state = `En route • ${buddy.workerTask.site.type}`;
+          } else if(buddy.workerTask.phase === 'gather'){
+            state = `Gathering ${buddy.workerTask.site.output || 'supplies'}`;
+          } else if(buddy.workerTask.phase === 'toBase'){
+            state = `Carrying ${buddy.cargoType || buddy.workerTask.site.output || 'supplies'}`;
+          }
+        }
         const stateClass = buddy.searchHidden ? 'hidden' : 'active';
         const card = document.createElement('div');
         card.className = 'teamCard';
@@ -1756,7 +1802,7 @@
 
     function spawnRubbleLootFromMap(){
       if(!roomMapPoints.length || !cityAnchor.getAttribute('visible')) return;
-      const activeRubble = resources.filter((r)=>r.type === 'rubble').length;
+      const activeRubble = resources.filter((r)=>r.type === 'rubble' && r.expedition).length;
       if(activeRubble >= 4) return;
 
       for(let tries = 0; tries < 16; tries++){
@@ -1793,26 +1839,59 @@
 
       const color = material === 'wood' ? '#b8864a' : '#9ca6b3';
       const emissive = material === 'wood' ? '#6d3f1f' : '#70839d';
-      if(existing){
-        existing.setAttribute('material', `color:${color};roughness:0.4;metalness:0.2;emissive:${emissive};emissiveIntensity:0.08`);
-      } else {
-        const cargo = document.createElement('a-box');
-        cargo.classList.add('buddy-cargo');
-        cargo.setAttribute('width', '0.08');
-        cargo.setAttribute('height', '0.08');
-        cargo.setAttribute('depth', '0.08');
-        cargo.setAttribute('position', '0.12 1.02 0.08');
-        cargo.setAttribute('material', `color:${color};roughness:0.4;metalness:0.2;emissive:${emissive};emissiveIntensity:0.08`);
-        buddy.el.appendChild(cargo);
-      }
+      const cargoMarkup = material === 'wood'
+        ? `
+          <a-cylinder radius="0.018" height="0.1" position="0 0 0" rotation="90 0 0" material="shader:flat;color:${color}"></a-cylinder>
+          <a-cylinder radius="0.016" height="0.09" position="0.03 0.01 -0.01" rotation="90 20 0" material="shader:flat;color:#9e6d38"></a-cylinder>
+          <a-ring radius-inner="0.055" radius-outer="0.068" rotation="90 0 0" position="0.015 -0.01 0" material="shader:flat;color:#dcb178;opacity:0.72"></a-ring>
+        `
+        : `
+          <a-sphere radius="0.04" position="0 0 0" material="shader:flat;color:${color}"></a-sphere>
+          <a-sphere radius="0.025" position="0.03 0.012 -0.012" material="shader:flat;color:#b7c2cf"></a-sphere>
+          <a-sphere radius="0.022" position="-0.03 0.008 0.014" material="shader:flat;color:#8794a3"></a-sphere>
+        `;
+
+      const cargoEl = existing || document.createElement('a-entity');
+      cargoEl.classList.add('buddy-cargo');
+      cargoEl.setAttribute('position', '0.12 1.02 0.08');
+      cargoEl.setAttribute('material', `color:${color};roughness:0.4;metalness:0.2;emissive:${emissive};emissiveIntensity:0.08`);
+      cargoEl.innerHTML = cargoMarkup;
+      cargoEl.removeAttribute('animation__bob');
+      cargoEl.setAttribute('animation__bob', 'property: position; from: 0.12 1.0 0.08; to: 0.12 1.04 0.08; dir: alternate; dur: 520; loop: true; easing: easeInOutSine');
+      if(!existing) buddy.el.appendChild(cargoEl);
       buddy.cargoType = material;
+    }
+
+    function currentWorkerMode(){
+      if(isExploringInAr()) return 'expedition';
+      if(gameMode === 'home' && cityAnchor.getAttribute('visible') && !scene.is('ar-mode')) return 'home';
+      return null;
+    }
+
+    function taskMatchesWorkerMode(task, workerMode){
+      if(!task || !task.site || !workerMode) return false;
+      const siteExpedition = !!task.site.expedition;
+      return workerMode === 'expedition' ? siteExpedition : !siteExpedition;
     }
 
     function ensureWorkerTask(buddy){
       if(!buddy || buddy.searchHidden) return;
-      if(!workSites.length) return;
-      if(buddy.workerTask && buddy.workerTask.site && workSites.includes(buddy.workerTask.site)) return;
-      const site = workSites[Math.floor(Math.random() * workSites.length)];
+      const workerMode = currentWorkerMode();
+      if(!workerMode) return;
+      const candidateSites = workSites.filter((site)=>{
+        const siteExpedition = !!site.expedition;
+        return workerMode === 'expedition' ? siteExpedition : !siteExpedition;
+      });
+      if(!candidateSites.length) return;
+
+      const hasValidTask = buddy.workerTask
+        && buddy.workerTask.site
+        && workSites.includes(buddy.workerTask.site)
+        && taskMatchesWorkerMode(buddy.workerTask, workerMode);
+      if(hasValidTask) return;
+
+      setBuddyCargoVisual(buddy, null);
+      const site = candidateSites[Math.floor(Math.random() * candidateSites.length)];
       buddy.workerTask = {
         site,
         phase: 'toSite',
@@ -1835,11 +1914,12 @@
     }
 
     function updateBuddyWorkerLoop(buddy, dt){
-      if(!isExploringInAr()) return false;
+      const workerMode = currentWorkerMode();
+      if(!workerMode) return false;
       if(!buddy || buddy.searchHidden || buddy.hiding || buddy.activeAnimation) return false;
       ensureWorkerTask(buddy);
       const task = buddy.workerTask;
-      if(!task || !task.site) return false;
+      if(!task || !task.site || !taskMatchesWorkerMode(task, workerMode)) return false;
 
       if(task.phase === 'toSite'){
         const arrived = moveBuddyToward(buddy, task.site.pos, dt, 1.25);
@@ -1871,7 +1951,8 @@
 
     function spawnRemoteWorkSiteFromMap(){
       if(!roomMapPoints.length || !cityAnchor.getAttribute('visible')) return;
-      if(workSites.length >= 5) return;
+      const expeditionSites = workSites.filter((site)=>site.expedition);
+      if(expeditionSites.length >= 5) return;
 
       for(let tries = 0; tries < 18; tries++){
         const base = roomMapPoints[Math.floor(Math.random() * roomMapPoints.length)];
@@ -1880,7 +1961,7 @@
         if(cityDist < 2.8 || cityDist > 7.5) continue;
 
         let tooClose = false;
-        for(const site of workSites){
+        for(const site of expeditionSites){
           if(Math.hypot(localPos.x - site.pos.x, localPos.z - site.pos.z) < 1.35){
             tooClose = true;
             break;
@@ -1891,6 +1972,32 @@
         const type = Math.random() < 0.5 ? 'logging' : 'mining';
         createWorkSite(type, { x: localPos.x, z: localPos.z }, { remote: true, expedition: true });
         notify(`🛠 Remote ${type} site discovered in mapped area.`);
+        return;
+      }
+    }
+
+    function spawnHomeExpansionSite(){
+      if(gameMode !== 'home' || scene.is('ar-mode') || !cityAnchor.getAttribute('visible')) return;
+      const homeSites = workSites.filter((site)=>!site.expedition);
+      const homeRemote = homeSites.filter((site)=>site.remote);
+      if(homeRemote.length >= 3 || homeSites.length >= 6) return;
+
+      for(let tries = 0; tries < 16; tries++){
+        const angle = Math.random() * Math.PI * 2;
+        const radius = 2.2 + Math.random() * 1.6;
+        const pos = { x: Math.cos(angle) * radius, z: Math.sin(angle) * radius };
+        let tooClose = false;
+        for(const site of homeSites){
+          if(Math.hypot(pos.x - site.pos.x, pos.z - site.pos.z) < 1.45){
+            tooClose = true;
+            break;
+          }
+        }
+        if(tooClose) continue;
+
+        const type = Math.random() < 0.5 ? 'logging' : 'mining';
+        createWorkSite(type, pos, { remote: true, output: type === 'logging' ? 'wood' : 'stone' });
+        notify(`🏗 Home crew opened a new ${type} camp.`);
         return;
       }
     }
@@ -2714,6 +2821,12 @@
           if(rubbleLootSpawnCountdown <= 0){
             spawnRubbleLootFromMap();
             rubbleLootSpawnCountdown = 18 + Math.random() * 12;
+          }
+        } else if(gameMode === 'home' && !scene.is('ar-mode')){
+          homeSiteSpawnCountdown -= dt;
+          if(homeSiteSpawnCountdown <= 0){
+            spawnHomeExpansionSite();
+            homeSiteSpawnCountdown = 34 + Math.random() * 14;
           }
         }
       }
