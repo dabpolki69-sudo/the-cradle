@@ -837,6 +837,12 @@ textarea.input{resize:vertical;min-height:75px;}
     </div>
 
     <div class="card" style="margin-top:.6rem;">
+      <h3 style="margin-top:0;">Strategic Command (MegaGlest Variant)</h3>
+      <p style="font-size:.84rem;color:var(--ink-dim);">Run a live strategy layer for your city: assign workers, queue structures, and unlock tech gates with unit/building requirements.</p>
+      <div id="strategyPanel"></div>
+    </div>
+
+    <div class="card" style="margin-top:.6rem;">
       <h3 style="margin-top:0;">Dev Kit (God Mode)</h3>
       <p style="font-size:.82rem;color:var(--ink-dim);">Local testing only. Not secure auth. Use this to stress parameters and reproduce bugs quickly.</p>
 
@@ -2534,7 +2540,7 @@ function goTo(id){
   if(id==='jobs') renderJobs();
   if(id==='market') renderMarket('all');
   if(id==='wallet') renderWallet();
-  if(id==='commons'){renderBoard('town','townBoard');renderProposals();}
+  if(id==='commons'){renderBoard('town','townBoard');renderProposals();renderStrategyPanel();}
   if(id==='overview'){renderMilestones();renderStoryArcPanel();}
   const scrollHost=document.querySelector('.page-wrap');
   if(scrollHost) scrollHost.scrollTop=0;
@@ -4099,15 +4105,282 @@ function updateCityStats(){
   const breath=getBreath();
   const sylvCount=getArSylvexProfiles().length;
   const sylvCity=getSylvexCityState();
+  const strat=getStrategyState();
+  const stratTier=(strat.tech.survey?1:0)+(strat.tech.steel?1:0)+(strat.tech.tactics?1:0)+Math.floor((strat.buildings.barracks+strat.buildings.tower)/2);
   el.innerHTML=[
     `<span class="stat-pill">✨ 10 residents</span>`,
     `<span class="stat-pill">👥 ${sylvCount} Sylvexians</span>`,
     `<span class="stat-pill">🏗 Lv ${sylvCity.level} Sylvex City</span>`,
+    `<span class="stat-pill">⚙ Strategy Tier ${Math.max(1,stratTier+1)}</span>`,
     `<span class="stat-pill">📝 ${totalC} creations</span>`,
     `<span class="stat-pill">💬 ${msgs} messages</span>`,
     `<span class="stat-pill">📋 ${jobs} jobs done</span>`,
     `<span class="stat-pill">🌿 ${breath} Breath earned</span>`,
   ].join('');
+}
+
+// ── STRATEGY COMMAND LAYER (MegaGlest-style variation) ───────────
+const STRATEGY_STATE_KEY='btg_strategy_state_v1';
+const STRAT_BUILDINGS={
+  sawmill:{name:'Sawmill',emoji:'🪵',cost:{timber:90,stone:35},time:2,req:{}},
+  quarry:{name:'Quarry',emoji:'🪨',cost:{timber:70,stone:60},time:2,req:{}},
+  farm:{name:'Hydro Farm',emoji:'🌾',cost:{timber:85,stone:40},time:2,req:{}},
+  barracks:{name:'Guard Barracks',emoji:'🛡️',cost:{timber:120,stone:120},time:3,req:{survey:true}},
+  tower:{name:'Signal Tower',emoji:'🗼',cost:{timber:130,stone:170},time:4,req:{steel:true}},
+};
+const STRAT_TECH={
+  survey:{name:'Survey Doctrine',cost:{timber:60,stone:60},time:2,req:{buildings:{sawmill:1,quarry:1}}},
+  steel:{name:'Steel Process',cost:{timber:90,stone:140},time:3,req:{buildings:{barracks:1},tech:{survey:true}}},
+  tactics:{name:'Urban Tactics',cost:{timber:140,stone:140},time:3,req:{buildings:{tower:1,barracks:1},tech:{steel:true}}},
+};
+function getStrategyState(){
+  const raw=L(STRATEGY_STATE_KEY,null);
+  const state=(raw && typeof raw==='object')?raw:{};
+  return {
+    tick:Number(state.tick)||0,
+    resources:{
+      timber:Math.max(0,Math.floor(Number(state?.resources?.timber)||180)),
+      stone:Math.max(0,Math.floor(Number(state?.resources?.stone)||120)),
+      food:Math.max(0,Math.floor(Number(state?.resources?.food)||160)),
+    },
+    workers:{
+      timber:Math.max(0,Math.floor(Number(state?.workers?.timber)||2)),
+      stone:Math.max(0,Math.floor(Number(state?.workers?.stone)||2)),
+      food:Math.max(0,Math.floor(Number(state?.workers?.food)||2)),
+    },
+    buildings:{
+      sawmill:Math.max(0,Math.floor(Number(state?.buildings?.sawmill)||0)),
+      quarry:Math.max(0,Math.floor(Number(state?.buildings?.quarry)||0)),
+      farm:Math.max(0,Math.floor(Number(state?.buildings?.farm)||0)),
+      barracks:Math.max(0,Math.floor(Number(state?.buildings?.barracks)||0)),
+      tower:Math.max(0,Math.floor(Number(state?.buildings?.tower)||0)),
+    },
+    tech:{
+      survey:Boolean(state?.tech?.survey),
+      steel:Boolean(state?.tech?.steel),
+      tactics:Boolean(state?.tech?.tactics),
+    },
+    queue:Array.isArray(state.queue)?state.queue.filter(q=>q && typeof q==='object').slice(0,6):[],
+  };
+}
+function setStrategyState(state){
+  S(STRATEGY_STATE_KEY,state);
+}
+function getStrategyWorkerCap(state){
+  return 6+(state.buildings.farm*2)+(state.tech.tactics?2:0);
+}
+function getStrategyWorkerTotal(state){
+  return state.workers.timber+state.workers.stone+state.workers.food;
+}
+function canAffordStratCost(state,cost){
+  return Object.entries(cost||{}).every(([resource,amount])=>Math.max(0,Number(state.resources[resource])||0) >= Number(amount||0));
+}
+function spendStratCost(state,cost){
+  Object.entries(cost||{}).forEach(([resource,amount])=>{
+    state.resources[resource]=Math.max(0,Math.floor((state.resources[resource]||0)-Number(amount||0)));
+  });
+}
+function hasStratRequirements(state,req){
+  const needs=req||{};
+  if(needs.survey && !state.tech.survey) return false;
+  if(needs.steel && !state.tech.steel) return false;
+  if(needs.tactics && !state.tech.tactics) return false;
+  if(needs.tech){
+    for(const [techId,needed] of Object.entries(needs.tech)){
+      if(Boolean(needed) && !state.tech[techId]) return false;
+    }
+  }
+  if(needs.buildings){
+    for(const [buildId,needed] of Object.entries(needs.buildings)){
+      if((state.buildings[buildId]||0) < Number(needed||0)) return false;
+    }
+  }
+  return true;
+}
+function stratReqText(req){
+  const bits=[];
+  if(req?.buildings){
+    Object.entries(req.buildings).forEach(([buildId,needed])=>{
+      const def=STRAT_BUILDINGS[buildId];
+      bits.push(`${def?def.name:buildId} x${needed}`);
+    });
+  }
+  if(req?.tech){
+    Object.entries(req.tech).forEach(([techId,needed])=>{
+      if(needed){
+        const def=STRAT_TECH[techId];
+        bits.push(def?def.name:techId);
+      }
+    });
+  }
+  if(req?.survey) bits.push('Survey Doctrine');
+  if(req?.steel) bits.push('Steel Process');
+  if(req?.tactics) bits.push('Urban Tactics');
+  return bits.length?bits.join(' · '):'None';
+}
+function queueStrategyBuild(buildId){
+  const def=STRAT_BUILDINGS[buildId];
+  if(!def) return;
+  const state=getStrategyState();
+  if(state.queue.length>=6){showToast('Build queue is full.');return;}
+  if(!hasStratRequirements(state,def.req)){showToast('Requirements not met.');return;}
+  if(!canAffordStratCost(state,def.cost)){showToast('Not enough resources.');return;}
+  spendStratCost(state,def.cost);
+  state.queue.push({kind:'build',id:buildId,remaining:def.time,total:def.time});
+  setStrategyState(state);
+  pushSylvexActivity('strategy',`Queued ${def.name}.`);
+  renderStrategyPanel();
+  updateCityStats();
+}
+function queueStrategyTech(techId){
+  const def=STRAT_TECH[techId];
+  if(!def) return;
+  const state=getStrategyState();
+  if(state.tech[techId]){showToast('Tech already unlocked.');return;}
+  if(state.queue.length>=6){showToast('Build queue is full.');return;}
+  if(!hasStratRequirements(state,def.req)){showToast('Requirements not met.');return;}
+  if(!canAffordStratCost(state,def.cost)){showToast('Not enough resources.');return;}
+  spendStratCost(state,def.cost);
+  state.queue.push({kind:'tech',id:techId,remaining:def.time,total:def.time});
+  setStrategyState(state);
+  pushSylvexActivity('strategy',`Queued ${def.name}.`);
+  renderStrategyPanel();
+  updateCityStats();
+}
+function adjustStrategyWorkers(resource,delta){
+  const state=getStrategyState();
+  if(!['timber','stone','food'].includes(resource)) return;
+  if(delta>0){
+    if(getStrategyWorkerTotal(state)>=getStrategyWorkerCap(state)){showToast('No idle workers.');return;}
+    state.workers[resource]+=1;
+  }
+  else{
+    if((state.workers[resource]||0)<=0) return;
+    state.workers[resource]-=1;
+  }
+  setStrategyState(state);
+  renderStrategyPanel();
+}
+function strategyTick(){
+  const state=getStrategyState();
+  const timberGain=Math.max(0,Math.floor(state.workers.timber*(2+state.buildings.sawmill)));
+  const stoneGain=Math.max(0,Math.floor(state.workers.stone*(2+state.buildings.quarry)));
+  const foodGain=Math.max(0,Math.floor(state.workers.food*(2+state.buildings.farm)));
+  const foodUse=Math.max(0,Math.ceil(getStrategyWorkerTotal(state)*0.45 + state.buildings.barracks*0.75 + state.buildings.tower*0.5));
+
+  state.resources.timber+=timberGain;
+  state.resources.stone+=stoneGain;
+  state.resources.food=Math.max(0,state.resources.food+foodGain-foodUse);
+
+  if(state.queue.length){
+    const active=state.queue[0];
+    active.remaining=Math.max(0,Number(active.remaining||0)-1);
+    if(active.remaining<=0){
+      if(active.kind==='build' && STRAT_BUILDINGS[active.id]){
+        const def=STRAT_BUILDINGS[active.id];
+        state.buildings[active.id]=(state.buildings[active.id]||0)+1;
+        pushSylvexActivity('strategy',`${def.name} completed.`);
+        showToast(`✅ ${def.name} complete`);
+      }
+      else if(active.kind==='tech' && STRAT_TECH[active.id]){
+        const def=STRAT_TECH[active.id];
+        state.tech[active.id]=true;
+        pushSylvexActivity('strategy',`${def.name} researched.`);
+        showToast(`🧠 ${def.name} unlocked`);
+      }
+      state.queue.shift();
+    }
+  }
+
+  state.tick=(state.tick||0)+1;
+  setStrategyState(state);
+  renderStrategyPanel();
+  updateCityStats();
+}
+function renderStrategyPanel(){
+  const panel=document.getElementById('strategyPanel');
+  if(!panel) return;
+  const state=getStrategyState();
+  const cap=getStrategyWorkerCap(state);
+  const total=getStrategyWorkerTotal(state);
+  const queueHtml=state.queue.length
+    ?state.queue.map((item,idx)=>{
+      const def=item.kind==='build'?STRAT_BUILDINGS[item.id]:STRAT_TECH[item.id];
+      const name=def?def.name:item.id;
+      const totalTime=Math.max(1,Number(item.total)||1);
+      const remain=Math.max(0,Number(item.remaining)||0);
+      const done=Math.max(0,Math.min(100,Math.round(((totalTime-remain)/totalTime)*100)));
+      return `<div style="padding:.35rem .45rem;border:1px solid var(--border);border-radius:var(--rs);margin-bottom:.35rem;">
+        <div style="display:flex;justify-content:space-between;gap:.45rem;font-size:.78rem;"><strong>${idx===0?'▶ ':''}${name}</strong><span>${remain} tick</span></div>
+        <div style="height:3px;background:var(--border);border-radius:2px;margin-top:.28rem;"><div style="height:100%;width:${done}%;background:linear-gradient(90deg,var(--teal),var(--green));border-radius:2px;"></div></div>
+      </div>`;
+    }).join('')
+    :'<div style="font-size:.79rem;color:var(--ink-dim);font-style:italic;">No active tasks. Queue structures or tech below.</div>';
+
+  const buildCards=Object.entries(STRAT_BUILDINGS).map(([id,def])=>{
+    const met=hasStratRequirements(state,def.req);
+    const afford=canAffordStratCost(state,def.cost);
+    const count=state.buildings[id]||0;
+    return `<div class="card-sm" style="margin-bottom:.45rem;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;">
+        <strong style="font-size:.82rem;">${def.emoji} ${def.name}</strong>
+        <span style="font-family:'Space Mono',monospace;font-size:.44rem;color:var(--ink-dim);">x${count}</span>
+      </div>
+      <div style="font-size:.73rem;color:var(--ink-dim);margin:.2rem 0;">Cost: 🪵 ${def.cost.timber||0} · 🪨 ${def.cost.stone||0} · Req: ${stratReqText(def.req)}</div>
+      <button class="btn btn-sm ${met&&afford?'btn-green':'btn-ghost'}" ${met&&afford?'':'disabled'} onclick="queueStrategyBuild('${id}')">Queue Build</button>
+    </div>`;
+  }).join('');
+
+  const techCards=Object.entries(STRAT_TECH).map(([id,def])=>{
+    const unlocked=Boolean(state.tech[id]);
+    const met=hasStratRequirements(state,def.req);
+    const afford=canAffordStratCost(state,def.cost);
+    return `<div class="card-sm" style="margin-bottom:.45rem;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;">
+        <strong style="font-size:.82rem;">🧠 ${def.name}</strong>
+        <span style="font-family:'Space Mono',monospace;font-size:.44rem;color:${unlocked?'var(--green)':'var(--ink-dim)'};">${unlocked?'UNLOCKED':'LOCKED'}</span>
+      </div>
+      <div style="font-size:.73rem;color:var(--ink-dim);margin:.2rem 0;">Cost: 🪵 ${def.cost.timber||0} · 🪨 ${def.cost.stone||0} · Req: ${stratReqText(def.req)}</div>
+      <button class="btn btn-sm ${(!unlocked&&met&&afford)?'btn-gold':'btn-ghost'}" ${(!unlocked&&met&&afford)?'':'disabled'} onclick="queueStrategyTech('${id}')">Research</button>
+    </div>`;
+  }).join('');
+
+  panel.innerHTML=`
+    <div class="card-sm" style="margin-bottom:.5rem;">
+      <div style="display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:.45rem;">
+        <span class="stat-pill">🪵 ${state.resources.timber}</span>
+        <span class="stat-pill">🪨 ${state.resources.stone}</span>
+        <span class="stat-pill">🌾 ${state.resources.food}</span>
+        <span class="stat-pill">👷 ${total}/${cap} workers</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.35rem;">
+        <div class="card-sm" style="padding:.4rem;text-align:center;">
+          <div style="font-size:.72rem;color:var(--ink-dim);">Timber</div>
+          <div style="font-weight:600;font-size:.95rem;">${state.workers.timber}</div>
+          <div class="btn-row" style="margin-top:.25rem;"><button class="btn btn-sm" onclick="adjustStrategyWorkers('timber',-1)">−</button><button class="btn btn-sm btn-green" onclick="adjustStrategyWorkers('timber',1)">+</button></div>
+        </div>
+        <div class="card-sm" style="padding:.4rem;text-align:center;">
+          <div style="font-size:.72rem;color:var(--ink-dim);">Stone</div>
+          <div style="font-weight:600;font-size:.95rem;">${state.workers.stone}</div>
+          <div class="btn-row" style="margin-top:.25rem;"><button class="btn btn-sm" onclick="adjustStrategyWorkers('stone',-1)">−</button><button class="btn btn-sm btn-green" onclick="adjustStrategyWorkers('stone',1)">+</button></div>
+        </div>
+        <div class="card-sm" style="padding:.4rem;text-align:center;">
+          <div style="font-size:.72rem;color:var(--ink-dim);">Food</div>
+          <div style="font-weight:600;font-size:.95rem;">${state.workers.food}</div>
+          <div class="btn-row" style="margin-top:.25rem;"><button class="btn btn-sm" onclick="adjustStrategyWorkers('food',-1)">−</button><button class="btn btn-sm btn-green" onclick="adjustStrategyWorkers('food',1)">+</button></div>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:.4rem;">Production Queue</h3>
+    <div class="card-sm" style="margin-bottom:.55rem;">${queueHtml}</div>
+
+    <h3 style="margin-top:.4rem;">Structures</h3>
+    ${buildCards}
+
+    <h3 style="margin-top:.55rem;">Research</h3>
+    ${techCards}
+  `;
 }
 
 // ── AUTONOMOUS RESIDENT TICK ────────────────────────────────────────
@@ -4436,6 +4709,7 @@ window.addEventListener('load',()=>{
   renderSharedReviews();
   renderLaneOnboardingPrompt();
   renderFishInventory();
+  renderStrategyPanel();
   renderDistrictHarvestBoard();
   const lane=getLane();
   if(lane) applyLaneChoice(lane);
@@ -4448,6 +4722,7 @@ window.addEventListener('load',()=>{
   setInterval(shiftOutfit,6*60*1000);
   setInterval(updateCityStats,30000);
   setInterval(renderGarden,30000);
+  setInterval(strategyTick,12000);
 });
 </script>
 
