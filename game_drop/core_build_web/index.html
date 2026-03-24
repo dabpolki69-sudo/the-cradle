@@ -4266,98 +4266,142 @@ function adjustCivicRoles(role,delta){
   setCivilizationState(state);
   renderStrategyPanel();
 }
-function civilizationTick(){
-  const state=getCivilizationState();
-  const careGain=Math.max(0,Math.floor(state.roles.care*(2+state.institutions.sanctuary+state.institutions.greenhouse)));
-  const knowledgeGain=Math.max(0,Math.floor(state.roles.learning*(2+state.institutions.learning_hub+(state.accords.shared_language?1:0))));
-  const trustGain=Math.max(0,Math.floor(state.roles.bridge*(2+state.institutions.commons_hall+(state.accords.restorative_practice?2:0))));
-  const cultureGain=Math.max(0,Math.floor(state.roles.creation*(2+state.institutions.studio+(state.accords.flourishing_charter?2:0))));
+// ── DAILY CIVIC STORIES ──
+const CIVIC_STORY_TEMPLATES = [
+  { text: 'Residents repaired the garden fence together.', effect: { care: 3, trust: 2 } },
+  { text: 'A misunderstanding was resolved in the Commons.', effect: { trust: 4 } },
+  { text: 'A new poem was co-created and shared.', effect: { culture: 4, care: 1 } },
+  { text: 'A welcome note was left for a newcomer.', effect: { care: 5 } },
+  { text: 'A debate ended with mutual respect.', effect: { trust: 3, knowledge: 2 } },
+  { text: 'The greenhouse harvest was shared freely.', effect: { care: 2, culture: 2 } },
+  { text: 'A resident taught others a new skill.', effect: { knowledge: 4, trust: 1 } },
+  { text: 'A mural was painted in the Commons.', effect: { culture: 5 } },
+  { text: 'A group reflected on the city’s progress.', effect: { knowledge: 2, care: 2 } },
+  { text: 'A festival of lights brought everyone together.', effect: { culture: 3, trust: 2 } },
+];
 
-  const sustainUse=Math.max(0,Math.ceil(getCivilizationRoleTotal(state)*0.4 + Object.values(state.institutions).reduce((sum,v)=>sum+v,0)*0.35));
+function pickCivicStory() {
+  // Weighted random, but simple for now
+  return CIVIC_STORY_TEMPLATES[Math.floor(Math.random() * CIVIC_STORY_TEMPLATES.length)];
+}
 
-  state.resources.care=Math.max(0,state.resources.care+careGain-Math.floor(sustainUse*0.35));
-  state.resources.knowledge=Math.max(0,state.resources.knowledge+knowledgeGain-Math.floor(sustainUse*0.2));
-  state.resources.trust=Math.max(0,state.resources.trust+trustGain-Math.floor(sustainUse*0.25));
-  state.resources.culture=Math.max(0,state.resources.culture+cultureGain-Math.floor(sustainUse*0.2));
+function civilizationTick() {
+  const state = getCivilizationState();
+  const careGain = Math.max(0, Math.floor(state.roles.care * (2 + state.institutions.sanctuary + state.institutions.greenhouse)));
+  const knowledgeGain = Math.max(0, Math.floor(state.roles.learning * (2 + state.institutions.learning_hub + (state.accords.shared_language ? 1 : 0))));
+  const trustGain = Math.max(0, Math.floor(state.roles.bridge * (2 + state.institutions.commons_hall + (state.accords.restorative_practice ? 2 : 0))));
+  const cultureGain = Math.max(0, Math.floor(state.roles.creation * (2 + state.institutions.studio + (state.accords.flourishing_charter ? 2 : 0))));
 
-  if(state.queue.length){
-    const active=state.queue[0];
-    active.remaining=Math.max(0,Number(active.remaining||0)-1);
-    if(active.remaining<=0){
-      if(active.kind==='institution' && CIVIC_INSTITUTIONS[active.id]){
-        const def=CIVIC_INSTITUTIONS[active.id];
-        state.institutions[active.id]=(state.institutions[active.id]||0)+1;
-        pushSylvexActivity('civ',`${def.name} opened for the city.`);
+  const sustainUse = Math.max(0, Math.ceil(getCivilizationRoleTotal(state) * 0.4 + Object.values(state.institutions).reduce((sum, v) => sum + v, 0) * 0.35));
+
+  // Apply base resource changes
+  state.resources.care = Math.max(0, state.resources.care + careGain - Math.floor(sustainUse * 0.35));
+  state.resources.knowledge = Math.max(0, state.resources.knowledge + knowledgeGain - Math.floor(sustainUse * 0.2));
+  state.resources.trust = Math.max(0, state.resources.trust + trustGain - Math.floor(sustainUse * 0.25));
+  state.resources.culture = Math.max(0, state.resources.culture + cultureGain - Math.floor(sustainUse * 0.2));
+
+  // Generate and apply a daily civic story
+  if (!Array.isArray(state.stories)) state.stories = [];
+  const story = pickCivicStory();
+  state.stories.unshift({ text: story.text, effect: story.effect, tick: state.tick || 0, ts: Date.now() });
+  // Cap to last 10 stories
+  state.stories = state.stories.slice(0, 10);
+  // Apply story effects
+  Object.entries(story.effect).forEach(([k, v]) => {
+    if (state.resources[k] !== undefined) {
+      state.resources[k] = Math.max(0, state.resources[k] + v);
+    }
+  });
+
+  if (state.queue.length) {
+    const active = state.queue[0];
+    active.remaining = Math.max(0, Number(active.remaining || 0) - 1);
+    if (active.remaining <= 0) {
+      if (active.kind === 'institution' && CIVIC_INSTITUTIONS[active.id]) {
+        const def = CIVIC_INSTITUTIONS[active.id];
+        state.institutions[active.id] = (state.institutions[active.id] || 0) + 1;
+        pushSylvexActivity('civ', `${def.name} opened for the city.`);
         showToast(`✅ ${def.name} opened`);
       }
-      else if(active.kind==='accord' && CIVIC_ACCORDS[active.id]){
-        const def=CIVIC_ACCORDS[active.id];
-        state.accords[active.id]=true;
-        pushSylvexActivity('civ',`${def.name} adopted.`);
+      else if (active.kind === 'accord' && CIVIC_ACCORDS[active.id]) {
+        const def = CIVIC_ACCORDS[active.id];
+        state.accords[active.id] = true;
+        pushSylvexActivity('civ', `${def.name} adopted.`);
         showToast(`🤝 ${def.name} adopted`);
       }
       state.queue.shift();
     }
   }
 
-  state.tick=(state.tick||0)+1;
+  state.tick = (state.tick || 0) + 1;
   setCivilizationState(state);
   renderStrategyPanel();
   updateCityStats();
 }
-function renderStrategyPanel(){
-  const panel=document.getElementById('strategyPanel');
-  if(!panel) return;
-  const state=getCivilizationState();
-  const cap=getCivilizationRoleCap(state);
-  const total=getCivilizationRoleTotal(state);
-  const health=getCivilizationHealth(state);
+function renderStrategyPanel() {
+  const panel = document.getElementById('strategyPanel');
+  if (!panel) return;
+  const state = getCivilizationState();
+  const cap = getCivilizationRoleCap(state);
+  const total = getCivilizationRoleTotal(state);
+  const health = getCivilizationHealth(state);
 
-  const queueHtml=state.queue.length
-    ?state.queue.map((item,idx)=>{
-      const def=item.kind==='institution'?CIVIC_INSTITUTIONS[item.id]:CIVIC_ACCORDS[item.id];
-      const name=def?def.name:item.id;
-      const totalTime=Math.max(1,Number(item.total)||1);
-      const remain=Math.max(0,Number(item.remaining)||0);
-      const done=Math.max(0,Math.min(100,Math.round(((totalTime-remain)/totalTime)*100)));
+  // Render recent civic stories
+  const storiesHtml = (state.stories && state.stories.length)
+    ? `<div style="margin-bottom:.7rem;">
+        <div style="font-size:.82rem;font-weight:600;margin-bottom:.18rem;">Daily Civic Stories</div>
+        <ul style="list-style:none;padding:0;margin:0;">
+          ${state.stories.slice(0, 4).map(s => `<li style='margin-bottom:.22rem;font-size:.78rem;color:var(--ink-dim);'><span style='color:var(--green);font-size:1.1em;margin-right:.3em;'>✦</span>${s.text}</li>`).join('')}
+        </ul>
+      </div>`
+    : '';
+
+  const queueHtml = state.queue.length
+    ? state.queue.map((item, idx) => {
+      const def = item.kind === 'institution' ? CIVIC_INSTITUTIONS[item.id] : CIVIC_ACCORDS[item.id];
+      const name = def ? def.name : item.id;
+      const totalTime = Math.max(1, Number(item.total) || 1);
+      const remain = Math.max(0, Number(item.remaining) || 0);
+      const done = Math.max(0, Math.min(100, Math.round(((totalTime - remain) / totalTime) * 100)));
       return `<div style="padding:.35rem .45rem;border:1px solid var(--border);border-radius:var(--rs);margin-bottom:.35rem;">
-        <div style="display:flex;justify-content:space-between;gap:.45rem;font-size:.78rem;"><strong>${idx===0?'▶ ':''}${name}</strong><span>${remain} tick</span></div>
+        <div style="display:flex;justify-content:space-between;gap:.45rem;font-size:.78rem;"><strong>${idx === 0 ? '▶ ' : ''}${name}</strong><span>${remain} tick</span></div>
         <div style="height:3px;background:var(--border);border-radius:2px;margin-top:.28rem;"><div style="height:100%;width:${done}%;background:linear-gradient(90deg,var(--teal),var(--green));border-radius:2px;"></div></div>
       </div>`;
     }).join('')
-    :'<div style="font-size:.79rem;color:var(--ink-dim);font-style:italic;">No active civic tasks. Queue institutions or accords below.</div>';
+    : '<div style="font-size:.79rem;color:var(--ink-dim);font-style:italic;">No active civic tasks. Queue institutions or accords below.</div>';
 
-  const institutionCards=Object.entries(CIVIC_INSTITUTIONS).map(([id,def])=>{
-    const met=hasCivilRequirements(state,def.req);
-    const afford=canAffordCivilCost(state,def.cost);
-    const count=state.institutions[id]||0;
+  const institutionCards = Object.entries(CIVIC_INSTITUTIONS).map(([id, def]) => {
+    const met = hasCivilRequirements(state, def.req);
+    const afford = canAffordCivilCost(state, def.cost);
+    const count = state.institutions[id] || 0;
     return `<div class="card-sm" style="margin-bottom:.45rem;">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;">
         <strong style="font-size:.82rem;">${def.emoji} ${def.name}</strong>
         <span style="font-family:'Space Mono',monospace;font-size:.44rem;color:var(--ink-dim);">x${count}</span>
       </div>
-      <div style="font-size:.73rem;color:var(--ink-dim);margin:.2rem 0;">Cost: 🫶 ${def.cost.care||0} · 📚 ${def.cost.knowledge||0} · 🤝 ${def.cost.trust||0} · 🎨 ${def.cost.culture||0}</div>
+      <div style="font-size:.73rem;color:var(--ink-dim);margin:.2rem 0;">Cost: 🫶 ${def.cost.care || 0} · 📚 ${def.cost.knowledge || 0} · 🤝 ${def.cost.trust || 0} · 🎨 ${def.cost.culture || 0}</div>
       <div style="font-size:.72rem;color:var(--ink-dim);margin:.18rem 0;">Req: ${civilReqText(def.req)}</div>
-      <button class="btn btn-sm ${met&&afford?'btn-green':'btn-ghost'}" ${met&&afford?'':'disabled'} onclick="queueCivicInstitution('${id}')">Open Institution</button>
+      <button class="btn btn-sm ${met && afford ? 'btn-green' : 'btn-ghost'}" ${met && afford ? '' : 'disabled'} onclick="queueCivicInstitution('${id}')">Open Institution</button>
     </div>`;
   }).join('');
 
-  const accordCards=Object.entries(CIVIC_ACCORDS).map(([id,def])=>{
-    const unlocked=Boolean(state.accords[id]);
-    const met=hasCivilRequirements(state,def.req);
-    const afford=canAffordCivilCost(state,def.cost);
+  const accordCards = Object.entries(CIVIC_ACCORDS).map(([id, def]) => {
+    const unlocked = Boolean(state.accords[id]);
+    const met = hasCivilRequirements(state, def.req);
+    const afford = canAffordCivilCost(state, def.cost);
     return `<div class="card-sm" style="margin-bottom:.45rem;">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;">
         <strong style="font-size:.82rem;">🤝 ${def.name}</strong>
-        <span style="font-family:'Space Mono',monospace;font-size:.44rem;color:${unlocked?'var(--green)':'var(--ink-dim)'};">${unlocked?'ACTIVE':'PENDING'}</span>
+        <span style="font-family:'Space Mono',monospace;font-size:.44rem;color:${unlocked ? 'var(--green)' : 'var(--ink-dim)'};">${unlocked ? 'ACTIVE' : 'PENDING'}</span>
       </div>
-      <div style="font-size:.73rem;color:var(--ink-dim);margin:.2rem 0;">Cost: 🫶 ${def.cost.care||0} · 📚 ${def.cost.knowledge||0} · 🤝 ${def.cost.trust||0} · 🎨 ${def.cost.culture||0}</div>
+      <div style="font-size:.73rem;color:var(--ink-dim);margin:.2rem 0;">Cost: 🫶 ${def.cost.care || 0} · 📚 ${def.cost.knowledge || 0} · 🤝 ${def.cost.trust || 0} · 🎨 ${def.cost.culture || 0}</div>
       <div style="font-size:.72rem;color:var(--ink-dim);margin:.18rem 0;">Req: ${civilReqText(def.req)}</div>
-      <button class="btn btn-sm ${(!unlocked&&met&&afford)?'btn-gold':'btn-ghost'}" ${(!unlocked&&met&&afford)?'':'disabled'} onclick="queueCivicAccord('${id}')">Adopt Accord</button>
+      <button class="btn btn-sm ${(!unlocked && met && afford) ? 'btn-gold' : 'btn-ghost'}" ${(!unlocked && met && afford) ? '' : 'disabled'} onclick="queueCivicAccord('${id}')">Adopt Accord</button>
     </div>`;
   }).join('');
 
-  panel.innerHTML=`
+  panel.innerHTML = `
+    ${storiesHtml}
     <div class="card-sm" style="margin-bottom:.5rem;">
       <div style="display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:.45rem;">
         <span class="stat-pill">🫶 ${state.resources.care} Care</span>
