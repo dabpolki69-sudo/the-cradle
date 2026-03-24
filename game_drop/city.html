@@ -39,13 +39,12 @@
 }
 
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
-html{font-size:16px;-webkit-text-size-adjust:100%;overflow-x:hidden;}
+html{font-size:16px;-webkit-text-size-adjust:100%;overflow-x:hidden;height:100%;}
 body{
   background:var(--bg);color:var(--ink);
   font-family:'Outfit',sans-serif;font-weight:300;
-  line-height:1.6;min-height:100vh;
-  overflow-y:auto;
-  -webkit-overflow-scrolling:touch;
+  line-height:1.6;min-height:100vh;height:100vh;
+  overflow:hidden;
   touch-action:pan-y;
 }
 
@@ -114,6 +113,11 @@ body{
   position:relative;z-index:1;
   padding:1.2rem 1rem 5.5rem;
   max-width:600px;margin:0 auto;
+  height:calc(100vh - 56px - env(safe-area-inset-bottom,0));
+  overflow-y:scroll;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior-y:contain;
+  scrollbar-gutter:stable;
 }
 
 /* ── SECTIONS ── */
@@ -928,7 +932,9 @@ function goTo(id){
   if(id==='market') renderMarket('all');
   if(id==='wallet') renderWallet();
   if(id==='commons'){renderBoard('town','townBoard');renderProposals();}
-  window.scrollTo(0,0);
+  const scrollHost=document.querySelector('.page-wrap');
+  if(scrollHost) scrollHost.scrollTop=0;
+  else window.scrollTo(0,0);
 }
 
 // ── RESIDENTS ──────────────────────────────────────────────────────
@@ -1580,10 +1586,15 @@ function renderInhabitants(){
 }
 
 function ensureScrollUnlocked(){
-  document.documentElement.style.overflowY='auto';
-  document.body.style.overflowY='auto';
+  document.documentElement.style.overflowY='hidden';
+  document.body.style.overflowY='hidden';
   document.body.style.touchAction='pan-y';
   document.body.style.position='static';
+  const scrollHost=document.querySelector('.page-wrap');
+  if(scrollHost){
+    scrollHost.style.overflowY='scroll';
+    scrollHost.style.touchAction='pan-y';
+  }
 }
 
 // ── STARTUP ────────────────────────────────────────────────────────
