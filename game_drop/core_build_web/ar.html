@@ -109,7 +109,7 @@
     <button id="enterArBtn" class="btn primary">Scanner Expedition</button>
     <div id="uiOptions">
       <button id="fullscreenBtn" class="btn">Fullscreen</button>
-      <button id="collectionBtn" class="btn">📖 Collection</button>
+      <button id="collectionBtn" class="btn">📖 Sanctuary</button>
       <button id="teamBtn" class="btn">👥 Team</button>
       <button id="placeCityBtn" class="btn">Place City Here</button>
       <button id="relocateBaseBtn" class="btn utility">Relocate Base</button>
@@ -131,7 +131,7 @@
   
   <div id="collectionModal">
     <div id="collectionHeader">
-      <h2 style="margin:0;font-size:18px">📖 Sylvexian Collection</h2>
+      <h2 style="margin:0;font-size:18px">📖 Sylvexian Sanctuary</h2>
       <button id="closeCollectionBtn" class="btn">Close</button>
     </div>
     <div id="collectionGrid"></div>
@@ -192,7 +192,7 @@
       <div id="scannerWarmText">Calibrating…</div>
     </div>
   </div>
-  <div id="hint">👥 Sylvexians - Tap collection to view all! 100 names × 6 personalities. 🏘 💫</div>
+  <div id="hint">👥 Sylvexians - Tap Sanctuary to view all! 100 names × 6 personalities. 🏘 💫</div>
 
   <a-scene id="scene" embedded xr-mode-ui="enabled:true" webxr="optionalFeatures: local-floor, dom-overlay; overlayElement: body" renderer="alpha:true; antialias:true; colorManagement:true" background="color: #000; transparent: true">
     <a-entity light="type:ambient;intensity:0.7;color:#c3d7ff"></a-entity>
@@ -1426,7 +1426,7 @@
       if(beings.length >= MAX_ACTIVE_WORKERS){
         upsertCollectionEntry(name);
         updateCollectionUI();
-        notify(`👥 Team full (${MAX_ACTIVE_WORKERS} active). ${name} kept in collection.`);
+        notify(`👥 Team full (${MAX_ACTIVE_WORKERS} active). ${name} welcomed to Sanctuary.`);
         return null;
       }
 
@@ -1520,8 +1520,8 @@
       updateCollectionUI();
       updateTeamUI();
       const rarity = (buddy.skin.rarity || 'common').toUpperCase();
-      notify(`📦 Collected ${buddy.name} (${rarity}).`);
-      showSpeech('Sylvexian Collected', `${buddy.name} joined your collection. Keep exploring AR to discover more.`);
+      notify(`🤝 Welcomed ${buddy.name} (${rarity}) to Sanctuary.`);
+      showSpeech('Sylvexian Welcomed', `${buddy.name} joined your Sanctuary. Keep exploring AR to discover more allies.`);
     }
 
     function updateCollectionUI(){
@@ -1604,7 +1604,7 @@
           card.addEventListener('click', ()=>{
             showSpeech(
               `${buddy.name} - ${buddy.personality.icon} ${buddy.personality.name}`,
-              `Collected Sylvexian\nRole: ${buddy.role}\nRarity: ${buddy.skin.rarity.toUpperCase()}${buddy.uniqueBuff ? `\nBuff: ${buddy.uniqueBuff}` : ''}`
+              `Allied Sylvexian\nRole: ${buddy.role}\nRarity: ${buddy.skin.rarity.toUpperCase()}${buddy.uniqueBuff ? `\nBuff: ${buddy.uniqueBuff}` : ''}`
             );
           });
         } else {
@@ -2869,7 +2869,7 @@
         return;
       }
       if(beings.length >= MAX_ACTIVE_WORKERS){
-        notify(`👥 Team full (${MAX_ACTIVE_WORKERS} active). Collect first or rely on collection roster.`);
+        notify(`👥 Team full (${MAX_ACTIVE_WORKERS} active). Welcome allies first or rely on Sanctuary roster.`);
         return;
       }
       const newSylvexianName = nextUndiscoveredSylvexianName();
