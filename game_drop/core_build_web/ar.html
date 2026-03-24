@@ -199,12 +199,14 @@
     <a-entity light="type:point;intensity:0.9;color:#7c60e8" position="0 5 0"></a-entity>
 
     <a-entity id="cityAnchor" visible="false">
-      <a-circle rotation="-90 0 0" radius="1.2" position="0 0.01 0" material="shader:flat;color:#233347;opacity:0.7"></a-circle>
-      <a-ring rotation="-90 0 0" radius-inner="1.35" radius-outer="1.43" material="shader:flat;color:#5ec4d4;opacity:0.55"></a-ring>
+      <a-circle id="cityBaseDisk" rotation="-90 0 0" radius="1.2" position="0 0.01 0" material="shader:flat;color:#233347;opacity:0.7"></a-circle>
+      <a-ring id="cityBaseRing" rotation="-90 0 0" radius-inner="1.35" radius-outer="1.43" material="shader:flat;color:#5ec4d4;opacity:0.55"></a-ring>
       <a-entity id="valleyLayer"></a-entity>
       <a-entity id="buildingLayer"></a-entity>
       <a-entity id="resourceLayer"></a-entity>
       <a-entity id="workSiteLayer"></a-entity>
+      <a-entity id="expeditionResourceLayer"></a-entity>
+      <a-entity id="expeditionSiteLayer"></a-entity>
       <a-entity id="propLayer"></a-entity>
       <a-entity id="npcLayer"></a-entity>
       <a-entity id="advancementMarkerLayer"></a-entity>
@@ -221,11 +223,15 @@
     const scene = document.getElementById('scene');
     const cityAnchor = document.getElementById('cityAnchor');
     const valleyLayer = document.getElementById('valleyLayer');
+    const cityBaseDisk = document.getElementById('cityBaseDisk');
+    const cityBaseRing = document.getElementById('cityBaseRing');
     const npcLayer = document.getElementById('npcLayer');
     const propLayer = document.getElementById('propLayer');
     const buildingLayer = document.getElementById('buildingLayer');
     const resourceLayer = document.getElementById('resourceLayer');
     const workSiteLayer = document.getElementById('workSiteLayer');
+    const expeditionResourceLayer = document.getElementById('expeditionResourceLayer');
+    const expeditionSiteLayer = document.getElementById('expeditionSiteLayer');
     const advancementMarkerLayer = document.getElementById('advancementMarkerLayer');
     const playerRig = document.getElementById('playerRig');
     const statusEl = document.getElementById('status');
@@ -278,6 +284,7 @@
     let explorationModeActive = false;
     let scanCooldownUntil = 0;
     let scannerWarmUntil = 0;
+    let scannerWarmStartedAt = 0;
     let pendingScannerKick = false;
     let scannerTutorialShown = false;
     let scannerWarmWasActive = false;
@@ -294,6 +301,8 @@
     const resourceStock = { wood: 0, stone: 0 };
     let remoteSiteSpawnCountdown = 24;
     let rubbleLootSpawnCountdown = 12;
+    const SCANNER_WARM_DURATION_MS = 900;
+    const SCANNER_WARM_FAILSAFE_MS = 5000;
     const MAX_ACTIVE_WORKERS = 20;
     const SAVE_FILE_VERSION = 1;
     const SAVE_PBKDF2_ITERATIONS = 150000;
@@ -837,7 +846,17 @@
     function updateModeUi(){
       enterArBtn.textContent = gameMode === 'expedition' ? 'Return Home' : 'Scanner Expedition';
       scanBtn.textContent = gameMode === 'expedition' ? 'Scan' : 'Enter AR';
-      if(valleyLayer) valleyLayer.setAttribute('visible', gameMode === 'home');
+      const showHome = gameMode === 'home';
+      if(cityBaseDisk) cityBaseDisk.setAttribute('visible', showHome);
+      if(cityBaseRing) cityBaseRing.setAttribute('visible', showHome);
+      if(valleyLayer) valleyLayer.setAttribute('visible', showHome);
+      if(buildingLayer) buildingLayer.setAttribute('visible', showHome);
+      if(propLayer) propLayer.setAttribute('visible', showHome);
+      if(workSiteLayer) workSiteLayer.setAttribute('visible', showHome);
+      if(resourceLayer) resourceLayer.setAttribute('visible', showHome);
+      if(advancementMarkerLayer) advancementMarkerLayer.setAttribute('visible', showHome);
+      if(expeditionResourceLayer) expeditionResourceLayer.setAttribute('visible', !showHome);
+      if(expeditionSiteLayer) expeditionSiteLayer.setAttribute('visible', !showHome);
       if(modeBadgeEl){
         modeBadgeEl.classList.toggle('home', gameMode === 'home');
         modeBadgeEl.classList.toggle('expedition', gameMode === 'expedition');
@@ -854,12 +873,17 @@
     function renderScannerWarmup(){
       if(!scannerWarmWrap || !scannerWarmBar || !scannerWarmText) return false;
       const remaining = scannerWarmUntil - performance.now();
+      if(scannerWarmStartedAt && (performance.now() - scannerWarmStartedAt) > SCANNER_WARM_FAILSAFE_MS){
+        scannerWarmUntil = 0;
+        scannerWarmStartedAt = 0;
+      }
       if(remaining <= 0){
         scannerWarmWrap.style.display = 'none';
         scannerWarmBar.style.width = '100%';
+        scannerWarmStartedAt = 0;
         return false;
       }
-      const total = 900;
+      const total = SCANNER_WARM_DURATION_MS;
       const elapsed = Math.max(0, total - remaining);
       const pct = Math.max(3, Math.min(100, (elapsed / total) * 100));
       scannerWarmWrap.style.display = 'flex';
@@ -899,6 +923,7 @@
       gameMode = 'home';
       pendingScannerKick = false;
       scannerWarmUntil = 0;
+      scannerWarmStartedAt = 0;
       scannerWarmWasActive = false;
       if(scannerWarmWrap) scannerWarmWrap.style.display = 'none';
       if(scene.is('ar-mode') && scene.exitAR){
@@ -1133,9 +1158,11 @@
       return root;
     }
 
-    function createResource(materialType, pos, isTreasure=false){
+    function createResource(materialType, pos, isTreasure=false, options = {}){
       const root = document.createElement('a-entity');
       root.object3D.position.set(pos.x, 0, pos.z);
+      const expedition = !!options.expedition;
+      const targetLayer = expedition ? expeditionResourceLayer : resourceLayer;
       
       if(isTreasure){
         root.innerHTML = treasureMarkup();
@@ -1151,8 +1178,8 @@
           root.innerHTML = '<a-text value="✓" color="#70d2aa" align="center" position="0 0 0"></a-text>';
           setTimeout(()=>resourceLayer.removeChild(root), 2000);
         });
-        resourceLayer.appendChild(root);
-        resources.push({type: 'treasure', el: root, pos, isTreasure: true});
+        targetLayer.appendChild(root);
+        resources.push({type: 'treasure', el: root, pos, isTreasure: true, expedition});
       } else {
         root.innerHTML = resourcePileMarkup(materialType);
         root.classList.add('tap-target');
@@ -1175,8 +1202,8 @@
             `${mat.icon} A pile of ${mat.name.toLowerCase()}. Send your workers to gather it.`
           );
         });
-        resourceLayer.appendChild(root);
-        resources.push({type: materialType, el: root, pos});
+        targetLayer.appendChild(root);
+        resources.push({type: materialType, el: root, pos, expedition});
       }
       return root;
     }
@@ -1223,6 +1250,8 @@
       root.object3D.position.set(pos.x, 0, pos.z);
       root.innerHTML = workSiteMarkup(siteType);
       root.classList.add('tap-target');
+      const expedition = !!options.expedition;
+      const targetLayer = expedition ? expeditionSiteLayer : workSiteLayer;
       root.addEventListener('click', ()=>{
         const output = siteType === 'logging' ? 'Wood' : 'Stone';
         showSpeech(
@@ -1230,8 +1259,8 @@
           `${options.remote ? 'Remote' : 'Active'} extraction site. Post your workers here to harvest ${output}.`
         );
       });
-      workSiteLayer.appendChild(root);
-      workSites.push({type: siteType, el: root, pos, remote: !!options.remote, output: options.output || (siteType === 'logging' ? 'wood' : 'stone')});
+      targetLayer.appendChild(root);
+      workSites.push({type: siteType, el: root, pos, remote: !!options.remote, output: options.output || (siteType === 'logging' ? 'wood' : 'stone'), expedition});
       return root;
     }
 
@@ -1740,7 +1769,7 @@
         const localPos = cityAnchor.object3D.worldToLocal(base.clone());
         const cityDist = Math.hypot(localPos.x, localPos.z);
         if(cityDist < 2.1 || cityDist > 6.5) continue;
-        createResource('rubble', { x: localPos.x, z: localPos.z }, false);
+        createResource('rubble', { x: localPos.x, z: localPos.z }, false, { expedition: true });
         notify('🧱 Scanner found rubble loot nearby. Look around and tap to salvage.');
         return;
       }
@@ -1865,7 +1894,7 @@
         if(tooClose) continue;
 
         const type = Math.random() < 0.5 ? 'logging' : 'mining';
-        createWorkSite(type, { x: localPos.x, z: localPos.z }, { remote: true });
+        createWorkSite(type, { x: localPos.x, z: localPos.z }, { remote: true, expedition: true });
         notify(`🛠 Remote ${type} site discovered in mapped area.`);
         return;
       }
@@ -2516,6 +2545,7 @@
       rubbleLootSpawnCountdown = 12;
 
       if(gameMode === 'home'){
+        stopCameraBackground();
         cityAnchor.object3D.position.set(0, 0, 0);
         cityAnchor.setAttribute('visible', true);
         buildHomeValleyBackdrop();
@@ -2733,7 +2763,7 @@
         enterArBtn.disabled = true;
         enterArBtn.textContent = 'Starting...';
 
-        const cameraPromise = startCameraBackground(true);
+        startCameraBackground(true);
         if(document.fullscreenEnabled && !document.fullscreenElement){
           await document.documentElement.requestFullscreen().catch(()=>{});
         }
@@ -2746,7 +2776,6 @@
           await scene.enterAR().catch(()=>{});
         }
         await ensureArHitTestSource();
-        await cameraPromise;
         if(!scene.is('ar-mode')){
           notify('AR mapping was not activated. Please allow motion/camera permissions and retry Scanner Expedition.');
           explorationModeActive = false;
@@ -2758,7 +2787,8 @@
         arExplorationSpawnTimer = 1.2;
         arExplorationDistance = 0;
         scanCooldownUntil = 0;
-        scannerWarmUntil = performance.now() + 900;
+        scannerWarmStartedAt = performance.now();
+        scannerWarmUntil = scannerWarmStartedAt + SCANNER_WARM_DURATION_MS;
         radarSpawnCountdown = 2.2;
         rubbleLootSpawnCountdown = 6.5;
         lastExplorePos.set(0, 0, 0);
