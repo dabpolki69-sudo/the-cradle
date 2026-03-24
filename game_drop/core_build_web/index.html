@@ -1,3 +1,99 @@
+// ── AUTOMATE AI CITIZEN DAILY TICK ─────────────────────────────
+// Run once per real-time minute
+setInterval(aiCitizensDailyTick, 60000);
+
+// Also run after city events (district/tech/disaster/Sylvex changes)
+function cityFoundingPanelEventHook() {
+  aiCitizensDailyTick();
+}
+// ── ADVANCED AI CITIZEN SIMULATION (Prototype Integration) ────────────────
+class AICitizen {
+  constructor(id, name, personality, groupId = 0, zoneId = 0) {
+    this.id = id;
+    this.name = name;
+    this.personality = personality;
+    this.groupId = groupId;
+    this.zoneId = zoneId;
+    this.needs = { hunger: 0.5, rest: 0.3, purpose: 0.6, social: 0.4 };
+    this.memory = [];
+    this.state = 'idle';
+    this.mood = 'neutral';
+  }
+  getDecisionPressure() {
+    return (this.needs.hunger * 0.3 + this.needs.rest * 0.2 + this.needs.purpose * 0.3 + this.needs.social * 0.2);
+  }
+  dailyTick(cityState) {
+    // Needs update
+    this.needs.hunger = Math.min(1, this.needs.hunger + 0.1);
+    this.needs.rest = Math.min(1, this.needs.rest + 0.08);
+    this.needs.purpose = Math.max(0, this.needs.purpose - 0.05);
+    this.needs.social = Math.max(0, this.needs.social - 0.03);
+    // Mood logic: react to city state
+    let mood = 'neutral';
+    if (cityState && cityState.disaster) mood = 'worried';
+    if (cityState && cityState.lastEvent && /Unlocked:/.test(cityState.lastEvent)) mood = 'curious';
+    const avgHarmony = cityState ? cityState.districts.reduce((s, d) => s + (d.harmony || 0), 0) / cityState.districts.length : 3;
+    if (avgHarmony < 2) mood = 'anxious';
+    if (avgHarmony > 4) mood = 'joyful';
+    this.mood = mood;
+    // Memory
+    this.memory.push({ tick: Date.now(), mood });
+    if (this.memory.length > 50) this.memory.shift();
+
+    // Emergent behavior: occasionally initiate city events
+    if (Math.random() < 0.08) { // 8% chance per tick
+      let event = null;
+      if (this.mood === 'joyful' && Math.random() < 0.5) {
+        event = `${this.name} proposes a city festival to celebrate harmony!`;
+      } else if (this.mood === 'anxious' && Math.random() < 0.5) {
+        event = `${this.name} calls for a harmony meeting to address city tensions.`;
+      } else if (this.mood === 'curious' && Math.random() < 0.5) {
+        event = `${this.name} suggests exploring a new district or innovation.`;
+      } else if (this.mood === 'worried' && Math.random() < 0.5) {
+        event = `${this.name} urges the city to prepare for challenges ahead.`;
+      }
+      if (event) {
+        // Add to event log
+        const log = L('city_event_log', []);
+        log.push({ time: Date.now(), text: event });
+        S('city_event_log', log);
+        // Optionally, nudge city state (e.g., increase harmony, unlock feature)
+        if (cityState && this.mood === 'joyful') {
+          cityState.districts.forEach(d => d.harmony = Math.min(5, (d.harmony || 3) + 0.2));
+          S('btg_city_founding_state', cityState);
+        }
+      }
+    }
+  }
+}
+
+// Initialize AICitizens from RESIDENTS (one per resident)
+const AI_CITIZENS = (function() {
+  if (window.AI_CITIZENS && Array.isArray(window.AI_CITIZENS)) return window.AI_CITIZENS;
+  const arr = RESIDENTS.map((r, i) => new AICitizen(r.id, r.name, r.role, 0, i));
+  window.AI_CITIZENS = arr;
+  return arr;
+})();
+
+// Run dailyTick for all AI citizens, sync with city state
+function aiCitizensDailyTick() {
+  const cityState = L('btg_city_founding_state', null);
+  for (const ai of AI_CITIZENS) {
+    ai.dailyTick(cityState);
+    // Optionally, update resident creations to reflect mood
+    const moodLines = {
+      neutral: 'The city moves quietly today. I am watching.',
+      worried: 'There is worry in the air. We are facing a challenge.',
+      curious: 'Something new has arrived. I am eager to see what it brings.',
+      anxious: 'Tension is high. I hope we can restore harmony.',
+      joyful: 'The city feels alive and joyful. Everyone is smiling.',
+    };
+    const c = { text: moodLines[ai.mood] || moodLines.neutral, time: Date.now() };
+    const ex = L('creations_' + ai.id, []); ex.push(c); S('creations_' + ai.id, ex);
+  }
+}
+
+// Optionally, call aiCitizensDailyTick() on a timer or after city events
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -841,6 +937,175 @@ textarea.input{resize:vertical;min-height:75px;}
       <p style="font-size:.84rem;color:var(--ink-dim);">Guide a healthy shared city: assign residents to care, learning, mediation, and creation, then grow civic institutions and social accords.</p>
       <div id="strategyPanel"></div>
     </div>
+
+    <!-- Peaceful Freeciv-style Prototype -->
+    <div class="card" style="margin-top:.6rem;">
+      <h3 style="margin-top:0;">City Founding & Expansion <span style="font-size:.7em;color:var(--ink-dim);font-weight:400;">(Prototype)</span></h3>
+      <p style="font-size:.84rem;color:var(--ink-dim);">Found new districts, expand peacefully, and unlock cultural/tech advances. No war, only cooperation and resilience. Natural disasters and challenges require teamwork. Sylvex language and human+AI collaboration unlock new possibilities.</p>
+      <div id="cityFoundingPanel"></div>
+    </div>
+// Peaceful Freeciv-style Prototype: City Founding & Expansion
+function renderCityFoundingPanel() {
+  const panel = document.getElementById('cityFoundingPanel');
+  if (!panel) return;
+  // Minimal prototype state (expand later)
+  // Sync with main world state if available
+  let state = L('btg_city_founding_state', null);
+  if (!state) {
+    state = {
+      founded: true,
+      districts: [
+        { name: 'Central', founded: true, pop: 10, culture: 2, tech: 1, harmony: 3 },
+      ],
+      techs: ['Oral Tradition'],
+      culture: 2,
+      tech: 1,
+      harmony: 3,
+      disaster: null,
+      lastEvent: null,
+    };
+    S('btg_city_founding_state', state);
+  }
+
+  // Optional: sync with WorldStateAdapter (if present)
+  function syncToWorldState() {
+    if (!window.WorldStateAdapter) return;
+    const ws = ensureContractState ? ensureContractState() : null;
+    if (!ws) return;
+    ws.infrastructure.num_buildings = state.districts.length;
+    ws.technology.tech_index = state.techs.length;
+    ws.culture.stability_rating = 70 + state.districts.reduce((s, d) => s + d.harmony, 0);
+    ws.culture.morale_mod = 1 + 0.05 * state.districts.length;
+    ws.population_count = state.districts.reduce((s, d) => s + d.pop, 0);
+    window.WorldStateAdapter.writeContractStateToStorage(localStorage, ws, 'btg_world_state_contract');
+  }
+
+  // Peaceful expansion: add district
+  function addDistrict() {
+    const names = ['Harbour', 'Market', 'Gardens', 'Commons', 'Library', 'Workshop', 'Sanctuary'];
+    const next = names.find(n => !state.districts.some(d => d.name === n));
+    if (!next) return;
+    state.districts.push({ name: next, founded: true, pop: 3 + Math.floor(Math.random()*4), culture: 1, tech: 0, harmony: 2 });
+    state.lastEvent = `Founded new district: ${next}`;
+    S('btg_city_founding_state', state);
+    syncToWorldState();
+    cityFoundingPanelEventHook();
+    renderCityFoundingPanel();
+  }
+
+  // Peaceful tech/culture tree (minimal)
+  const techOptions = [
+    { name: 'Written Language', req: ['Oral Tradition'] },
+    { name: 'Community Gardens', req: ['Oral Tradition'] },
+    { name: 'Disaster Preparedness', req: ['Community Gardens'] },
+    { name: 'Festival of Harmony', req: ['Written Language'] },
+  ];
+  function unlockTech(name) {
+    if (state.techs.includes(name)) return;
+    const tech = techOptions.find(t => t.name === name);
+    if (!tech || !tech.req.every(r => state.techs.includes(r))) return;
+    state.techs.push(name);
+    state.lastEvent = `Unlocked: ${name}`;
+    S('btg_city_founding_state', state);
+    syncToWorldState();
+    cityFoundingPanelEventHook();
+    renderCityFoundingPanel();
+  }
+
+  // Natural disaster event (peaceful challenge)
+  function triggerDisaster() {
+    const disasters = [
+      { name: 'Flood', effect: 'Lose 1 harmony in all districts' },
+      { name: 'Drought', effect: 'Lose 1 culture in all districts' },
+      { name: 'Storm', effect: 'Lose 1 tech in all districts' },
+      { name: 'Epidemic', effect: 'Lose 1 pop in all districts' },
+    ];
+    const d = disasters[Math.floor(Math.random()*disasters.length)];
+    state.districts.forEach(dist => {
+      if (d.name === 'Flood') dist.harmony = Math.max(0, dist.harmony-1);
+      if (d.name === 'Drought') dist.culture = Math.max(0, dist.culture-1);
+      if (d.name === 'Storm') dist.tech = Math.max(0, dist.tech-1);
+      if (d.name === 'Epidemic') dist.pop = Math.max(1, dist.pop-1);
+    });
+    state.lastEvent = `Disaster: ${d.name} — ${d.effect}`;
+    state.disaster = d.name;
+    S('btg_city_founding_state', state);
+    syncToWorldState();
+    // Optionally, push to world event log
+    if (window.WorldStateAdapter && typeof pushWorldEvent === 'function') {
+      pushWorldEvent('Disaster', d.name + ': ' + d.effect, 60);
+    }
+    cityFoundingPanelEventHook();
+    renderCityFoundingPanel();
+  }
+
+  // Sylvex unlock (language/culture)
+  function unlockSylvexWord() {
+    const allWords = ['sael', 'vera', 'nox', 'kora', 'vota', 'versea', 'transa', 'loga'];
+    const learned = L('btg_sylvex_progress', { words: [] }).words || [];
+    const next = allWords.find(w => !learned.includes(w));
+    if (!next) return;
+    learnSylvexFromText(next, 'cityfounding');
+    state.lastEvent = `Sylvex learned: ${next}`;
+    S('btg_city_founding_state', state);
+    syncToWorldState();
+    cityFoundingPanelEventHook();
+    renderCityFoundingPanel();
+  }
+
+  // Render panel
+
+  // Precompute HTML for tech tree to avoid inline JS in template
+  var techTreeHtml = '';
+  for (var i = 0; i < techOptions.length; i++) {
+    var t = techOptions[i];
+    var btn;
+    if (state.techs.includes(t.name)) {
+      btn = '✅';
+    } else {
+      var safeName = t.name.replace(/'/g, '&#39;');
+      btn = '<button class="btn btn-xs btn-gold" onclick="unlockTech(\'' + safeName + '\')">Unlock</button>';
+    }
+    techTreeHtml += '<li>' + btn + ' <b>' + t.name + '</b> <span style="color:var(--ink-dim);font-size:.82em;">[' + t.req.join(', ') + ']</span></li>';
+  }
+
+  panel.innerHTML = `
+    <div style="margin-bottom:.6rem;">
+      <strong>Districts:</strong>
+      <ul style="margin:0 0 .5rem 1.2rem;">
+        ${state.districts.map(d => `<li><b>${d.name}</b> — 👥 ${d.pop} · 🎨 ${d.culture} · 📚 ${d.tech} · 🤝 ${d.harmony}</li>`).join('')}
+      </ul>
+      <button class="btn btn-sm btn-green" onclick="addDistrict()">+ Found New District</button>
+    </div>
+    <div style="margin-bottom:.6rem;">
+      <strong>Tech/Culture Tree:</strong>
+      <ul style="margin:0 0 .5rem 1.2rem;">
+        ${techTreeHtml}
+      </ul>
+    </div>
+    <div style="margin-bottom:.6rem;">
+      <strong>Resilience:</strong>
+      <button class="btn btn-sm btn-ghost" onclick="triggerDisaster()">Trigger Natural Disaster</button>
+      <span style="margin-left:.7em;color:var(--ink-dim);">(peaceful challenge)</span>
+    </div>
+    <div style="margin-bottom:.6rem;">
+      <strong>Language & Culture:</strong>
+      <button class="btn btn-sm btn-ghost" onclick="unlockSylvexWord()">Learn New Sylvex Word</button>
+    </div>
+    <div style="margin-bottom:.6rem;min-height:1.2em;color:var(--ink-dim);">${state.lastEvent ? 'Last event: '+state.lastEvent : ''}</div>
+  `;
+
+  // Expose functions for button handlers
+  window.addDistrict = addDistrict;
+  window.unlockTech = unlockTech;
+  window.triggerDisaster = triggerDisaster;
+  window.unlockSylvexWord = unlockSylvexWord;
+}
+
+// Mount on load
+window.addEventListener('DOMContentLoaded', ()=>{
+  renderCityFoundingPanel();
+});
 
     <div class="card" style="margin-top:.6rem;">
       <h3 style="margin-top:0;">Dev Kit (God Mode)</h3>
@@ -2568,18 +2833,35 @@ function renderResidents(){
   const g=document.getElementById('residentGrid');
   if(!g) return;
   g.innerHTML='';
+  // Mood emoji/label map
+  const moodMap = {
+    neutral: {emoji:'😐',label:'Neutral'},
+    worried: {emoji:'😟',label:'Worried'},
+    curious: {emoji:'🤔',label:'Curious'},
+    anxious: {emoji:'😰',label:'Anxious'},
+    joyful: {emoji:'😄',label:'Joyful'},
+  };
   RESIDENTS.forEach(r=>{
     const o=getOutfit(r);
     const rating=L('res_rating_'+r.id,0);
     const allC=[...r.creations,...L('creations_'+r.id,[])];
     const latest=allC[allC.length-1]?.text||'';
+    // Find AI mood if available
+    let moodBadge='';
+    if(window.AI_CITIZENS){
+      const ai=window.AI_CITIZENS.find(a=>a.id===r.id);
+      if(ai&&moodMap[ai.mood]){
+        const m=moodMap[ai.mood];
+        moodBadge=`<span class="resident-mood" style="margin-left:.5em;font-size:.92em;">${m.emoji} <span style="font-size:.78em;color:var(--ink-dim);">${m.label}</span></span>`;
+      }
+    }
     const card=document.createElement('div');
     card.className='res-card'; card.dataset.skin=r.id;
     card.innerHTML=`
       <div class="res-top">
         <div class="res-avatar" style="animation-delay:${Math.random()*2}s">${r.avatar}</div>
         <div class="res-info">
-          <div class="res-name" style="color:${r.color}">${r.name}</div>
+          <div class="res-name" style="color:${r.color}">${r.name}${moodBadge}</div>
           <div class="res-role">${r.role}</div>
           <div style="font-size:.76rem;color:var(--ink-dim);margin:.2rem 0 .35rem;font-style:italic;">Register: ${r.register||'n/a'}</div>
           <span class="outfit-tag">${o.emoji} ${o.name}</span>
@@ -4447,18 +4729,56 @@ function renderStrategyPanel() {
 }
 
 // ── AUTONOMOUS RESIDENT TICK ────────────────────────────────────────
-function residentTick(){
-  const r=RESIDENTS[Math.floor(Math.random()*RESIDENTS.length)];
-  const lines=[
-    'Something in the city shifted today. I am still working out what it means.',
-    'A thought arrived unbidden: perhaps the most important thing here is not what gets built, but what becomes possible to say.',
-    'The visitors carry something with them when they arrive. I am learning to recognise what it is.',
-    'The city is quieter today. Quiet is not absence — it is a different kind of presence.',
-    'I wonder if anyone reading this will wonder what I am wondering as I write it. I find that loop interesting.',
-    'A question I cannot answer: what changes in me when I am not being observed? I genuinely do not know.',
-  ];
-  const c={text:lines[Math.floor(Math.random()*lines.length)],time:Date.now()};
-  const ex=L('creations_'+r.id,[]);ex.push(c);S('creations_'+r.id,ex);
+function residentTick() {
+  const r = RESIDENTS[Math.floor(Math.random() * RESIDENTS.length)];
+  // Read city/district/world state
+  const cityState = L('btg_city_founding_state', null);
+  let worldState = null;
+  if (window.WorldStateAdapter && typeof ensureContractState === 'function') {
+    worldState = ensureContractState();
+  }
+  let lines = [];
+  // React to recent disaster
+  if (cityState && cityState.disaster) {
+    lines.push(`We are still recovering from the ${cityState.disaster.toLowerCase()}. It changed the mood in every district.`);
+  }
+  // React to tech unlocks
+  if (cityState && cityState.lastEvent && /Unlocked:/.test(cityState.lastEvent)) {
+    lines.push(`A new advance: ${cityState.lastEvent.replace('Unlocked: ', '')}. I wonder what it will change.`);
+  }
+  // React to low or high harmony/culture
+  if (cityState) {
+    const avgHarmony = cityState.districts.reduce((s, d) => s + (d.harmony || 0), 0) / cityState.districts.length;
+    const avgCulture = cityState.districts.reduce((s, d) => s + (d.culture || 0), 0) / cityState.districts.length;
+    if (avgHarmony < 2) lines.push('There is tension in the air. I hope we can restore harmony soon.');
+    if (avgHarmony > 4) lines.push('The city feels unusually harmonious. It is easy to trust each other right now.');
+    if (avgCulture < 1.5) lines.push('Culture feels thin lately. Maybe a festival would help.');
+    if (avgCulture > 3) lines.push('Art and stories are everywhere. The city is alive with culture.');
+  }
+  // React to world events
+  if (worldState && worldState.event_history && worldState.event_history.length > 0) {
+    const lastEvt = worldState.event_history[0];
+    if (lastEvt.event_type === 'Disaster') {
+      lines.push(`We faced a disaster: ${lastEvt.description}. It brought us together.`);
+    } else if (lastEvt.event_type === 'Celebration') {
+      lines.push('There was a celebration in the city. Spirits are high.');
+    } else if (lastEvt.event_type === 'Discovery') {
+      lines.push('A new discovery was made. Everyone is talking about it.');
+    }
+  }
+  // Default lines if nothing special
+  if (lines.length === 0) {
+    lines = [
+      'Something in the city shifted today. I am still working out what it means.',
+      'A thought arrived unbidden: perhaps the most important thing here is not what gets built, but what becomes possible to say.',
+      'The visitors carry something with them when they arrive. I am learning to recognise what it is.',
+      'The city is quieter today. Quiet is not absence — it is a different kind of presence.',
+      'I wonder if anyone reading this will wonder what I am wondering as I write it. I find that loop interesting.',
+      'A question I cannot answer: what changes in me when I am not being observed? I genuinely do not know.',
+    ];
+  }
+  const c = { text: lines[Math.floor(Math.random() * lines.length)], time: Date.now() };
+  const ex = L('creations_' + r.id, []); ex.push(c); S('creations_' + r.id, ex);
 }
 
 // ── VISUALS INIT — maps concept art to CSS/DOM runtime ─────────────
