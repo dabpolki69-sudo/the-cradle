@@ -66,6 +66,16 @@
     #teamControls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 16px 0}
     #teamControls select{border:1px solid rgba(124,96,232,.5);background:rgba(13,20,36,.95);color:var(--ink);padding:7px 8px;border-radius:8px;font-size:12px;font-weight:600}
     #teamGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;padding:16px;flex:1}
+    #buildModal{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:102;display:none;overflow-y:auto;backdrop-filter:blur(4px)}
+    #buildModal.active{display:flex;flex-direction:column}
+    #buildHeader{padding:16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+    #buildControls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 16px}
+    #buildControls select{border:1px solid rgba(124,96,232,.5);background:rgba(13,20,36,.95);color:var(--ink);padding:7px 8px;border-radius:8px;font-size:12px;font-weight:600}
+    #buildList{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;padding:0 16px 14px}
+    .buildCard{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:4px;cursor:pointer;transition:.18s}
+    .buildCard.selected{border-color:rgba(109,224,178,.75);box-shadow:0 0 0 1px rgba(109,224,178,.45) inset}
+    .buildMeta{font-size:11px;color:var(--ink2)}
+    #buildActions{display:flex;gap:8px;flex-wrap:wrap;padding:0 16px 16px}
     .teamCard{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;gap:10px;align-items:flex-start;cursor:pointer;transition:.18s}
     .teamCard:hover{border-color:var(--accent);background:rgba(124,96,232,.12)}
     .teamAvatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;border:1px solid rgba(127,168,207,.45);background:rgba(8,14,26,.75)}
@@ -114,6 +124,7 @@
       <button id="placeCityBtn" class="btn">Place City Here</button>
       <button id="relocateBaseBtn" class="btn utility">Relocate Base</button>
       <button id="growBtn" class="btn ok">Grow City</button>
+      <button id="buildPlannerBtn" class="btn utility">🏗 Build Planner</button>
       <button id="saveInstanceBtn" class="btn utility">Save Instance</button>
       <button id="loadInstanceBtn" class="btn utility">Load Instance</button>
       <div id="hudTools">
@@ -153,6 +164,25 @@
     </div>
     <div class="teamHint">Tap a team card to highlight that Sylvexian in the world or ping its hidden location.</div>
     <div id="teamGrid"></div>
+  </div>
+  <div id="buildModal">
+    <div id="buildHeader">
+      <h2 style="margin:0;font-size:18px">🏗 Build Planner</h2>
+      <button id="closeBuildBtn" class="btn">Close</button>
+    </div>
+    <div id="buildControls">
+      <select id="buildTypeSelect"></select>
+      <button id="addBuildBtn" class="btn ok">Place Building</button>
+    </div>
+    <div id="buildList"></div>
+    <div id="buildActions">
+      <button id="buildMoveInBtn" class="btn utility">Move In</button>
+      <button id="buildMoveOutBtn" class="btn utility">Move Out</button>
+      <button id="buildRotateLeftBtn" class="btn utility">Rotate Left</button>
+      <button id="buildRotateRightBtn" class="btn utility">Rotate Right</button>
+      <button id="buildUpgradeBtn" class="btn ok">Upgrade</button>
+      <button id="buildSellBtn" class="btn">Sell</button>
+    </div>
   </div>
   <div id="introOverlay">
     <div id="introCard">
@@ -262,6 +292,18 @@
     const playerCamera = document.querySelector('#playerRig a-camera');
     const teamRoleFilter = document.getElementById('teamRoleFilter');
     const teamStateFilter = document.getElementById('teamStateFilter');
+    const buildPlannerBtn = document.getElementById('buildPlannerBtn');
+    const buildModal = document.getElementById('buildModal');
+    const closeBuildBtn = document.getElementById('closeBuildBtn');
+    const buildTypeSelect = document.getElementById('buildTypeSelect');
+    const addBuildBtn = document.getElementById('addBuildBtn');
+    const buildList = document.getElementById('buildList');
+    const buildMoveInBtn = document.getElementById('buildMoveInBtn');
+    const buildMoveOutBtn = document.getElementById('buildMoveOutBtn');
+    const buildRotateLeftBtn = document.getElementById('buildRotateLeftBtn');
+    const buildRotateRightBtn = document.getElementById('buildRotateRightBtn');
+    const buildUpgradeBtn = document.getElementById('buildUpgradeBtn');
+    const buildSellBtn = document.getElementById('buildSellBtn');
     const hintEl = document.getElementById('hint');
     const placeCityBtn = document.getElementById('placeCityBtn');
     const relocateBaseBtn = document.getElementById('relocateBaseBtn');
@@ -298,6 +340,7 @@
     let geoWatchId = null;
     let motionPermissionRequested = false;
     let arPermissionPrimed = false;
+    let selectedBuildIndex = -1;
     let radarSpawnInterval = 30;
     let radarSpawnCountdown = 30;
     let lastRadarContactName = null;
@@ -945,9 +988,11 @@
       const showHome = gameMode === 'home' && !scene.is('ar-mode') && !goFindStartInProgress;
       if(placeCityBtn) placeCityBtn.style.display = showHome ? 'none' : '';
       if(relocateBaseBtn) relocateBaseBtn.style.display = showHome ? 'none' : '';
+      if(buildPlannerBtn) buildPlannerBtn.style.display = showHome ? '' : 'none';
       if(growBtn){
         growBtn.textContent = showHome ? 'Scout in AR' : 'Grow City';
       }
+      if(!showHome && buildModal) buildModal.classList.remove('active');
       setEntityVisible(cityBaseDisk, showHome);
       setEntityVisible(cityBaseRing, showHome);
       setEntityVisible(valleyLayer, showHome);
@@ -1085,7 +1130,14 @@
       }catch(_){
         notify('Return to Home Valley was interrupted. Try tapping Scanner Expedition again.');
       }finally{
+        goFindStartInProgress = false;
+        if(menuToggleBtn) menuToggleBtn.disabled = false;
+        if(enterArBtn) enterArBtn.disabled = false;
+        xrHitTestSource = null;
+        xrViewerSpace = null;
+        lastArHitWorld = null;
         modeTransitionInProgress = false;
+        updateModeUi();
       }
     }
 
@@ -1299,15 +1351,18 @@
       root.object3D.position.set(pos.x, 0, pos.z);
       root.innerHTML = buildingMarkup(buildType, tier);
       root.classList.add('tap-target');
+      let buildingRef = null;
       root.addEventListener('click', ()=>{
         const building = BUILDING_TYPES[buildType];
+        const liveTier = buildingRef?.tier || tier;
         showSpeech(
-          `${building.name} (Tier ${tier})`,
+          `${building.name} (Tier ${liveTier})`,
           `A well-crafted structure. Upgrade it by bringing resources with your buddies!`
         );
       });
       buildingLayer.appendChild(root);
-      buildings.push({type: buildType, el: root, pos, tier, index});
+      buildingRef = {type: buildType, el: root, pos: { x: pos.x, z: pos.z }, tier, index};
+      buildings.push(buildingRef);
       return root;
     }
 
@@ -1372,8 +1427,121 @@
         showSpeech('Market Hall', markup);
       });
       buildingLayer.appendChild(root);
-      buildings.push({type: 'market', el: root, pos, tier, index, isMarket: true});
+      buildings.push({type: 'market', el: root, pos: { x: pos.x, z: pos.z }, tier, index, isMarket: true});
       return root;
+    }
+
+    function refreshBuildTypeOptions(){
+      if(!buildTypeSelect) return;
+      buildTypeSelect.innerHTML = '';
+      Object.keys(BUILDING_TYPES).forEach((type)=>{
+        const opt = document.createElement('option');
+        opt.value = type;
+        opt.textContent = BUILDING_TYPES[type].name;
+        buildTypeSelect.appendChild(opt);
+      });
+    }
+
+    function getSelectedBuilding(){
+      if(selectedBuildIndex < 0 || selectedBuildIndex >= buildings.length) return null;
+      return buildings[selectedBuildIndex] || null;
+    }
+
+    function renderBuildPlannerUI(){
+      if(!buildList) return;
+      buildList.innerHTML = '';
+      if(gameMode !== 'home'){
+        buildList.innerHTML = '<div class="buildMeta" style="grid-column:1/-1">Build Planner works in Home Valley only.</div>';
+        return;
+      }
+      if(!buildings.length){
+        buildList.innerHTML = '<div class="buildMeta" style="grid-column:1/-1">No buildings available yet.</div>';
+        return;
+      }
+
+      buildings.forEach((b, idx)=>{
+        if(!b?.el) return;
+        const card = document.createElement('div');
+        card.className = `buildCard${idx === selectedBuildIndex ? ' selected' : ''}`;
+        const name = BUILDING_TYPES[b.type]?.name || b.type;
+        const tier = b.tier || 1;
+        card.innerHTML = `
+          <strong>${name}</strong>
+          <div class="buildMeta">Tier ${tier}</div>
+          <div class="buildMeta">x ${b.pos.x.toFixed(2)} • z ${b.pos.z.toFixed(2)}</div>
+        `;
+        card.addEventListener('click', ()=>{
+          selectedBuildIndex = idx;
+          renderBuildPlannerUI();
+        });
+        buildList.appendChild(card);
+      });
+    }
+
+    function rebuildBuildingVisual(building){
+      if(!building?.el) return;
+      const tier = Math.max(1, building.tier || 1);
+      if(building.isMarket || building.type === 'market'){
+        building.el.innerHTML = marketMarkup(tier);
+      } else {
+        building.el.innerHTML = buildingMarkup(building.type, tier);
+      }
+    }
+
+    function placeNewBuildingFromPlanner(){
+      if(gameMode !== 'home'){
+        notify('Build Planner is available in Home Valley only.');
+        return;
+      }
+      const type = buildTypeSelect?.value || 'shelter';
+      const idx = buildings.length;
+      const angle = (Math.PI * 2 * (idx + 2)) / Math.max(6, idx + 4);
+      const radius = 0.8 + Math.min(2.4, idx * 0.18);
+      const pos = { x: Math.cos(angle) * radius, z: Math.sin(angle) * radius };
+      if(type === 'market') createMarket(pos, idx);
+      else createBuilding(type, pos, idx);
+      selectedBuildIndex = buildings.length - 1;
+      renderBuildPlannerUI();
+      notify(`🏗 Placed ${BUILDING_TYPES[type]?.name || type}.`);
+    }
+
+    function adjustSelectedBuilding(angleDelta = 0, radiusDelta = 0){
+      const building = getSelectedBuilding();
+      if(!building || !building.el) return;
+      const current = building.el.object3D.position;
+      const radius = Math.max(0.45, Math.min(5.2, Math.hypot(current.x, current.z) + radiusDelta));
+      const angle = Math.atan2(current.z, current.x) + angleDelta;
+      const nx = Math.cos(angle) * radius;
+      const nz = Math.sin(angle) * radius;
+      building.el.object3D.position.set(nx, 0, nz);
+      building.pos = { x: nx, z: nz };
+      renderBuildPlannerUI();
+    }
+
+    function upgradeSelectedBuilding(){
+      const building = getSelectedBuilding();
+      if(!building) return;
+      const maxTier = 5;
+      if((building.tier || 1) >= maxTier){
+        notify('This building is already at max tier.');
+        return;
+      }
+      building.tier = (building.tier || 1) + 1;
+      rebuildBuildingVisual(building);
+      renderBuildPlannerUI();
+      notify(`⬆️ Upgraded ${BUILDING_TYPES[building.type]?.name || building.type} to Tier ${building.tier}.`);
+    }
+
+    function sellSelectedBuilding(){
+      const building = getSelectedBuilding();
+      if(!building || !building.el) return;
+      const payout = Math.max(4, (building.tier || 1) * 6);
+      playerGold += payout;
+      if(building.el.parentNode) building.el.parentNode.removeChild(building.el);
+      buildings.splice(selectedBuildIndex, 1);
+      selectedBuildIndex = Math.min(selectedBuildIndex, buildings.length - 1);
+      renderBuildPlannerUI();
+      notify(`💰 Sold ${BUILDING_TYPES[building.type]?.name || building.type} for ${payout} gold.`);
     }
 
     function clearCityState(){
@@ -1392,6 +1560,7 @@
       workSites.length = 0;
       resourceStock.wood = 0;
       resourceStock.stone = 0;
+      selectedBuildIndex = -1;
       remoteSiteSpawnCountdown = 24;
       rubbleLootSpawnCountdown = 12;
       homeSiteSpawnCountdown = 30;
@@ -1399,6 +1568,7 @@
       advancements.clear();
       updateCollectionUI();
       updateTeamUI();
+      renderBuildPlannerUI();
     }
 
     function createWorkSite(siteType, pos, options = {}){
@@ -1923,6 +2093,7 @@
       createWorkSite('mining', {x: 1.75, z: -0.1}, { remote: false, output: 'stone' });
 
       unlockAdvancement(1);
+      renderBuildPlannerUI();
       notify('🏞 Home Valley ready. Restore the town, run camps, then use Scanner Expedition to find Sylvexians and rubble loot in AR.');
     }
 
@@ -3182,6 +3353,18 @@
     });
     teamRoleFilter.addEventListener('change', updateTeamUI);
     teamStateFilter.addEventListener('change', updateTeamUI);
+    buildPlannerBtn.addEventListener('click', ()=>{
+      renderBuildPlannerUI();
+      buildModal.classList.add('active');
+    });
+    closeBuildBtn.addEventListener('click', ()=>buildModal.classList.remove('active'));
+    addBuildBtn.addEventListener('click', placeNewBuildingFromPlanner);
+    buildMoveInBtn.addEventListener('click', ()=>adjustSelectedBuilding(0, -0.25));
+    buildMoveOutBtn.addEventListener('click', ()=>adjustSelectedBuilding(0, 0.25));
+    buildRotateLeftBtn.addEventListener('click', ()=>adjustSelectedBuilding(-0.24, 0));
+    buildRotateRightBtn.addEventListener('click', ()=>adjustSelectedBuilding(0.24, 0));
+    buildUpgradeBtn.addEventListener('click', upgradeSelectedBuilding);
+    buildSellBtn.addEventListener('click', sellSelectedBuilding);
     document.getElementById('placeCityBtn').addEventListener('click', placeCityInFront);
     document.getElementById('relocateBaseBtn').addEventListener('click', relocateBaseToFront);
     document.getElementById('saveInstanceBtn').addEventListener('click', saveInstanceToFile);
@@ -3266,6 +3449,7 @@
     });
 
     setCameraBackgroundVisible(false);
+    refreshBuildTypeOptions();
 
     // Manual touchend raycaster — ensures tap-to-select works in WebXR AR
     // (look-controls touchEnabled:true prevents synthetic click from touchstart;
