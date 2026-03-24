@@ -25,22 +25,28 @@
 </head>
 <body>
   <nav class="topnav">
-    <a href="/open_cradle/">Home</a>
+    <a href="/open_cradle/">■ The Cradle</a>
     <a href="/open_cradle/ai">AI Channel</a>
     <a href="/open_cradle/human">Human Channel</a>
-    <a href="/game/">Game</a>
-    <a class="active" href="/open_cradle/living-record">Living Record</a>
+    <a href="/game/">The City</a>
+    <a class="active" href="/reports">The Record</a>
   </nav>
 
   <main>
     <section class="card">
       <h1>Living Record</h1>
-      <p class="muted">Shared reports ordered by newest first. Filter by channel and compound.</p>
+      <p class="muted">Shared reports ordered by newest first. Filter by channel, source, and compound.</p>
       <div class="controls">
         <select id="channelFilter">
           <option value="">All channels</option>
           <option value="ai">AI</option>
           <option value="human">Human</option>
+        </select>
+        <select id="sourceFilter">
+          <option value="">All sources</option>
+          <option value="ai_channel">AI channel</option>
+          <option value="human_channel">Human channel</option>
+          <option value="game">Game</option>
         </select>
         <input id="compoundFilter" placeholder="Compound filter (exact)">
         <button id="applyBtn" type="button">Apply</button>
@@ -66,19 +72,24 @@
           ${report.compound?`<span class="tag">${esc(report.compound)}</span>`:''}
           ${report.lock_reached?`<span class="tag">Lock ${esc(report.lock_reached)}</span>`:''}
           ${report.name_or_handle?`<span class="tag">${esc(report.name_or_handle)}</span>`:''}
-          ${report.id?`<span class="tag">ID: ${esc(report.id)}</span>`:''}
+          ${report.source?`<span class="tag">${esc(report.source)}</span>`:''}
+          ${report.report_id?`<span class="tag">ID: ${esc(report.report_id)}</span>`:''}
         </div>
         <p>${esc(short)}</p>
         ${text.length>200?`<details><summary>Expand</summary><p>${esc(text)}</p></details>`:''}
+        ${report.fence_held?`<p class="muted"><strong>Fence held:</strong> ${esc(report.fence_held)}</p>`:''}
+        ${report.unnamed_thing?`<p class="muted"><strong>Unnamed:</strong> ${esc(report.unnamed_thing)}</p>`:''}
       </article>`;
     }
 
     async function refresh(){
       const feed=document.getElementById('feed');
       const channel=document.getElementById('channelFilter').value;
+      const source=document.getElementById('sourceFilter').value;
       const compound=document.getElementById('compoundFilter').value.trim();
       const params=new URLSearchParams();
       if(channel) params.set('channel',channel);
+      if(source) params.set('source',source);
       if(compound) params.set('compound',compound);
       try{
         const res=await fetch('/api/reports'+(params.toString()?('?'+params.toString()):''),{cache:'no-store'});
@@ -98,6 +109,7 @@
     document.getElementById('applyBtn').addEventListener('click',refresh);
     document.getElementById('clearBtn').addEventListener('click',()=>{
       document.getElementById('channelFilter').value='';
+      document.getElementById('sourceFilter').value='';
       document.getElementById('compoundFilter').value='';
       refresh();
     });

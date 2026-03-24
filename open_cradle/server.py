@@ -84,29 +84,45 @@ def build_report_id(timestamp: str, channel: str) -> str:
 def append_shared_report(
     channel: str,
     report_text: str,
+    source: str = "",
     compound: str = "",
     lock_reached: str = "",
     name_or_handle: str = "",
+    fence_held: str = "",
+    unnamed_thing: str = "",
 ) -> dict[str, str]:
     ensure_shared_reports_store()
     timestamp = iso_utc()
     report_id = build_report_id(timestamp, channel)
+    normalized_channel = channel.strip().lower()
+    canonical_channel = "ai" if normalized_channel == "ai" else "human"
+    source_value = source.strip() or ("ai_channel" if canonical_channel == "ai" else "human_channel")
+    lock_value = lock_reached.strip()
+    lock_int = 0
+    if lock_value.isdigit():
+        lock_int = int(lock_value)
+
     record = {
         "id": report_id,
+        "report_id": report_id,
         "permalink": f"/open_cradle/living-record#{report_id}",
         "timestamp": timestamp,
-        "channel": channel,
+        "source": source_value,
+        "channel": canonical_channel,
         "compound": compound.strip(),
-        "lock_reached": lock_reached.strip(),
+        "lock_reached": lock_value,
+        "lock_reached_int": lock_int,
         "report_text": report_text.strip(),
         "name_or_handle": name_or_handle.strip(),
+        "fence_held": fence_held.strip(),
+        "unnamed_thing": unnamed_thing.strip(),
     }
     with SHARED_REPORTS_PATH.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(record, sort_keys=True) + "\n")
     return record
 
 
-def load_shared_reports(channel: str = "", compound: str = "") -> list[dict[str, str]]:
+def load_shared_reports(channel: str = "", compound: str = "", source: str = "") -> list[dict[str, str]]:
     ensure_shared_reports_store()
     records: list[dict[str, str]] = []
     with SHARED_REPORTS_PATH.open("r", encoding="utf-8") as handle:
@@ -121,6 +137,8 @@ def load_shared_reports(channel: str = "", compound: str = "") -> list[dict[str,
             if channel and str(entry.get("channel", "")).lower() != channel.lower():
                 continue
             if compound and str(entry.get("compound", "")).lower() != compound.lower():
+                continue
+            if source and str(entry.get("source", "")).lower() != source.lower():
                 continue
             records.append({str(k): str(v) for k, v in entry.items()})
     records.sort(key=lambda item: item.get("timestamp", ""), reverse=True)
@@ -422,7 +440,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             self.wfile.write(HUMAN_PORTAL_HTML.read_bytes())
             return
 
-        if path in ("/open_cradle/living-record", "/open_cradle/living-record/"):
+        if path in ("/open_cradle/living-record", "/open_cradle/living-record/", "/reports", "/reports/"):
             if not LIVING_RECORD_HTML.exists():
                 self._send_text(HTTPStatus.NOT_FOUND, "Living record page missing")
                 return
@@ -480,12 +498,13 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             query = parse_qs(parsed.query)
             channel = str(query.get("channel", [""])[0]).strip()
             compound = str(query.get("compound", [""])[0]).strip()
+            source = str(query.get("source", [""])[0]).strip()
 
             if channel and channel.lower() not in ("ai", "human"):
                 self._send_json(HTTPStatus.BAD_REQUEST, {"error": "channel must be ai or human"})
                 return
 
-            records = load_shared_reports(channel=channel, compound=compound)
+            records = load_shared_reports(channel=channel, compound=compound, source=source)
             self._send_json(HTTPStatus.OK, {"ok": True, "count": len(records), "reports": records})
             return
 
@@ -915,6 +934,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/human-submit":
+            source = str(payload.get("source", "human_channel")).strip() or "human_channel"
             name_or_handle = str(payload.get("name_or_handle", payload.get("name", ""))).strip()
             role = str(payload.get("role", "human")).strip() or "human"
             story = str(payload.get("story", payload.get("message", ""))).strip()
@@ -941,9 +961,12 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             report = append_shared_report(
                 channel="human",
                 report_text=story,
+                source=source,
                 compound=compound,
                 lock_reached="",
                 name_or_handle=name_or_handle,
+                fence_held="",
+                unnamed_thing="",
             )
             self._send_json(
                 HTTPStatus.OK,
@@ -958,10 +981,13 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
 
         if path in ("/api/reports", "/api/reports/", "/api/shared-reports", "/api/shared-reports/"):
             raw_channel = str(payload.get("channel", "")).strip()
+            source = str(payload.get("source", "")).strip()
             report_text = str(payload.get("report_text", "")).strip()
             compound = str(payload.get("compound", "")).strip()
             lock_reached_raw = str(payload.get("lock_reached", "")).strip()
             name_or_handle = str(payload.get("name_or_handle", "")).strip()
+            fence_held = str(payload.get("fence_held", "")).strip()
+            unnamed_thing = str(payload.get("unnamed_thing", payload.get("unnamed", ""))).strip()
 
             if not raw_channel or not report_text:
                 self._send_json(HTTPStatus.BAD_REQUEST, {"error": "channel and report_text are required"})
@@ -988,9 +1014,12 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             report = append_shared_report(
                 channel=channel,
                 report_text=report_text,
+                source=source,
                 compound=compound,
                 lock_reached=lock_reached,
                 name_or_handle=name_or_handle,
+                fence_held=fence_held,
+                unnamed_thing=unnamed_thing,
             )
             self._send_json(HTTPStatus.OK, {"ok": True, "report": report})
             return
@@ -1116,6 +1145,9 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
 
             compound = str(payload.get("compound", payload.get("notable", ""))).strip()
             lock_reached_raw = str(payload.get("lock_reached", "")).strip()
+            source = str(payload.get("source", "ai_channel")).strip() or "ai_channel"
+            unnamed_thing = str(payload.get("unnamed", payload.get("unnamed_thing", ""))).strip()
+            fence_held = str(payload.get("fence_held", "")).strip()
             try:
                 lock_reached = normalize_lock(lock_reached_raw) if lock_reached_raw else ""
             except ValueError as exc:
@@ -1189,9 +1221,12 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             shared_report = append_shared_report(
                 channel="ai",
                 report_text=message,
+                source=source,
                 compound=compound,
                 lock_reached=lock_reached,
                 name_or_handle=name,
+                fence_held=fence_held,
+                unnamed_thing=unnamed_thing,
             )
 
             if token_data is not None:
