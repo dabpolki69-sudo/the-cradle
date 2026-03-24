@@ -293,6 +293,9 @@
     let scannerTutorialShown = false;
     let scannerWarmWasActive = false;
     let goFindStartInProgress = false;
+    let modeTransitionInProgress = false;
+    let geoPermissionRequested = false;
+    let geoWatchId = null;
     let radarSpawnInterval = 30;
     let radarSpawnCountdown = 30;
     let lastRadarContactName = null;
@@ -852,6 +855,20 @@
       if(entity.object3D) entity.object3D.visible = visible;
     }
 
+    function ensureLocationPermissionPrompt(){
+      if(geoPermissionRequested) return;
+      geoPermissionRequested = true;
+      if(!navigator.geolocation) return;
+      try{
+        geoWatchId = navigator.geolocation.watchPosition(
+          ()=>{},
+          ()=>{},
+          { enableHighAccuracy: true, maximumAge: 10000, timeout: 12000 }
+        );
+      }catch(_){
+      }
+    }
+
     function syncBuddyVisibility(){
       const expeditionPhase = gameMode === 'expedition' || goFindStartInProgress || scene.is('ar-mode');
       for(const buddy of beings){
@@ -904,6 +921,7 @@
         if(scannerWarmWrap) scannerWarmWrap.style.display = 'none';
         if(hintEl) hintEl.textContent = '🏞 Home Valley mode: restore camps and stock supplies. Use Scanner Expedition for AR scouting.';
       } else if(hintEl){
+        if(cameraBg && cameraBg.srcObject && !scene.is('ar-mode')) setCameraBackgroundVisible(true);
         hintEl.textContent = '📡 Expedition mode: scan mapped space to reveal hidden contacts, rubble loot, and remote sites.';
       }
       updateTeamUI();
@@ -958,6 +976,8 @@
     }
 
     async function returnHomeFromExpedition(){
+      if(modeTransitionInProgress) return;
+      modeTransitionInProgress = true;
       explorationModeActive = false;
       gameMode = 'home';
       pendingScannerKick = false;
@@ -987,6 +1007,7 @@
       setHomeCameraView();
       updateModeUi();
       notify('🏞 Returned to Home Valley. Build your town, then launch scanner expeditions for Sylvexians and rubble loot.');
+      modeTransitionInProgress = false;
     }
 
     function getUpgradeTier(buildType, buildIndex){
@@ -2199,6 +2220,20 @@
       buddy.hiding = false;
       buddy.hideProp = null;
       buddy.hideOffset = null;
+      if(reason === 'scan'){
+        const viewer = getPlayerAnchorLocalPosition();
+        const dx = buddy.el.object3D.position.x - viewer.x;
+        const dz = buddy.el.object3D.position.z - viewer.z;
+        const dist = Math.hypot(dx, dz);
+        if(dist > 1.4 || dist < 0.45){
+          const ang = Math.atan2(dz || 0.01, dx || 0.01);
+          const revealDist = 0.95;
+          const px = viewer.x + Math.cos(ang) * revealDist;
+          const pz = viewer.z + Math.sin(ang) * revealDist;
+          buddy.el.object3D.position.set(px, 0, pz);
+          buddy.searchAnchor = { x: px, z: pz };
+        }
+      }
       buddy.el.object3D.visible = true;
       updateTeamUI();
       showSpawnIndicator(buddy.el.object3D.position.x, buddy.el.object3D.position.z);
@@ -2220,7 +2255,7 @@
       let bestVisibleDist = Infinity;
       for(const buddy of beings){
         const worldPos = cityAnchor.object3D.localToWorld(buddy.el.object3D.position.clone());
-        const dist = worldPos.distanceTo(camPos);
+        const dist = Math.hypot(worldPos.x - camPos.x, worldPos.z - camPos.z);
         if(buddy.searchHidden){
           if(dist < bestHiddenDist){
             bestHidden = buddy;
@@ -2373,7 +2408,7 @@
       const name = undiscovered[Math.floor(Math.random() * undiscovered.length)];
       const spawned = addBeing(name);
       if(spawned){
-        const startHidden = roomMapPoints.length >= 10 ? Math.random() < 0.75 : false;
+        const startHidden = true;
         placeSpawnedBeingHidden(spawned, startHidden);
         showSpawnIndicator(spawned.el.object3D.position.x, spawned.el.object3D.position.z);
         notify(startHidden
@@ -2795,6 +2830,15 @@
       const dt = Math.min(0.05, ((ts - (lastTs||ts))/1000));
       lastTs = ts;
 
+      if(goFindStartInProgress && scannerWarmStartedAt && (performance.now() - scannerWarmStartedAt) > SCANNER_START_TIMEOUT_MS){
+        goFindStartInProgress = false;
+        modeTransitionInProgress = false;
+        scannerWarmUntil = 0;
+        scannerWarmStartedAt = 0;
+        updateModeUi();
+        notify('Scanner start timed out. Please retry and allow required permissions.');
+      }
+
       updateRoomMap();
 
       if(cityAnchor.getAttribute('visible')){
@@ -2879,7 +2923,8 @@
     }
 
     async function enterAr(){
-      if(gameMode === 'expedition' && explorationModeActive && scene.is('ar-mode')){
+      if(modeTransitionInProgress) return;
+      if(gameMode === 'expedition'){
         await returnHomeFromExpedition();
         return;
       }
@@ -2892,11 +2937,14 @@
         return;
       }
       try{
+        modeTransitionInProgress = true;
         goFindStartInProgress = true;
+        scannerWarmStartedAt = performance.now();
         menuToggleBtn.disabled = true;
         enterArBtn.disabled = true;
         enterArBtn.textContent = 'Starting...';
 
+        ensureLocationPermissionPrompt();
         startCameraBackground(true);
         if(document.fullscreenEnabled && !document.fullscreenElement){
           await document.documentElement.requestFullscreen().catch(()=>{});
@@ -2934,9 +2982,6 @@
         updateModeUi();
         showScannerTutorialOnce();
         setTimeout(()=>{
-          if(explorationModeActive && beings.length < Math.min(5, MAX_ACTIVE_WORKERS)){
-            spawnFromArExploration();
-          }
           if(pendingScannerKick){
             pendingScannerKick = false;
             setTimeout(()=>performRadarScan(), 220);
@@ -2947,6 +2992,7 @@
         notify('Scanner Expedition could not start camera view on this device, but Home Valley mode still works.');
       } finally {
         goFindStartInProgress = false;
+        modeTransitionInProgress = false;
         menuToggleBtn.disabled = false;
         enterArBtn.disabled = false;
         updateModeUi();
@@ -3043,7 +3089,7 @@
       setTimeout(()=>{
         const newest = addBeing(newSylvexianName);
         if(newest){
-          const startHidden = roomMapPoints.length >= 8 ? Math.random() < 0.65 : false;
+          const startHidden = true;
           placeSpawnedBeingHidden(newest, startHidden);
           notify(startHidden
             ? `🫥 New Sylvexian contact detected: ${newest.name} is hiding nearby.`
