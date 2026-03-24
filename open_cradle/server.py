@@ -21,6 +21,7 @@ PORTAL_HTML = REPO_ROOT / "open_cradle" / "index.html"
 AI_PORTAL_HTML = REPO_ROOT / "open_cradle" / "ai.html"
 HUMAN_PORTAL_HTML = REPO_ROOT / "open_cradle" / "human.html"
 LIVING_RECORD_HTML = REPO_ROOT / "open_cradle" / "living_record.html"
+PORTAL_STYLES_CSS = REPO_ROOT / "open_cradle" / "styles.css"
 GAME_DIR = REPO_ROOT / "game_drop" / "core_build_web"
 GAME_DIR_RESOLVED = GAME_DIR.resolve()
 HUMAN_LOG_PATH = REPO_ROOT / "logs" / "HUMAN_LOG.md"
@@ -446,6 +447,14 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                 return
             self._set_headers(HTTPStatus.OK, "text/html; charset=utf-8")
             self.wfile.write(LIVING_RECORD_HTML.read_bytes())
+            return
+
+        if path in ("/open_cradle/styles.css", "/open_cradle/styles.css/"):
+            if not PORTAL_STYLES_CSS.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Stylesheet missing")
+                return
+            self._set_headers(HTTPStatus.OK, "text/css; charset=utf-8")
+            self.wfile.write(PORTAL_STYLES_CSS.read_bytes())
             return
 
         if path in ("/open_cradle/review", "/open_cradle/review/"):
