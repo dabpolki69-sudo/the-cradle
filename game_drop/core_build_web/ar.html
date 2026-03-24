@@ -887,6 +887,14 @@
       }
     }
 
+    async function ensureRuntimePermissions(requestCamera = true){
+      ensureLocationPermissionPrompt();
+      await ensureMotionPermissionPrompt();
+      if(requestCamera){
+        await startCameraBackground(false).catch(()=>false);
+      }
+    }
+
     function syncBuddyVisibility(){
       const expeditionPhase = gameMode === 'expedition' || goFindStartInProgress || scene.is('ar-mode');
       for(const buddy of beings){
@@ -2375,6 +2383,13 @@
         return;
       }
       scanCooldownUntil = now + 1800;
+
+      const liveReveals = revealHiddenContactsNearViewer(1.9);
+      if(liveReveals > 0){
+        notify(`📡 Live sweep revealed ${liveReveals} nearby contact${liveReveals > 1 ? 's' : ''}.`);
+        return;
+      }
+
       const contact = nearestRadarContact();
       if(!contact){
         if(beings.length < Math.min(5, MAX_ACTIVE_WORKERS)){
@@ -2389,7 +2404,8 @@
       const target = contact.buddy;
       showSpawnIndicator(target.el.object3D.position.x, target.el.object3D.position.z);
       if(contact.hidden){
-        setTimeout(()=>revealHiddenBuddy(target, 'scan'), 380);
+        placeBuddyInFrontOfViewer(target, 0.95);
+        revealHiddenBuddy(target, 'scan');
       } else {
         placeBuddyInFrontOfViewer(target, 1.1);
         if(target.el?.object3D) target.el.object3D.visible = true;
@@ -2407,6 +2423,21 @@
           revealHiddenBuddy(buddy, 'nearby');
         }
       }
+    }
+
+    function revealHiddenContactsNearViewer(radius = 1.7){
+      const viewer = getPlayerAnchorLocalPosition();
+      let revealed = 0;
+      for(const buddy of beings){
+        if(!buddy.searchHidden) continue;
+        const dx = buddy.el.object3D.position.x - viewer.x;
+        const dz = buddy.el.object3D.position.z - viewer.z;
+        if(Math.hypot(dx, dz) <= radius){
+          revealHiddenBuddy(buddy, 'scan');
+          revealed += 1;
+        }
+      }
+      return revealed;
     }
 
     function placeSpawnedBeingNearViewer(spawned){
@@ -3151,6 +3182,7 @@
     });
 
     enableCameraBtn.addEventListener('click', async ()=>{
+      await ensureRuntimePermissions(true);
       introOverlay.style.display = 'none';
       cityAnchor.object3D.position.set(0, 0, 0);
       cityAnchor.setAttribute('visible', true);
@@ -3162,7 +3194,8 @@
       showSpeech('Home Valley', 'Rebuild your valley from ruins. Use Scanner Expedition to switch into AR and search for Sylvexians + rubble loot.');
     });
 
-    startWithoutCameraBtn.addEventListener('click', ()=>{
+    startWithoutCameraBtn.addEventListener('click', async ()=>{
+      await ensureRuntimePermissions(true);
       introOverlay.style.display = 'none';
       cityAnchor.object3D.position.set(0, 0, 0);
       cityAnchor.setAttribute('visible', true);
