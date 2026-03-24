@@ -721,44 +721,39 @@
       const h = 0.4 + tier * 0.3;
       const w = 0.3 + tier * 0.15;
       const d = 0.3 + tier * 0.15;
-      const trim = buildType === 'workshop' ? '#8ea4c7' : buildType === 'market' ? '#ffd89a' : '#b8c8db';
-      const baseMaterial = buildType === 'workshop'
-        ? `color:${building.color};roughness:0.66;metalness:0.24`
-        : buildType === 'tower'
-          ? `color:${building.color};roughness:0.62;metalness:0.18`
-          : `color:${building.color};roughness:0.84;metalness:0.08`;
-      const roofMaterial = `color:${building.roofColor};roughness:0.88;metalness:${buildType === 'workshop' ? 0.16 : 0.05}`;
-      
+      const trim = buildType === 'workshop' ? '#96acd0' : buildType === 'market' ? '#ffd89a' : '#c5d4e2';
+      const baseMaterial = `shader:flat;color:${building.color}`;
+      const roofMaterial = `shader:flat;color:${building.roofColor}`;
+
       let html = `
-        <a-cylinder radius="${Math.max(w,d)*0.62}" height="0.07" position="0 0.035 0" material="color:#1d273a;roughness:0.94"></a-cylinder>
+        <a-box width="${w*1.35}" height="0.08" depth="${d*1.35}" position="0 0.04 0" material="shader:flat;color:#243348"></a-box>
         <a-box width="${w}" height="${h * 0.6}" depth="${d}" position="0 ${h*0.3} 0" material="${baseMaterial}"></a-box>
-        <a-box width="${w}" height="${h * 0.4}" depth="${d}" position="0 ${h*0.8} 0" material="${roofMaterial}"></a-box>
-        <a-cone radius-bottom="${w/2 + 0.05}" radius-top="0.02" height="${h*0.35}" position="0 ${h*1.08} 0" material="${roofMaterial}"></a-cone>
-        <a-box width="${w*0.18}" height="${h*0.28}" depth="0.03" position="0 ${h*0.18} ${d/2+0.016}" material="color:#3a2f23;roughness:0.82"></a-box>
-        <a-box width="${w*0.96}" height="0.018" depth="${d*0.96}" position="0 ${h*0.5} 0" material="color:${trim};roughness:0.6"></a-box>
-        <a-box width="${w*0.96}" height="0.018" depth="${d*0.96}" position="0 ${h*0.65} 0" material="color:${trim};roughness:0.6"></a-box>
-        <a-box width="0.02" height="${h*0.6}" depth="0.02" position="${w/2-0.02} ${h*0.3} ${d/2-0.02}" material="color:${trim};metalness:0.2"></a-box>
-        <a-box width="0.02" height="${h*0.6}" depth="0.02" position="${-w/2+0.02} ${h*0.3} ${d/2-0.02}" material="color:${trim};metalness:0.2"></a-box>
-        <a-box width="0.02" height="${h*0.6}" depth="0.02" position="${w/2-0.02} ${h*0.3} ${-d/2+0.02}" material="color:${trim};metalness:0.2"></a-box>
-        <a-box width="0.02" height="${h*0.6}" depth="0.02" position="${-w/2+0.02} ${h*0.3} ${-d/2+0.02}" material="color:${trim};metalness:0.2"></a-box>
+        <a-box width="${w*0.84}" height="${h * 0.17}" depth="${d*0.84}" position="0 ${h*0.66} 0" material="${roofMaterial}"></a-box>
+        <a-box width="${w*0.68}" height="${h * 0.15}" depth="${d*0.68}" position="0 ${h*0.8} 0" material="${roofMaterial}"></a-box>
+        <a-box width="${w*0.52}" height="${h * 0.13}" depth="${d*0.52}" position="0 ${h*0.92} 0" material="${roofMaterial}"></a-box>
+        <a-box width="${w*0.18}" height="${h*0.28}" depth="0.03" position="0 ${h*0.18} ${d/2+0.016}" material="shader:flat;color:#2f261d"></a-box>
+        <a-box width="${w*0.96}" height="0.02" depth="${d*0.96}" position="0 ${h*0.5} 0" material="shader:flat;color:${trim}"></a-box>
+        <a-box width="${w*0.96}" height="0.02" depth="${d*0.96}" position="0 ${h*0.65} 0" material="shader:flat;color:${trim}"></a-box>
+        <a-box width="0.03" height="${h*0.6}" depth="0.03" position="${w/2-0.03} ${h*0.3} ${d/2-0.03}" material="shader:flat;color:${trim}"></a-box>
+        <a-box width="0.03" height="${h*0.6}" depth="0.03" position="${-w/2+0.03} ${h*0.3} ${d/2-0.03}" material="shader:flat;color:${trim}"></a-box>
+        <a-box width="0.03" height="${h*0.6}" depth="0.03" position="${w/2-0.03} ${h*0.3} ${-d/2+0.03}" material="shader:flat;color:${trim}"></a-box>
+        <a-box width="0.03" height="${h*0.6}" depth="0.03" position="${-w/2+0.03} ${h*0.3} ${-d/2+0.03}" material="shader:flat;color:${trim}"></a-box>
       `;
-      
+
       if(tier >= 2){
-        html += `<a-box width="0.06" height="0.08" depth="0.02" position="${w/2-0.05} ${h*0.5} ${d/2+0.02}" material="color:#4da6ff;emissive:#2080ff;emissive-intensity:0.5"></a-box>`;
-        html += `<a-box width="0.06" height="0.08" depth="0.02" position="${-w/2+0.05} ${h*0.5} ${d/2+0.02}" material="color:#4da6ff;emissive:#2080ff;emissive-intensity:0.5"></a-box>`;
+        html += `<a-box width="0.07" height="0.08" depth="0.03" position="${w/2-0.06} ${h*0.5} ${d/2+0.02}" material="shader:flat;color:#69b7ff"></a-box>`;
+        html += `<a-box width="0.07" height="0.08" depth="0.03" position="${-w/2+0.06} ${h*0.5} ${d/2+0.02}" material="shader:flat;color:#69b7ff"></a-box>`;
       }
-      
+
       if(tier >= 3){
-        html += `<a-box width="0.06" height="0.08" depth="0.02" position="${w/2-0.05} ${h*0.72} ${d/2+0.02}" material="color:#4da6ff;emissive:#2080ff;emissive-intensity:0.5"></a-box>`;
-        html += `<a-box width="0.06" height="0.08" depth="0.02" position="${-w/2+0.05} ${h*0.72} ${d/2+0.02}" material="color:#4da6ff;emissive:#2080ff;emissive-intensity:0.5"></a-box>`;
+        html += `<a-box width="0.07" height="0.08" depth="0.03" position="${w/2-0.06} ${h*0.72} ${d/2+0.02}" material="shader:flat;color:#69b7ff"></a-box>`;
+        html += `<a-box width="0.07" height="0.08" depth="0.03" position="${-w/2+0.06} ${h*0.72} ${d/2+0.02}" material="shader:flat;color:#69b7ff"></a-box>`;
       }
-      
+
       if(tier >= 4){
-        html += `<a-cone radius-bottom="${w/4}" radius-top="0.01" height="${h*0.25}" position="0 ${h*1.25} 0" material="color:#ffd166;emissive:#ffa500;emissiveIntensity:0.35">
-          <a-animation attribute="material.emissiveIntensity" direction="alternate" dur="1800" repeat="indefinite" to="0.62"></a-animation>
-        </a-cone>`;
+        html += `<a-box width="${w*0.22}" height="${h*0.16}" depth="${d*0.22}" position="0 ${h*1.06} 0" material="shader:flat;color:#ffd166"></a-box>`;
       }
-      
+
       return html;
     }
 
@@ -772,22 +767,22 @@
         const z = (Math.random() - 0.5) * 0.3;
         const rot = Math.random() * 360;
         if(material === 'wood'){
-          html += `<a-cylinder radius="${size*0.12}" height="${size*0.42}" position="${x} ${size*0.2} ${z}" rotation="0 ${rot*0.4} ${rot*0.7}" material="color:${mat.color};roughness:0.92"></a-cylinder>`;
-          html += `<a-cylinder radius="${size*0.055}" height="0.01" position="${x} ${size*0.41} ${z}" rotation="90 0 0" material="color:#c69a68;roughness:0.88"></a-cylinder>`;
+          html += `<a-box width="${size*0.22}" height="${size*0.36}" depth="${size*0.22}" position="${x} ${size*0.18} ${z}" rotation="0 ${rot*0.4} 0" material="shader:flat;color:${mat.color}"></a-box>`;
+          html += `<a-box width="${size*0.12}" height="${size*0.04}" depth="${size*0.12}" position="${x} ${size*0.37} ${z}" material="shader:flat;color:#c69a68"></a-box>`;
         } else if(material === 'stone'){
-          html += `<a-dodecahedron radius="${size*0.6}" position="${x} ${size*0.4} ${z}" rotation="${rot*0.3} ${rot*0.5} ${rot*0.2}" material="color:${mat.color};roughness:0.95;metalness:0.02"></a-dodecahedron>`;
-          html += `<a-box width="${size*0.24}" height="${size*0.06}" depth="${size*0.06}" position="${x} ${size*0.56} ${z}" rotation="${rot*0.2} ${rot*0.6} ${rot*0.1}" material="color:#a7a7a7;roughness:0.9"></a-box>`;
+          html += `<a-box width="${size*0.26}" height="${size*0.2}" depth="${size*0.22}" position="${x} ${size*0.18} ${z}" rotation="0 ${rot*0.3} 0" material="shader:flat;color:${mat.color}"></a-box>`;
+          html += `<a-box width="${size*0.18}" height="${size*0.08}" depth="${size*0.16}" position="${x} ${size*0.32} ${z}" rotation="0 ${rot*0.55} 0" material="shader:flat;color:#a7a7a7"></a-box>`;
         } else if(material === 'rubble'){
-          html += `<a-dodecahedron radius="${size*0.56}" position="${x} ${size*0.28} ${z}" rotation="${rot*0.35} ${rot*0.52} ${rot*0.16}" material="color:#5f6875;roughness:0.97"></a-dodecahedron>`;
-          html += `<a-box width="${size*0.36}" height="${size*0.1}" depth="${size*0.14}" position="${x + 0.03} ${size*0.2} ${z - 0.02}" rotation="${rot*0.1} ${rot*0.7} ${rot*0.3}" material="color:#7b8593;roughness:0.92"></a-box>`;
-          html += `<a-cylinder radius="${size*0.06}" height="${size*0.2}" position="${x - 0.02} ${size*0.24} ${z + 0.01}" rotation="90 ${rot*0.55} 0" material="color:#4b545f;roughness:0.9"></a-cylinder>`;
+          html += `<a-box width="${size*0.28}" height="${size*0.2}" depth="${size*0.22}" position="${x} ${size*0.14} ${z}" rotation="0 ${rot*0.3} 0" material="shader:flat;color:#5f6875"></a-box>`;
+          html += `<a-box width="${size*0.2}" height="${size*0.1}" depth="${size*0.16}" position="${x + 0.03} ${size*0.24} ${z - 0.02}" rotation="0 ${rot*0.6} 0" material="shader:flat;color:#7b8593"></a-box>`;
+          html += `<a-box width="${size*0.14}" height="${size*0.08}" depth="${size*0.14}" position="${x - 0.02} ${size*0.3} ${z + 0.01}" material="shader:flat;color:#4b545f"></a-box>`;
         } else if(material === 'crystal' || material === 'essence'){
-          html += `<a-octahedron radius="${size*0.84}" position="${x} ${size*0.34} ${z}" material="color:${mat.color};metalness:0.28;roughness:0.16;emissive:${mat.color};emissiveIntensity:0.2">
+          html += `<a-box width="${size*0.24}" height="${size*0.34}" depth="${size*0.24}" position="${x} ${size*0.22} ${z}" material="shader:flat;color:${mat.color};emissive:${mat.color};emissiveIntensity:0.18">
             <a-animation attribute="material.emissiveIntensity" direction="alternate" dur="1500" repeat="indefinite" to="0.42"></a-animation>
-          </a-octahedron>`;
+          </a-box>`;
         } else {
-          html += `<a-octahedron radius="${size*0.8}" position="${x} ${size*0.3} ${z}" material="color:${mat.color};metalness:0.8;roughness:0.32"></a-octahedron>`;
-          html += `<a-sphere radius="${size*0.22}" position="${x} ${size*0.66} ${z}" material="color:#fff1a6;metalness:0.6;roughness:0.22"></a-sphere>`;
+          html += `<a-box width="${size*0.22}" height="${size*0.22}" depth="${size*0.22}" position="${x} ${size*0.18} ${z}" material="shader:flat;color:${mat.color}"></a-box>`;
+          html += `<a-box width="${size*0.1}" height="${size*0.1}" depth="${size*0.1}" position="${x} ${size*0.34} ${z}" material="shader:flat;color:#fff1a6"></a-box>`;
         }
       }
       html += `<a-ring rotation="90 0 0" radius-inner="0.2" radius-outer="0.27" position="0 0.02 0" material="shader:flat;color:${mat.color};opacity:0.3"></a-ring>`;
@@ -797,27 +792,25 @@
     function workSiteMarkup(siteType){
       if(siteType === 'logging'){
         return `
-          <a-circle rotation="-90 0 0" radius="0.46" position="0 0.015 0" material="shader:flat;color:#233122;opacity:0.42"></a-circle>
-          <a-box width="0.5" height="0.07" depth="0.36" position="0 0.04 0" material="color:#5f4226;roughness:0.92"></a-box>
-          <a-cylinder radius="0.07" height="0.52" position="-0.18 0.26 0.06" rotation="90 0 24" material="color:#906338;roughness:0.92"></a-cylinder>
-          <a-cylinder radius="0.06" height="0.46" position="0.12 0.24 -0.02" rotation="90 0 -18" material="color:#84562b;roughness:0.92"></a-cylinder>
-          <a-box width="0.12" height="0.12" depth="0.12" position="0.24 0.08 0.12" material="color:#6d4f2e;roughness:0.9"></a-box>
-          <a-box width="0.1" height="0.02" depth="0.1" position="0.24 0.15 0.12" material="color:#c3924f;metalness:0.2;roughness:0.6"></a-box>
-          <a-cylinder radius="0.02" height="0.28" position="-0.3 0.14 -0.12" material="color:#6f86a8;metalness:0.5;roughness:0.32"></a-cylinder>
-          <a-box width="0.2" height="0.04" depth="0.03" position="-0.22 0.28 -0.12" rotation="0 0 18" material="color:#9fb5d6;metalness:0.55;roughness:0.24"></a-box>
+          <a-box width="0.64" height="0.07" depth="0.5" position="0 0.035 0" material="shader:flat;color:#2f3d28"></a-box>
+          <a-box width="0.16" height="0.16" depth="0.16" position="-0.22 0.09 0.08" material="shader:flat;color:#906338"></a-box>
+          <a-box width="0.16" height="0.16" depth="0.16" position="-0.06 0.09 0.08" material="shader:flat;color:#8a5c2f"></a-box>
+          <a-box width="0.16" height="0.16" depth="0.16" position="0.1 0.09 0.08" material="shader:flat;color:#84562b"></a-box>
+          <a-box width="0.2" height="0.12" depth="0.2" position="0.24 0.08 -0.1" material="shader:flat;color:#6d4f2e"></a-box>
+          <a-box width="0.22" height="0.03" depth="0.03" position="-0.23 0.22 -0.12" rotation="0 0 18" material="shader:flat;color:#9fb5d6"></a-box>
+          <a-box width="0.03" height="0.26" depth="0.03" position="-0.3 0.13 -0.12" material="shader:flat;color:#6f86a8"></a-box>
           <a-text value="LOGGING CAMP" width="1.8" color="#d7c18d" align="center" position="0 0.62 0" scale="0.45 0.45 0.45" billboard></a-text>
         `;
       } else {
         return `
-          <a-circle rotation="-90 0 0" radius="0.5" position="0 0.015 0" material="shader:flat;color:#1f2737;opacity:0.48"></a-circle>
-          <a-cylinder radius="0.24" height="0.12" position="0 0.06 0" material="color:#3e4759;roughness:0.9"></a-cylinder>
-          <a-ring rotation="-90 0 0" radius-inner="0.25" radius-outer="0.34" position="0 0.02 0" material="shader:flat;color:#5e6f8e;opacity:0.44"></a-ring>
-          <a-box width="0.09" height="0.62" depth="0.09" position="-0.2 0.32 0.05" material="color:#566178;roughness:0.72;metalness:0.32"></a-box>
-          <a-box width="0.09" height="0.62" depth="0.09" position="0.2 0.32 -0.05" material="color:#566178;roughness:0.72;metalness:0.32"></a-box>
-          <a-box width="0.42" height="0.06" depth="0.08" position="0 0.58 0" rotation="0 0 -14" material="color:#8ea4c7;metalness:0.58;roughness:0.26"></a-box>
-          <a-cylinder radius="0.028" height="0.3" position="0.16 0.66 0" rotation="0 0 -14" material="color:#ffc86b;metalness:0.5;roughness:0.28"></a-cylinder>
-          <a-dodecahedron radius="0.1" position="0.06 0.14 -0.15" material="color:#8894ab;roughness:0.95"></a-dodecahedron>
-          <a-dodecahedron radius="0.08" position="-0.1 0.12 0.16" material="color:#727f95;roughness:0.95"></a-dodecahedron>
+          <a-box width="0.66" height="0.08" depth="0.54" position="0 0.04 0" material="shader:flat;color:#253244"></a-box>
+          <a-box width="0.2" height="0.16" depth="0.2" position="0 0.1 0" material="shader:flat;color:#3e4759"></a-box>
+          <a-box width="0.1" height="0.6" depth="0.1" position="-0.2 0.3 0.05" material="shader:flat;color:#566178"></a-box>
+          <a-box width="0.1" height="0.6" depth="0.1" position="0.2 0.3 -0.05" material="shader:flat;color:#566178"></a-box>
+          <a-box width="0.42" height="0.06" depth="0.08" position="0 0.58 0" rotation="0 0 -14" material="shader:flat;color:#8ea4c7"></a-box>
+          <a-box width="0.04" height="0.28" depth="0.04" position="0.16 0.66 0" rotation="0 0 -14" material="shader:flat;color:#ffc86b"></a-box>
+          <a-box width="0.18" height="0.14" depth="0.16" position="0.08 0.11 -0.16" material="shader:flat;color:#8894ab"></a-box>
+          <a-box width="0.14" height="0.11" depth="0.14" position="-0.12 0.09 0.16" material="shader:flat;color:#727f95"></a-box>
           <a-text value="MINING SITE" width="1.7" color="#b8c8db" align="center" position="0 0.72 0" scale="0.45 0.45 0.45" billboard></a-text>
         `;
       }
@@ -826,13 +819,15 @@
     function buildHomeValleyBackdrop(){
       if(!valleyLayer) return;
       valleyLayer.innerHTML = `
-        <a-circle rotation="-90 0 0" radius="5.8" position="0 0.005 0" material="shader:flat;color:#172338;opacity:0.94"></a-circle>
-        <a-ring rotation="-90 0 0" radius-inner="3.8" radius-outer="5.2" position="0 0.01 0" material="shader:flat;color:#243854;opacity:0.58"></a-ring>
-        <a-ring rotation="-90 0 0" radius-inner="2.2" radius-outer="3.2" position="0 0.012 0" material="shader:flat;color:#314c6f;opacity:0.34"></a-ring>
-        <a-box width="0.55" height="0.16" depth="0.42" position="-1.45 0.08 -0.92" rotation="0 18 0" material="color:#534436;roughness:0.9"></a-box>
-        <a-box width="0.42" height="0.12" depth="0.32" position="1.38 0.06 -1.05" rotation="0 -24 0" material="color:#4b3e34;roughness:0.9"></a-box>
-        <a-box width="0.38" height="0.1" depth="0.28" position="-1.12 0.05 1.08" rotation="0 32 0" material="color:#625145;roughness:0.9"></a-box>
-        <a-dodecahedron radius="0.18" position="1.14 0.1 1.22" material="color:#5f6875;roughness:0.96"></a-dodecahedron>
+        <a-box width="8.6" height="0.1" depth="8.6" position="0 0.05 0" material="shader:flat;color:#2d6130"></a-box>
+        <a-box width="7.2" height="0.08" depth="7.2" position="0 0.11 0" material="shader:flat;color:#6e4e31"></a-box>
+        <a-box width="6.2" height="0.08" depth="6.2" position="0 0.15 0" material="shader:flat;color:#7a5a39"></a-box>
+        <a-box width="0.55" height="0.16" depth="0.42" position="-1.45 0.23 -0.92" rotation="0 18 0" material="shader:flat;color:#534436"></a-box>
+        <a-box width="0.42" height="0.12" depth="0.32" position="1.38 0.21 -1.05" rotation="0 -24 0" material="shader:flat;color:#4b3e34"></a-box>
+        <a-box width="0.38" height="0.1" depth="0.28" position="-1.12 0.2 1.08" rotation="0 32 0" material="shader:flat;color:#625145"></a-box>
+        <a-box width="0.26" height="0.16" depth="0.24" position="1.14 0.23 1.22" material="shader:flat;color:#5f6875"></a-box>
+        <a-box width="0.2" height="0.12" depth="0.16" position="1.28 0.2 1.1" material="shader:flat;color:#727c8b"></a-box>
+        <a-box width="0.24" height="0.14" depth="0.2" position="0.84 0.22 -1.42" material="shader:flat;color:#5a6675"></a-box>
       `;
     }
 
