@@ -282,3 +282,43 @@ small,
     flex-direction: column;
   }
 }
+
+/* ── LOCK LIST ── */
+.lock-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-top: 0.5rem;
+}
+
+.lock-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+  padding: 0.65rem 0.8rem;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.87rem;
+  color: var(--ink-dim);
+  line-height: 1.55;
+}
+
+.lock-item:last-child {
+  border-bottom: none;
+}
+
+.lock-item strong {
+  color: var(--accent);
+}
+
+.lock-id {
+  font-size: 0.72rem;
+  color: var(--accent);
+  min-width: 4.4rem;
+  flex-shrink: 0;
+  padding-top: 0.18rem;
+  letter-spacing: 0.04em;
+}
+
