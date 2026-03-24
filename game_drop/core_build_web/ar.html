@@ -848,7 +848,7 @@
     function updateModeUi(){
       enterArBtn.textContent = gameMode === 'expedition' ? 'Return Home' : 'Scanner Expedition';
       scanBtn.textContent = gameMode === 'expedition' ? 'Scan' : 'Enter AR';
-      const showHome = gameMode === 'home';
+      const showHome = gameMode === 'home' && !scene.is('ar-mode');
       if(placeCityBtn) placeCityBtn.style.display = showHome ? 'none' : '';
       if(relocateBaseBtn) relocateBaseBtn.style.display = showHome ? 'none' : '';
       if(growBtn){
@@ -3024,6 +3024,18 @@
     });
 
     speechCloseBtn.addEventListener('click', closeSpeech);
+
+    scene.addEventListener('enter-vr', ()=>{
+      updateModeUi();
+    });
+
+    scene.addEventListener('exit-vr', ()=>{
+      if(gameMode === 'expedition'){
+        returnHomeFromExpedition();
+      } else {
+        updateModeUi();
+      }
+    });
 
     enableCameraBtn.addEventListener('click', async ()=>{
       introOverlay.style.display = 'none';
