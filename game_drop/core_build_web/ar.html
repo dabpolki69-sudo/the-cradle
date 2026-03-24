@@ -54,6 +54,7 @@
     #scannerWarmTrack{height:6px;border-radius:999px;background:rgba(127,168,207,.2);overflow:hidden;border:1px solid rgba(127,168,207,.28)}
     #scannerWarmBar{height:100%;width:0%;background:linear-gradient(90deg,#5ec4d4,#7c60e8);transition:width .16s linear}
     #scannerWarmText{font-size:10px;color:var(--ink2);text-align:center}
+    #returnHomeBtn{position:fixed;top:10px;right:12px;z-index:70;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;min-height:42px}
     @keyframes radarspin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
     @keyframes scannerReadyPulse{0%{box-shadow:0 0 0 rgba(109,224,178,0);border-color:var(--line)}35%{box-shadow:0 0 24px rgba(109,224,178,.42);border-color:rgba(109,224,178,.75)}100%{box-shadow:0 0 0 rgba(109,224,178,0);border-color:var(--line)}}
     #collectionModal{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100;display:none;overflow-y:auto;backdrop-filter:blur(4px)}
@@ -114,6 +115,7 @@
 <body>
   <video id="cameraBg" autoplay muted playsinline></video>
   <div id="cameraOverlay"></div>
+  <a id="returnHomeBtn" class="btn utility" href="/game/">← Return Home</a>
   <div id="uiTop" class="menu-collapsed">
     <button id="menuToggleBtn" class="btn">☰ Menu</button>
     <button id="enterArBtn" class="btn primary">Scanner Expedition</button>
