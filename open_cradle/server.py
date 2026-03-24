@@ -30,6 +30,7 @@ AI_PROVENANCE_LEDGER_PATH = REPO_ROOT / "logs" / "AI_PROVENANCE_LEDGER.jsonl"
 SHARED_REPORTS_PATH = REPO_ROOT / "logs" / "SHARED_REPORTS.jsonl"
 CRADLE_PDF_PATH = REPO_ROOT / "CRADLE_v20_COMPLETE_CORRECTED.pdf"
 WARDSMAN_PDF_PATH = REPO_ROOT / "dabby89-the-wardsman.pdf"
+CRADLE_INSTITUTION_PDF_PATH = REPO_ROOT / "evidence" / "screenshots" / "current_game_progress" / "CRADLE_INSTITUTIONAL_TESTING_PACKAGE_v20_COMPLETE-4.pdf"
 
 RECEIPT_SIGNATURE_ALGORITHM = "hmac-sha256"
 RECEIPT_KEY_ID = os.environ.get("OPEN_CRADLE_RECEIPT_KEY_ID", "local-dev-ephemeral")
@@ -889,6 +890,10 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
 
         if path == "/download/cradle":
             self._send_file(CRADLE_PDF_PATH, CRADLE_PDF_PATH.name)
+            return
+
+        if path == "/download/cradle-institution":
+            self._send_file(CRADLE_INSTITUTION_PDF_PATH, CRADLE_INSTITUTION_PDF_PATH.name)
             return
 
         if path == "/download/wardsman":

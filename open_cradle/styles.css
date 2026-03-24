@@ -322,3 +322,11 @@ small,
   letter-spacing: 0.04em;
 }
 
+.doc-frame {
+  width: 100%;
+  min-height: 70vh;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #0b0f16;
+}
+
