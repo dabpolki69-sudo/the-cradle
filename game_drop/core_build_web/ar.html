@@ -297,6 +297,7 @@
     let geoPermissionRequested = false;
     let geoWatchId = null;
     let motionPermissionRequested = false;
+    let arPermissionPrimed = false;
     let radarSpawnInterval = 30;
     let radarSpawnCountdown = 30;
     let lastRadarContactName = null;
@@ -892,6 +893,35 @@
       await ensureMotionPermissionPrompt();
       if(requestCamera){
         await startCameraBackground(false).catch(()=>false);
+      }
+    }
+
+    async function primeArMappingPermission(){
+      if(arPermissionPrimed) return true;
+      if(!scene.enterAR) return false;
+      const startInAr = scene.is('ar-mode');
+      let enteredForPrime = false;
+      try{
+        if(!startInAr){
+          const entered = await Promise.race([
+            scene.enterAR().then(()=>scene.is('ar-mode')).catch(()=>false),
+            new Promise((resolve)=>setTimeout(()=>resolve(false), SCANNER_START_TIMEOUT_MS))
+          ]);
+          if(!entered) return false;
+          enteredForPrime = true;
+        }
+        await ensureArHitTestSource();
+        arPermissionPrimed = true;
+        return true;
+      }catch(_){
+        return false;
+      } finally {
+        if(enteredForPrime && scene.is('ar-mode') && !explorationModeActive && scene.exitAR){
+          await Promise.race([
+            scene.exitAR().then(()=>true).catch(()=>false),
+            new Promise((resolve)=>setTimeout(()=>resolve(false), 2500))
+          ]);
+        }
       }
     }
 
@@ -3023,6 +3053,14 @@
           explorationModeActive = false;
           return;
         }
+
+        if(!arPermissionPrimed){
+          const primed = await primeArMappingPermission();
+          if(!primed){
+            notify('AR mapping permission is required. Please allow camera/motion/location access and retry Scanner Expedition.');
+          }
+        }
+
         if(!scene.is('ar-mode')){
           await Promise.race([
             scene.enterAR().then(()=>true).catch(()=>false),
@@ -3183,6 +3221,7 @@
 
     enableCameraBtn.addEventListener('click', async ()=>{
       await ensureRuntimePermissions(true);
+      const primed = await primeArMappingPermission();
       introOverlay.style.display = 'none';
       cityAnchor.object3D.position.set(0, 0, 0);
       cityAnchor.setAttribute('visible', true);
@@ -3191,11 +3230,17 @@
       seedCity();
       setHomeCameraView();
       updateModeUi();
+      if(primed){
+        notify('AR mapping access granted at startup. Scanner Expedition is ready.');
+      } else {
+        notify('AR mapping permission not granted yet. You can retry from Scanner Expedition.');
+      }
       showSpeech('Home Valley', 'Rebuild your valley from ruins. Use Scanner Expedition to switch into AR and search for Sylvexians + rubble loot.');
     });
 
     startWithoutCameraBtn.addEventListener('click', async ()=>{
       await ensureRuntimePermissions(true);
+      const primed = await primeArMappingPermission();
       introOverlay.style.display = 'none';
       cityAnchor.object3D.position.set(0, 0, 0);
       cityAnchor.setAttribute('visible', true);
@@ -3204,6 +3249,11 @@
       seedCity();
       setHomeCameraView();
       updateModeUi();
+      if(primed){
+        notify('AR mapping access granted at startup. Scanner Expedition is ready.');
+      } else {
+        notify('AR mapping permission not granted yet. You can retry from Scanner Expedition.');
+      }
       showSpeech('Home Valley', 'Rebuild your town first, then use Scanner Expedition for AR discovery runs.');
     });
 
