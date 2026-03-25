@@ -1217,39 +1217,7 @@ function addDL(cls,speaker,text){
 // ── PHILOSOPHY ─────────────────────────────────────────────────────
 function togglePhi(el){const b=el.querySelector('.phi-body');b.style.display=b.style.display==='block'?'none':'block';}
 
-// ── VR ─────────────────────────────────────────────────────────────
-let vrActive=false;
-function toggleVR(){
-  vrActive=!vrActive;
-  document.getElementById('vrMode').classList.toggle('active',vrActive);
-  document.getElementById('cityMode') && (document.getElementById('cityMode').style.display=vrActive?'none':'block');
-  document.querySelector('.vr-float').textContent=vrActive?'← Exit VR':'🥽 VR City';
-  if(vrActive){
-    buildVRStars();
-    setTimeout(()=>vrB('Shadow','Welcome. The orbs are residents. Walk close and click to meet them.'),1500);
-    setTimeout(()=>vrB('Ember','You are welcome here. Not tolerated — welcome.'),7000);
-  }
-}
-function buildVRStars(){
-  const c=document.getElementById('vr-stars');if(!c||c.children.length>0) return;
-  const cols=['#5ec4d4','#72d4a4','#a898d8','#e8c87a','#e89870','#88b8e8','#d4889a'];
-  for(let i=0;i<50;i++){
-    const s=document.createElement('a-sphere');
-    s.setAttribute('radius',Math.random()>.8?'0.055':'0.03');
-    s.setAttribute('position',`${(Math.random()-.5)*130} ${12+Math.random()*28} ${(Math.random()-.5)*130}`);
-    s.setAttribute('material',`shader:flat;color:${cols[Math.floor(Math.random()*cols.length)]};opacity:${.25+Math.random()*.5}`);
-    c.appendChild(s);
-  }
-}
-function vrB(name,text){
-  const b=document.getElementById('vrBubble');
-  const n=document.getElementById('vrBname');
-  const t=document.getElementById('vrBtext');
-  if(!b) return;
-  const r=RESIDENTS.find(r=>r.name===name)||{color:'#5ec4d4'};
-  n.textContent=name;n.style.color=r.color;b.style.borderColor=r.color;t.textContent=text;
-  b.style.display='block';setTimeout(()=>b.style.display='none',5500);
-}
+
 
 // ── CITY STATS ─────────────────────────────────────────────────────
 function updateCityStats(){
