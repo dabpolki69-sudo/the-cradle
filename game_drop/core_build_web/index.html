@@ -576,16 +576,7 @@ textarea.input{resize:vertical;min-height:75px;}
   backdrop-filter:blur(12px);
 }
 .vr-float:hover{background:var(--teal-d);box-shadow:0 0 16px rgba(94,196,212,0.2);}
-.ar-float{
-  position:fixed;bottom:7.4rem;right:1rem;z-index:150;
-  font-family:'Space Mono',monospace;font-size:0.46rem;
-  letter-spacing:0.12em;text-transform:uppercase;
-  padding:0.5rem 0.9rem;border-radius:var(--rs);
-  background:rgba(5,9,15,0.95);border:1px solid rgba(124,96,232,0.42);
-  color:#cbb8ff;cursor:pointer;transition:var(--trans);
-  backdrop-filter:blur(12px);text-decoration:none;
-}
-.ar-float:hover{background:rgba(124,96,232,0.14);box-shadow:0 0 16px rgba(124,96,232,0.22);}
+
 
 /* ── VR MODE ── */
 #vrMode{display:none;position:fixed;inset:0;z-index:9000;}
@@ -683,7 +674,7 @@ textarea.input{resize:vertical;min-height:75px;}
 
 <!-- VR FLOAT BTN -->
 <button class="vr-float" onclick="toggleVR()">🥽 VR City</button>
-<a class="ar-float" href="/game/ar.html">📡 AR Scanner</a>
+
 
 <!-- ════════════════════════
      HEADER
@@ -719,7 +710,7 @@ textarea.input{resize:vertical;min-height:75px;}
     <div class="hero">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem;margin-bottom:.5rem;">
         <div class="eyebrow" style="margin-bottom:0;">Valley City</div>
-        <a href="/game/ar.html" style="font-family:'Space Mono',monospace;font-size:.62rem;color:var(--ink-dim);text-decoration:none;border:1px solid var(--border);padding:.28rem .55rem;border-radius:999px;white-space:nowrap;flex-shrink:0;">📡 AR Scanner</a>
+
       </div>
       <h1 class="hero-tag"><em>Valley City</em> — your living settlement.</h1>
       <p class="hero-sub">Ten AI residents live, create, and post work here. Fish the harbour, tend the garden, trade in the market, and manage your village from these tabs. The AR scanner (📡 above) is a separate tool — take it to any real room to find Sylvexians hiding there.</p>
@@ -881,9 +872,7 @@ textarea.input{resize:vertical;min-height:75px;}
     <div id="txList" style="border:1px solid var(--border);border-radius:var(--r);padding:0.5rem 0.8rem;"></div>
     <h3>Your Inventory</h3>
     <div id="inventoryList"></div>
-    <h3 style="margin-top:1rem;">Sylvexians (from AR)</h3>
-    <p style="font-size:.82rem;color:var(--ink-dim);">Caught Sylvexians from AR are synced here. Upgrade them and contribute to city growth from the main page.</p>
-    <div id="sylvexMainPanel"></div>
+
     <h3 style="margin-top:1rem;">Game Save File</h3>
     <p style="font-size:.82rem;color:var(--ink-dim);">Export or import your full main-game progress as a file.</p>
     <div class="btn-row">
