@@ -1,135 +1,326 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cradle Civ Prototype</title>
-  <style>
-    body { background: #222; color: #eee; font-family: sans-serif; margin: 0; }
-    #map { margin: 2em auto; display: grid; grid-template-columns: repeat(12, 32px); grid-gap: 2px; width: max-content; }
-    .tile { width: 32px; height: 32px; background: #3a4; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 1.1em; }
-    .water { background: #349; }
-    .city { background: #e9c46a; color: #222; font-weight: bold; }
-    .selected { outline: 2px solid #fff; }
-    #info { margin: 2em auto; max-width: 400px; background: #333; padding: 1em; border-radius: 8px; }
-    button { background: #e9c46a; color: #222; border: none; border-radius: 4px; padding: 0.5em 1em; margin: 0.5em 0; cursor: pointer; font-weight: bold; }
-    button:hover { background: #f4a261; }
-  </style>
-</head>
-<body>
-  <h1 style="text-align:center;margin:2em 0 1em 0;">Freeciv-Inspired City Builder</h1>
-  <div style="text-align:center;margin-bottom:1em;">
-    <span id="turnCounter">Turn: 1</span>
-    <button id="nextTurnBtn" style="margin-left:1em;">Next Turn</button>
-    <button id="vrToggleBtn" style="margin-left:2em;">🥽 VR City</button>
-  </div>
-  <div id="map"></div>
-  <div id="info">Select a tile to move settler or found a city.</div>
+      // --- Civic Overlay: Residents & Social Stats ---
+      // --- Civic Institutions & Queue (Breath City/BTG style) ---
+      let CIVIC_INSTITUTIONS = [
+        { name: 'Commons', desc: 'Town hall, open forum, and shared governance.', progress: 0, required: 3, emoji: '🏛️' },
+        { name: 'Library', desc: 'Knowledge, archives, and learning.', progress: 0, required: 2, emoji: '📚' },
+        { name: 'Garden', desc: 'Food, beauty, and care for the land.', progress: 0, required: 2, emoji: '🌿' },
+        { name: 'Workshop', desc: 'Making, building, and practical skills.', progress: 0, required: 2, emoji: '🔨' },
+        { name: 'Harbour', desc: 'Trade, travel, and connection.', progress: 0, required: 1, emoji: '⛵' },
+      ];
+      let INSTITUTION_QUEUE = [];
+
+      function renderInstitutions() {
+        const panel = document.getElementById('institutionsPanel');
+        if (!panel) return;
+        panel.innerHTML = `
+          <h3 style="margin-top:0;">Civic Institutions</h3>
+          <div style="font-size:.93em;color:var(--ink-dim);margin-bottom:.5em;">Institutions shape the city’s culture and resilience. Assign residents to help build them. Queue new projects below.</div>
+          <div style="display:flex;gap:1.2em;flex-wrap:wrap;margin-bottom:.7em;">
+            ${CIVIC_INSTITUTIONS.map(inst => `
+              <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:.7em 1em;min-width:170px;max-width:220px;">
+                <div style="font-size:1.5em;">${inst.emoji}</div>
+                <div style="font-weight:600;font-size:1.08em;">${inst.name}</div>
+                <div style="font-size:.92em;color:var(--ink-dim);margin:.2em 0 .4em 0;">${inst.desc}</div>
+                <div style="margin-bottom:.3em;">Progress: <b>${inst.progress}</b> / ${inst.required}</div>
+                <button class="btn btn-sm btn-green" onclick="queueInstitution('${inst.name}')">Queue Project</button>
+              </div>
+            `).join('')}
+          </div>
+          <div style="margin-bottom:.5em;"><b>Institution Queue:</b></div>
+          <ul style="margin:0 0 .5em 1.2em;">
+            ${INSTITUTION_QUEUE.length ? INSTITUTION_QUEUE.map((q, i) => `<li>${q.emoji} <b>${q.name}</b> — <button class='btn btn-sm btn-gold' onclick='advanceInstitution(${i})'>Advance</button></li>`).join('') : '<i>No projects in queue.</i>'}
+          </ul>
+        `;
+      }
+
+      function queueInstitution(name) {
+        const inst = CIVIC_INSTITUTIONS.find(i => i.name === name);
+        if (!inst) return;
+        INSTITUTION_QUEUE.push({ ...inst });
+        renderInstitutions();
+      }
+
+      function advanceInstitution(idx) {
+        if (idx < 0 || idx >= INSTITUTION_QUEUE.length) return;
+        const inst = INSTITUTION_QUEUE[idx];
+        const city = state.cities[0]; // For now, just use first city
+        // Simulate progress: assign residents for bonus
+        let assigned = Object.values(RESIDENT_ASSIGNMENTS).filter(v => v === 0).length;
+        inst.progress += 1 + Math.floor(assigned/3);
+        if (inst.progress >= inst.required) {
+          // Complete institution
+          CIVIC_INSTITUTIONS.find(i => i.name === inst.name).progress = inst.required;
+          INSTITUTION_QUEUE.splice(idx, 1);
+          renderInfo(`<b>Institution completed:</b> ${inst.emoji} ${inst.name}!`);
+        }
+        renderInstitutions();
+      }
+
+      // Expose for button handlers
+      window.queueInstitution = queueInstitution;
+      window.advanceInstitution = advanceInstitution;
+      // Use full Breath City resident system
+      // (see full RESIDENTS array and renderResidents implementation below)
+      let SOCIAL_STATS = { harmony: 7, trust: 6, knowledge: 5 };
+      let RESIDENT_ASSIGNMENTS = {};
+
+      // --- Civic Overlay: Residents & Social Stats ---
+      let SOCIAL_STATS = { harmony: 7, trust: 6, knowledge: 5 };
+      let RESIDENT_ASSIGNMENTS = {};
+      function renderResidents() {
+        const grid = document.getElementById('residentList');
+        if (!grid) return;
+        if (state.cities.length === 0) {
+          grid.innerHTML = '<i>No cities yet. Found a city to assign residents!</i>';
+          return;
+        }
+        grid.innerHTML = RESIDENTS.map(r => {
+          let cityOptions = state.cities.map((c, i) =>
+            `<option value="${i}"${RESIDENT_ASSIGNMENTS[r.id]===i?' selected':''}>${c.name}</option>`
+          ).join('');
+          const outfit = r.wardrobes && r.wardrobes[0] ? r.wardrobes[0] : {emoji:r.avatar,name:'',desc:''};
+          const latest = r.creations && r.creations.length ? r.creations[r.creations.length-1].text : '';
+          return `<div class="res-card" style="display:inline-block;margin:.3em .7em .3em 0;padding:.7em 1em;border-radius:8px;background:${r.color}22;color:${r.color};font-weight:bold;min-width:220px;vertical-align:top;">
+            <div style="display:flex;align-items:center;gap:.7em;">
+              <span style="font-size:2em;">${r.avatar}</span>
+              <div>
+                <div style="font-size:1.1em;font-weight:600;color:${r.color}">${r.name}</div>
+                <div style="font-size:.92em;opacity:.7;">${r.role}</div>
+                <div style="font-size:.8em;color:var(--ink-dim);margin:.2em 0 .3em 0;">${r.desc||''}</div>
+                <span class="outfit-tag">${outfit.emoji} ${outfit.name}</span>
+              </div>
+            </div>
+            <div style="font-size:.9em;margin:.5em 0 .3em 0;color:var(--ink-dim);font-style:italic;">${r.register||''}</div>
+            <div style="font-size:.92em;margin-bottom:.3em;">${latest.replace(/\n/g,' ')}</div>
+            <div style="margin-bottom:.4em;">
+              Assign to: <select data-resident="${r.id}">${cityOptions}</select>
+            </div>
+          </div>`;
+        }).join('');
+        // Add event listeners for assignment
+        grid.querySelectorAll('select[data-resident]').forEach(sel => {
+          sel.onchange = e => {
+            const rid = sel.getAttribute('data-resident');
+            RESIDENT_ASSIGNMENTS[rid] = parseInt(sel.value);
+            updateSocialStats();
+          };
+        });
+      }
+      function renderSocialStats() {
+        const stats = document.getElementById('socialStats');
+        stats.innerHTML = `<b>Harmony:</b> ${SOCIAL_STATS.harmony} &nbsp; <b>Trust:</b> ${SOCIAL_STATS.trust} &nbsp; <b>Knowledge:</b> ${SOCIAL_STATS.knowledge}`;
+      }
+      function updateSocialStats() {
+        SOCIAL_STATS = { harmony: 7, trust: 6, knowledge: 5 };
+        Object.entries(RESIDENT_ASSIGNMENTS).forEach(([rid, cityIdx]) => {
+          const r = RESIDENTS.find(rr => rr.id === rid);
+          if (!r) return;
+          // Example: boost stats based on role
+          if (r.role.includes('Observer') || r.role.includes('Mediator')) SOCIAL_STATS.harmony += 2;
+          if (r.role.includes('Philosopher') || r.role.includes('Debater')) SOCIAL_STATS.knowledge += 1;
+          if (r.role.includes('Poet') || r.role.includes('Artist')) SOCIAL_STATS.harmony += 1;
+          if (r.role.includes('Historian') || r.role.includes('Chronicler')) SOCIAL_STATS.knowledge += 1;
+          if (r.role.includes('Scientist') || r.role.includes('Theorist')) SOCIAL_STATS.knowledge += 2;
+          if (r.role.includes('Caretaker')) SOCIAL_STATS.trust += 2;
+          if (r.role.includes('Architect') || r.role.includes('Builder')) SOCIAL_STATS.trust += 1;
+          if (r.role.includes('Contrarian') || r.role.includes('Questioner')) SOCIAL_STATS.knowledge += 1;
+          if (r.role.includes('Dreamer') || r.role.includes('Visionary')) SOCIAL_STATS.harmony += 1;
+          if (r.role.includes('Musician') || r.role.includes('Composer')) SOCIAL_STATS.harmony += 1;
+        });
+        renderSocialStats();
+      }
   <script>
-    // Centralized Game State for 2D/VR sharing
-    const GameState = {
-      width: 12,
-      height: 8,
-      map: [],
-      cities: [],
-      districts: [
-        { name: 'Central', founded: true, pop: 10, culture: 2, tech: 1, harmony: 3 }
-      ],
-      cityStats: {
-        care: 5,
-        trust: 5,
-        knowledge: 3,
-        culture: 2,
-        health: 4
-      },
-      units: [ { type: 'settler', x: 6, y: 4, moves: 1 } ],
-      turn: 1,
+    // --- Freeciv-style Game State ---
+    const WIDTH = 20, HEIGHT = 14;
+    const TERRAIN = ['grass', 'forest', 'hill', 'mountain', 'water', 'desert'];
+    const TERRAIN_EMOJI = { grass: '🟩', forest: '🌲', hill: '⛰️', mountain: '🏔️', water: '🌊', desert: '🟨' };
+    // Yields: [food, shields, trade]
+    const TERRAIN_YIELD = {
+      grass:   [2, 1, 1],
+      forest:  [1, 2, 1],
+      hill:    [1, 2, 0],
+      mountain:[0, 2, 0],
+      water:   [1, 0, 2],
+      desert:  [1, 0, 1],
     };
-    // Initialize map
-    for (let y = 0; y < GameState.height; y++) {
+    const state = {
+      map: [], // 2D array of terrain
+      units: [ { type: 'settler', x: 3, y: 3, moves: 1 } ],
+      cities: [],
+      turn: 1,
+      selectedUnit: null,
+    };
+    // Generate map
+    for (let y = 0; y < HEIGHT; y++) {
       const row = [];
-      for (let x = 0; x < GameState.width; x++) {
-        row.push((x === 0 || y === 0 || x === GameState.width-1 || y === GameState.height-1 || (Math.random()<0.13)) ? 'water' : 'land');
+      for (let x = 0; x < WIDTH; x++) {
+        let t = 'grass';
+        if (x === 0 || y === 0 || x === WIDTH-1 || y === HEIGHT-1) t = 'water';
+        else if (Math.random() < 0.08) t = 'mountain';
+        else if (Math.random() < 0.12) t = 'hill';
+        else if (Math.random() < 0.13) t = 'forest';
+        else if (Math.random() < 0.07) t = 'desert';
+        else if (Math.random() < 0.13) t = 'water';
+        row.push(t);
       }
-      GameState.map.push(row);
+      state.map.push(row);
     }
-    // Render city stats
-    function renderCityStats() {
-      const stats = document.getElementById('cityStats');
-      if (!stats) return;
-      stats.innerHTML = '';
-      for (const [k, v] of Object.entries(cityStats)) {
-        const stat = document.createElement('div');
-        stat.innerHTML = `<b style="font-size:1.1em;">${k.charAt(0).toUpperCase()+k.slice(1)}</b><br><span style="font-size:1.3em;">${v}</span>`;
-        stats.appendChild(stat);
-      }
+    // --- Rendering ---
+    // Render Civic Institutions panel after residents/social stats
+    function renderCivicOverlayPanels() {
+      renderResidents();
+      renderSocialStats();
+      renderInstitutions();
     }
-    // Render district grid
-    function renderDistrictGrid() {
-      const grid = document.getElementById('districtGrid');
-      if (!grid) return;
-      grid.innerHTML = '';
-      for (const d of districts) {
-        const div = document.createElement('div');
-        div.style.background = '#384';
-        div.style.padding = '.7em';
-        div.style.borderRadius = '6px';
-        div.style.textAlign = 'center';
-        div.innerHTML = `<b>${d.name}</b><br>Pop: ${d.pop}<br>Culture: ${d.culture}<br>Tech: ${d.tech}<br>Harmony: ${d.harmony}`;
-        grid.appendChild(div);
-      }
-    }
-    // Render map
-    function renderMap(selectedX = null, selectedY = null) {
+    function renderMap() {
       const mapDiv = document.getElementById('map');
+      mapDiv.style.gridTemplateColumns = `repeat(${WIDTH}, 32px)`;
       mapDiv.innerHTML = '';
-      for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
+      for (let y = 0; y < HEIGHT; y++) {
+        for (let x = 0; x < WIDTH; x++) {
           const tile = document.createElement('div');
-          tile.className = 'tile ' + map[y][x];
-          if (cities.some(c => c.x === x && c.y === y)) {
-            tile.className += ' city';
+          tile.className = 'tile ' + state.map[y][x];
+          tile.textContent = TERRAIN_EMOJI[state.map[y][x]];
+          // City
+          const city = state.cities.find(c => c.x === x && c.y === y);
+          if (city) {
             tile.textContent = '🏛️';
+            tile.title = city.name;
+            tile.onclick = () => {
+              renderCityInfo(city);
+              state.selectedUnit = null;
+              renderMap();
+            };
+            mapDiv.appendChild(tile);
+            continue;
           }
-          if (selectedX === x && selectedY === y) tile.className += ' selected';
-          tile.onclick = () => {
-            if (map[y][x] === 'land' && !cities.some(c => c.x === x && c.y === y)) {
-              foundCity(x, y);
-            } else {
-              showInfo(x, y);
+          // Unit
+          const unit = state.units.find(u => u.x === x && u.y === y);
+          if (unit) {
+            tile.textContent = unit.type === 'settler' ? '🚶' : '❓';
+            tile.title = unit.type.charAt(0).toUpperCase() + unit.type.slice(1);
+            if (state.selectedUnit && state.selectedUnit.x === x && state.selectedUnit.y === y) {
+              tile.className += ' selected';
             }
-            renderMap(x, y);
+            tile.onclick = () => {
+              state.selectedUnit = unit;
+              renderInfo(`Selected ${unit.type} at (${x+1},${y+1})`);
+              renderMap();
+            };
+            mapDiv.appendChild(tile);
+            continue;
+          }
+          // Click to move selected unit or found city
+          tile.onclick = () => {
+            if (state.selectedUnit) {
+              // Move unit if adjacent and land
+              if (Math.abs(state.selectedUnit.x - x) + Math.abs(state.selectedUnit.y - y) === 1 && state.map[y][x] !== 'water' && !state.units.some(u=>u.x===x&&u.y===y)) {
+                state.selectedUnit.x = x;
+                state.selectedUnit.y = y;
+                state.selectedUnit.moves--;
+                renderInfo(`Moved to (${x+1},${y+1})`);
+                renderMap();
+                return;
+              }
+              // Found city
+              if (state.map[y][x] !== 'water' && !state.cities.some(c=>c.x===x&&c.y===y)) {
+                state.cities.push({ x, y, name: 'City ' + (state.cities.length+1) });
+                // Remove settler
+                state.units = state.units.filter(u => !(u.x === x && u.y === y && u.type === 'settler'));
+                renderInfo(`City founded at (${x+1},${y+1})!`);
+                state.selectedUnit = null;
+                renderMap();
+                return;
+              }
+            }
+            renderInfo(`Tile: ${state.map[y][x]} (${x+1},${y+1})`);
           };
           mapDiv.appendChild(tile);
         }
       }
     }
-    function foundCity(x, y) {
-      cities.push({ x, y, name: 'City ' + (cities.length+1) });
-      // Add a new district for each city
-      districts.push({ name: 'District ' + (districts.length+1), founded: true, pop: 5, culture: 1, tech: 1, harmony: 3 });
-      // Bump city stats for founding
-      cityStats.care++;
-      cityStats.trust++;
-      cityStats.culture++;
-      renderCityStats();
-      renderDistrictGrid();
-      showInfo(x, y, true);
+    function renderInfo(msg) {
+      document.getElementById('info').innerHTML = msg;
     }
-    function showInfo(x, y, justFounded = false) {
-      const info = document.getElementById('info');
-      const city = cities.find(c => c.x === x && c.y === y);
-      if (city) {
-        info.innerHTML = `<b>${city.name}</b><br>Location: (${x+1}, ${y+1})<br>` + (justFounded ? '<i>City founded!</i>' : '');
-      } else if (map[y][x] === 'land') {
-        info.innerHTML = `Land tile (${x+1}, ${y+1})<br><button onclick="foundCity(${x},${y});renderMap(${x},${y})">Found City</button>`;
+
+    function renderCityInfo(city) {
+      // Calculate yields from city tile and 8 surrounding tiles
+      let food=0, shields=0, trade=0;
+      for (let dy=-1; dy<=1; dy++) {
+        for (let dx=-1; dx<=1; dx++) {
+          const tx = city.x+dx, ty = city.y+dy;
+          if (tx>=0 && tx<WIDTH && ty>=0 && ty<HEIGHT) {
+            const t = state.map[ty][tx];
+            const yld = TERRAIN_YIELD[t];
+            food += yld[0];
+            shields += yld[1];
+            trade += yld[2];
+          }
+        }
+      }
+      const infoDiv = document.getElementById('info');
+      infoDiv.innerHTML = `<b>City: <span id='cityName'>${city.name}</span></b><br>
+        Location: (${city.x+1},${city.y+1})<br>
+        <b>Yields (city + adjacent):</b><br>
+        🍞 Food: <b>${food}</b> &nbsp; 🛡️ Shields: <b>${shields}</b> &nbsp; 💰 Trade: <b>${trade}</b><br>
+        <button id='renameCityBtn'>Rename City</button>`;
+      document.getElementById('renameCityBtn').onclick = () => {
+        const newName = prompt('Enter new city name:', city.name);
+        if (newName && newName.trim()) {
+          city.name = newName.trim();
+          renderCityInfo(city);
+          renderMap();
+        }
+      };
+    }
+    // --- Civic Events System ---
+    const CIVIC_EVENTS = [
+      { text: 'A festival brings joy to all residents.', effect: s => { s.harmony += 1; } },
+      { text: 'A new language class boosts knowledge.', effect: s => { s.knowledge += 1; } },
+      { text: 'A mediation session resolves a dispute.', effect: s => { s.trust += 1; } },
+      { text: 'A minor misunderstanding causes tension.', effect: s => { s.harmony -= 1; } },
+      { text: 'A resident shares a breakthrough idea.', effect: s => { s.knowledge += 2; } },
+      { text: 'A gardening project brings people together.', effect: s => { s.trust += 2; } },
+      { text: 'A storm tests the city’s resilience.', effect: s => { s.harmony -= 1; s.trust -= 1; } },
+      { text: 'A collaborative art project inspires all.', effect: s => { s.harmony += 1; s.knowledge += 1; } },
+    ];
+    function triggerCivicEvent() {
+      // Chance of event increases if harmony/trust/knowledge are low
+      const avg = (SOCIAL_STATS.harmony + SOCIAL_STATS.trust + SOCIAL_STATS.knowledge) / 3;
+      const chance = avg < 7 ? 0.7 : 0.3;
+      if (Math.random() < chance) {
+        const event = CIVIC_EVENTS[Math.floor(Math.random() * CIVIC_EVENTS.length)];
+        event.effect(SOCIAL_STATS);
+        renderSocialStats();
+        renderInfo(`<b>Civic Event:</b> ${event.text}`);
       } else {
-        info.innerHTML = `Water tile (${x+1}, ${y+1})`;
+        renderInfo('Next turn!');
       }
     }
-    renderCityStats();
-    renderDistrictGrid();
+
+    document.getElementById('nextTurnBtn').onclick = () => {
+      state.turn++;
+      document.getElementById('turnCounter').textContent = 'Turn: ' + state.turn;
+      // Reset unit moves
+      for (const u of state.units) u.moves = 1;
+      triggerCivicEvent();
+      renderMap();
+    };
+    // Initial render
     renderMap();
+    renderInfo('Click a unit, then click a tile to move. Click empty land to found a city.');
+    renderCivicOverlayPanels();
+
+    // Re-render residents/social stats and institutions when cities are added
+    const origFoundCity = window.foundCity;
+    window.foundCity = function(x, y) {
+      origFoundCity(x, y);
+      renderCivicOverlayPanels();
+      updateSocialStats();
+    };
   </script>
 </body>
 </html>
@@ -465,6 +656,13 @@ textarea.input{resize:vertical;min-height:75px;}
 </style>
 </head>
 <body>
+
+<!-- Civic Overlay: Residents, Social Stats, Institutions -->
+<div class="card-sm" style="margin:1.2em 0 1.2em 0;">
+  <div id="residentList"></div>
+  <div id="socialStats" style="margin:.7em 0 1.1em 0;"></div>
+  <div id="institutionsPanel"></div>
+</div>
 
 <div class="atmos"><div class="orb orb1"></div><div class="orb orb2"></div><div class="orb orb3"></div><div class="rain-layer" id="rainLayer"></div></div>
 
