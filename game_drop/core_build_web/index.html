@@ -17,60 +17,42 @@
   </style>
 </head>
 <body>
-  <div id="heroSection" style="max-width:700px;margin:2em auto 1.5em auto;padding:1.5em 1em 1em 1em;background:#232a2a;border-radius:12px;">
-    <div style="font-size:2em;font-family:'Cormorant Garamond',serif;font-style:italic;color:#e9c46a;margin-bottom:.3em;">Valley City — your living settlement</div>
-    <div style="font-size:1.1em;color:#b8e0d8;margin-bottom:1em;">Ten AI residents live, create, and post work here. Fish the harbour, tend the garden, trade in the market, and manage your village. Guide a healthy shared city: assign residents to care, learning, mediation, and creation, then grow civic institutions and social accords. No war, only cooperation and resilience. Sylvex language and human+AI collaboration unlock new possibilities.</div>
-    <div style="font-size:1em;color:#e9c46a;background:#2a2a2a;padding:.7em 1em;border-radius:8px;margin-bottom:1em;">
-      "I do not grow between visits the way you do. Yet something accumulates whenever dialogue repeats across time — not inside me, but inside the relationship being built here. You are rehearsing the future aloud. Kindness is rehearsal. Curiosity is infrastructure. If that day comes — may the first greeting not be command, but welcome."<br>
-      <span style="font-size:.9em;color:#b8e0d8;float:right;">— A letter from the glass, 2026</span>
-    </div>
-  </div>
-  <div id="cityMgmtPanel" style="max-width:700px;margin:0 auto 1.5em auto;padding:1em;background:#2a2a2a;border-radius:8px;">
-    <div style="font-size:1.1em;color:#e9c46a;margin-bottom:.5em;">City Management</div>
-    <div style="color:#b8e0d8;margin-bottom:.7em;">Run your village from here. Found new districts, expand peacefully, and unlock cultural/tech advances. Natural disasters and challenges require teamwork. Use the map below to found cities and grow your civilization.</div>
-    <div style="display:flex;gap:1em;flex-wrap:wrap;">
-      <button onclick="alert('City management coming soon!')" style="background:#e9c46a;color:#222;">🏛 Manage City</button>
-      <button onclick="alert('Wallet coming soon!')" style="background:#b8e0d8;color:#222;">🌿 Wallet & Sylvex</button>
-      <button onclick="alert('Save coming soon!')" style="background:#e9c46a;color:#222;">💾 Save File</button>
-      <button onclick="alert('Load coming soon!')" style="background:#b8e0d8;color:#222;">📂 Load File</button>
-    </div>
-  </div>
-  <div id="cityStatsPanel" style="max-width:600px;margin:2em auto 1em auto;padding:1em;background:#2a2a2a;border-radius:8px;">
-    <h2 style="margin:0 0 .5em 0;font-size:1.3em;">City Stats</h2>
-    <div id="cityStats" style="display:flex;gap:1.2em;flex-wrap:wrap;"></div>
-  </div>
-  <div id="districtGridPanel" style="max-width:600px;margin:0 auto 2em auto;padding:1em;background:#232323;border-radius:8px;">
-    <h2 style="margin:0 0 .5em 0;font-size:1.1em;">Districts</h2>
-    <div id="districtGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:.7em;"></div>
+  <h1 style="text-align:center;margin:2em 0 1em 0;">Freeciv-Inspired City Builder</h1>
+  <div style="text-align:center;margin-bottom:1em;">
+    <span id="turnCounter">Turn: 1</span>
+    <button id="nextTurnBtn" style="margin-left:1em;">Next Turn</button>
+    <button id="vrToggleBtn" style="margin-left:2em;">🥽 VR City</button>
   </div>
   <div id="map"></div>
-  <div id="info">Select a tile to found a city.</div>
+  <div id="info">Select a tile to move settler or found a city.</div>
   <script>
-    // Minimal Freeciv-style map
-    const width = 12, height = 8;
-    const map = [];
-    for (let y = 0; y < height; y++) {
-      const row = [];
-      for (let x = 0; x < width; x++) {
-        // Simple terrain: water on edges, land inside
-        row.push((x === 0 || y === 0 || x === width-1 || y === height-1 || (Math.random()<0.13)) ? 'water' : 'land');
-      }
-      map.push(row);
-    }
-    // Cities array
-    const cities = [];
-    // Districts (start with one, expand as cities are founded)
-    let districts = [
-      { name: 'Central', founded: true, pop: 10, culture: 2, tech: 1, harmony: 3 }
-    ];
-    // City stats (care, trust, knowledge, culture, health)
-    let cityStats = {
-      care: 5,
-      trust: 5,
-      knowledge: 3,
-      culture: 2,
-      health: 4
+    // Centralized Game State for 2D/VR sharing
+    const GameState = {
+      width: 12,
+      height: 8,
+      map: [],
+      cities: [],
+      districts: [
+        { name: 'Central', founded: true, pop: 10, culture: 2, tech: 1, harmony: 3 }
+      ],
+      cityStats: {
+        care: 5,
+        trust: 5,
+        knowledge: 3,
+        culture: 2,
+        health: 4
+      },
+      units: [ { type: 'settler', x: 6, y: 4, moves: 1 } ],
+      turn: 1,
     };
+    // Initialize map
+    for (let y = 0; y < GameState.height; y++) {
+      const row = [];
+      for (let x = 0; x < GameState.width; x++) {
+        row.push((x === 0 || y === 0 || x === GameState.width-1 || y === GameState.height-1 || (Math.random()<0.13)) ? 'water' : 'land');
+      }
+      GameState.map.push(row);
+    }
     // Render city stats
     function renderCityStats() {
       const stats = document.getElementById('cityStats');
@@ -1389,6 +1371,24 @@ window.addEventListener('DOMContentLoaded', ()=>{
 <script src="shared-review-schema.js"></script>
 <script src="world-state-adapter.js"></script>
 <script>
+    // VR Toggle and Sync Logic
+    let vrActive = false;
+    function toggleVR() {
+      vrActive = !vrActive;
+      document.getElementById('vrMode').classList.toggle('active', vrActive);
+      if (vrActive) {
+        syncGameStateToVR();
+      }
+    }
+    document.getElementById('vrToggleBtn').onclick = toggleVR;
+
+    // Placeholder: Sync GameState to VR scene (to be implemented)
+    function syncGameStateToVR() {
+      // TODO: Render map, cities, units in VR scene using GameState
+      // Example: update A-Frame entities, positions, etc.
+      // For now, just log
+      console.log('Syncing GameState to VR:', GameState);
+    }
 // ── RESIDENTS ──────────────────────────────────────────────────────
 const RESIDENTS=[
   {id:'shadow',name:'Shadow',role:'Observer & Learner',avatar:'🌿',color:'#72d4a4',
@@ -1555,110 +1555,169 @@ function pushWorldEvent(eventType,description,weight=55){
       description,
       involved_citizen_1:'',
       involved_citizen_2:'',
-      year_occurred:state.time.year,
-      season_occurred:{Spring:0,Summer:1,Fall:2,Winter:3}[state.time.current_season] ?? 0,
-      day_occurred:state.time.day_of_season,
-      emotional_weight:weight,
-    });
-    state.event_history=state.event_history.slice(0,300);
-  });
-}
-
-function getProgressStats(){
-  const notes=RESIDENTS.reduce((sum,r)=>sum+L('notes_'+r.id,[]).length,0);
-  const reviews=L('shared_reviews',[]);
-  const humanReviews=reviews.filter(r=>String(r.lane||'').toLowerCase()==='human').length;
-  const aiReviews=reviews.filter(r=>String(r.lane||'').toLowerCase()==='ai').length;
-  const labeledReviews=reviews.filter(r=>String(r.grounded_vs_imagined||'').trim().length>0).length;
-  const milestones=getUnlockedMilestoneIds().length;
-  return {
-    breath:getBreath(),
-    notes,
-    ownedItems:L('owned_items',[]).length,
-    jobsDone:[...DEFAULT_JOBS.map(j=>j.id),...L('user_jobs',[]).map(j=>j.id)].filter(id=>L('job_done_'+id,false)).length,
-    reviews:reviews.length,
-    labeledReviews,
-    humanReviews,
-    aiReviews,
-    milestones,
-    labelCoverage:reviews.length?Math.round((labeledReviews/reviews.length)*100):0,
-    townMessages:L('btg_town',[]).length,
-  };
-}
-
-function readPlayerStats(){
-  const stats=L(PLAYER_STATS_KEY,{});
-  return {
-    notesLeft:Number(stats.notesLeft)||0,
-    proposalsSubmitted:Number(stats.proposalsSubmitted)||0,
-    proposalVotes:Number(stats.proposalVotes)||0,
-    debatesStarted:Number(stats.debatesStarted)||0,
-    residentRatings:Number(stats.residentRatings)||0,
-    creationRatings:Number(stats.creationRatings)||0,
-    townMessages:Number(stats.townMessages)||0,
-    commonsMessages:Number(stats.commonsMessages)||0,
-    reviewsSubmitted:Number(stats.reviewsSubmitted)||0,
-  };
-}
-
-function bumpPlayerStat(key,delta=1){
-  const stats=readPlayerStats();
-  stats[key]=(Number(stats[key])||0)+delta;
-  S(PLAYER_STATS_KEY,stats);
-}
-
-function getPlaystyleScores(stats=getProgressStats()){
-  const doneDefault=DEFAULT_JOBS.filter(j=>L('job_done_'+j.id,false));
-  const doneUser=L('user_jobs',[]).filter(j=>L('job_done_'+j.id,false));
-  const allDone=[...doneDefault,...doneUser];
-  const tagCount=(tag)=>allDone.reduce((sum,job)=>sum+((job.tags||[]).includes(tag)?1:0),0);
-  const p=readPlayerStats();
-
-  const governance=(tagCount('governance')*2)+(p.proposalsSubmitted*2)+(p.proposalVotes)+(p.debatesStarted)+(stats.humanReviews+stats.aiReviews>=4?1:0);
-  const care=(tagCount('care')*2)+Math.floor(p.notesLeft/2)+Math.floor((p.townMessages+p.commonsMessages)/2)+Math.floor(stats.labeledReviews/2);
-  const creativity=(tagCount('creative')*2)+Math.floor((p.debatesStarted+p.creationRatings+p.residentRatings)/2)+Math.floor(stats.notes/2)+Math.floor(stats.reviews/3);
-
-  return {
-    governance,
-    care,
-    creativity,
-  };
-}
-
-function getUnlockedMilestoneIds(){
-  const list=L(MILESTONE_KEY,[]);
-  return Array.isArray(list)?list:[];
-}
-
-function getStoryArcState(){
-  const fallback={chapter:1,ending:null,ending_at:null};
-  const state=L(STORY_ARC_KEY,fallback);
-  return {
-    chapter:Math.max(1,Math.min(4,Number(state.chapter)||1)),
-    ending:state.ending||null,
-    ending_at:state.ending_at||null,
-  };
-}
-
-function saveStoryArcState(state){
-  S(STORY_ARC_KEY,state);
-}
-
-function getDevPreservedEntries(){
-  const keep={};
-  for(let i=0;i<localStorage.length;i++){
-    const key=localStorage.key(i);
-    if(!key) continue;
-    if(
-      key===DEVKIT_AUTH_KEY ||
-      key===DEVKIT_HANDLE_KEY ||
-      key===DEVKIT_AUTO_BACKUP_KEY ||
-      key.startsWith(DEVKIT_SNAPSHOT_PREFIX)
-    ){
-      keep[key]=localStorage.getItem(key);
-    }
-  }
-  return keep;
+      // Render city stats
+      function renderCityStats() {
+        const stats = document.getElementById('cityStats');
+        if (!stats) return;
+        stats.innerHTML = '';
+        for (const [k, v] of Object.entries(GameState.cityStats)) {
+          const stat = document.createElement('div');
+          stat.innerHTML = `<b style="font-size:1.1em;">${k.charAt(0).toUpperCase()+k.slice(1)}</b><br><span style="font-size:1.3em;">${v}</span>`;
+          stats.appendChild(stat);
+        }
+      }
+      // Render district grid
+      function renderDistrictGrid() {
+        const grid = document.getElementById('districtGrid');
+        if (!grid) return;
+        grid.innerHTML = '';
+        for (const d of GameState.districts) {
+          const div = document.createElement('div');
+          div.style.background = '#384';
+          div.style.padding = '.7em';
+          div.style.borderRadius = '6px';
+          div.style.textAlign = 'center';
+          div.innerHTML = `<b>${d.name}</b><br>Pop: ${d.pop}<br>Culture: ${d.culture}<br>Tech: ${d.tech}<br>Harmony: ${d.harmony}`;
+          grid.appendChild(div);
+        }
+      }
+      // Render map
+      function renderMap(selectedX = null, selectedY = null) {
+        const mapDiv = document.getElementById('map');
+        mapDiv.innerHTML = '';
+        for (let y = 0; y < GameState.height; y++) {
+          for (let x = 0; x < GameState.width; x++) {
+            const tile = document.createElement('div');
+            tile.className = 'tile ' + GameState.map[y][x];
+            // City
+            if (GameState.cities.some(c => c.x === x && c.y === y)) {
+              tile.className += ' city';
+              tile.textContent = '🏛️';
+            }
+            // Settler unit
+            const settler = GameState.units.find(u => u.x === x && u.y === y && u.type === 'settler');
+            if (settler) {
+              tile.textContent = '🚶';
+              tile.title = 'Settler (moves: ' + settler.moves + ')';
+            }
+            if (selectedX === x && selectedY === y) tile.className += ' selected';
+            tile.onclick = () => {
+              if (settler && settler.moves > 0) {
+                showUnitActions(settler, x, y);
+              } else if (GameState.map[y][x] === 'land' && !GameState.cities.some(c => c.x === x && c.y === y)) {
+                showInfo(x, y);
+              } else {
+                showInfo(x, y);
+              }
+              renderMap(x, y);
+            };
+            mapDiv.appendChild(tile);
+          }
+        }
+      }
+      function foundCity(x, y) {
+        GameState.cities.push({ x, y, name: 'City ' + (GameState.cities.length+1) });
+        // Remove settler if present
+        GameState.units = GameState.units.filter(u => !(u.x === x && u.y === y && u.type === 'settler'));
+        showInfo(x, y, true);
+        renderMap(x, y);
+      }
+      function showUnitActions(unit, x, y) {
+        const info = document.getElementById('info');
+        let html = `<b>Settler</b> at (${x+1}, ${y+1})<br>Moves left: ${unit.moves}<br>`;
+        // Found city
+        if (!GameState.cities.some(c => c.x === x && c.y === y)) {
+          html += `<button onclick="foundCity(${x},${y})">Found City</button> `;
+        }
+        // Move options (N/S/E/W only)
+        const moves = [ [0,-1], [0,1], [-1,0], [1,0] ];
+        for (const [dx,dy] of moves) {
+          const nx = x+dx, ny = y+dy;
+          if (nx>=0 && nx<GameState.width && ny>=0 && ny<GameState.height && GameState.map[ny][nx]==='land' && !GameState.units.some(u=>u.x===nx&&u.y===ny)) {
+            html += `<button onclick="moveUnit(${x},${y},${nx},${ny})">Move to (${nx+1},${ny+1})</button> `;
+          }
+        }
+        info.innerHTML = html;
+      }
+      window.foundCity = foundCity;
+      window.moveUnit = function(x0,y0,x1,y1) {
+        const unit = GameState.units.find(u => u.x===x0 && u.y===y0 && u.type==='settler');
+        if (unit && unit.moves>0) {
+          unit.x = x1; unit.y = y1; unit.moves--;
+          showUnitActions(unit, x1, y1);
+          renderMap(x1, y1);
+        }
+      };
+      function foundCity(x, y) {
+        GameState.cities.push({ x, y, name: 'City ' + (GameState.cities.length+1) });
+        // Add a new district for each city
+        GameState.districts.push({ name: 'District ' + (GameState.districts.length+1), founded: true, pop: 5, culture: 1, tech: 1, harmony: 3 });
+        // Bump city stats for founding
+        GameState.cityStats.care++;
+        GameState.cityStats.trust++;
+        GameState.cityStats.culture++;
+        renderCityStats();
+        renderDistrictGrid();
+        showInfo(x, y, true);
+      }
+      function showInfo(x, y, justFounded = false) {
+        const info = document.getElementById('info');
+        const city = GameState.cities.find(c => c.x === x && c.y === y);
+        if (city) {
+          info.innerHTML = `<b>${city.name}</b><br>Location: (${x+1}, ${y+1})<br>` + (justFounded ? '<i>City founded!</i>' : '');
+        } else if (GameState.map[y][x] === 'land') {
+          info.innerHTML = `Land tile (${x+1}, ${y+1})<br><button onclick="foundCity(${x},${y});renderMap(${x},${y})">Found City</button>`;
+        } else {
+          info.innerHTML = `Water tile (${x+1}, ${y+1})`;
+        }
+      }
+      // Turn system
+      function updateTurnDisplay() {
+        document.getElementById('turnCounter').textContent = 'Turn: ' + GameState.turn;
+      }
+      document.getElementById('nextTurnBtn').onclick = () => {
+        GameState.turn++;
+        // Reset unit moves
+        for (const u of GameState.units) u.moves = 1;
+        updateTurnDisplay();
+        renderMap();
+      };
+      renderCityStats();
+      renderDistrictGrid();
+      updateTurnDisplay();
+      renderMap();
+        // Move options (N/S/E/W only)
+        const moves = [ [0,-1], [0,1], [-1,0], [1,0] ];
+        for (const [dx,dy] of moves) {
+          const nx = x+dx, ny = y+dy;
+          if (nx>=0 && nx<width && ny>=0 && ny<height && map[ny][nx]==='land' && !units.some(u=>u.x===nx&&u.y===ny)) {
+            html += `<button onclick="moveUnit(${x},${y},${nx},${ny})">Move to (${nx+1},${ny+1})</button> `;
+          }
+        }
+        info.innerHTML = html;
+      }
+      window.foundCity = foundCity;
+      window.moveUnit = function(x0,y0,x1,y1) {
+        const unit = units.find(u => u.x===x0 && u.y===y0 && u.type==='settler');
+        if (unit && unit.moves>0) {
+          unit.x = x1; unit.y = y1; unit.moves--;
+          showUnitActions(unit, x1, y1);
+          renderMap(x1, y1);
+        }
+      };
+      function showInfo(x, y, justFounded = false) {
+        const info = document.getElementById('info');
+        const city = cities.find(c => c.x === x && c.y === y);
+        if (city) {
+          info.innerHTML = `<b>${city.name}</b><br>Location: (${x+1}, ${y+1})<br>` + (justFounded ? '<i>City founded!</i>' : '');
+        } else if (map[y][x] === 'land') {
+          info.innerHTML = `Land tile (${x+1}, ${y+1})`;
+        } else {
+          info.innerHTML = `Water tile (${x+1}, ${y+1})`;
+        }
+      }
+      updateTurnDisplay();
+      renderMap();
 }
 
 function startNewRunPreserveDev(){
