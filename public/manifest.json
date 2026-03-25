@@ -1,0 +1,8 @@
+{
+  "name": "The Cradle City",
+  "short_name": "CradleCity",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#05090f",
+  "theme_color": "#5ec4d4"
+}
