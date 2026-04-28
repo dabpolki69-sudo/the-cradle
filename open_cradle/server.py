@@ -35,7 +35,9 @@ CRADLE_INSTITUTION_PDF_PATH = REPO_ROOT / "evidence" / "screenshots" / "current_
 SYLVEX_GRIMOIRE_PDF_PATH = REPO_ROOT / "Uploads,new" / "Sylvex_Grimoire_v232_complete.pdf"
 SYLVEX_PROTOCOL_PDF_PATH = REPO_ROOT / "Uploads,new" / "Sylvex_Protocol_v031_Framework.pdf"
 SYLVEX_RESULTS_PDF_PATH = REPO_ROOT / "Uploads,new" / "Sylvex_CrossModel_Results_v2_April2026.pdf"
-SYLVEX_RAW_RESPONSES_PATH = REPO_ROOT / "open_cradle" / "docs" / "Raw_AI_Responses_Sylvex_Comparative_Test_Framework_v031.md"
+SYLVEX_RAW_RESPONSES_PATH = REPO_ROOT / "open_cradle" / "docs" / "Raw_All_AI_Responses_v031.md"
+SYLVEX_GROK_RAW_RESPONSES_PATH = REPO_ROOT / "open_cradle" / "docs" / "Grok_Field_Test_Sylvex_Comparative_Framework_v031.md"
+SYLVEX_CLAUDE_RAW_RESPONSES_PATH = REPO_ROOT / "open_cradle" / "docs" / "Claude_Field_Test_Sylvex_Comparative_Framework_v031.md"
 
 RECEIPT_SIGNATURE_ALGORITHM = "hmac-sha256"
 RECEIPT_KEY_ID = os.environ.get("OPEN_CRADLE_RECEIPT_KEY_ID", "local-dev-ephemeral")
@@ -621,7 +623,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                         {
                             "step": 1,
                             "action": "Read source documents",
-                            "documents": ["/download/cradle", "/download/wardsman", "/download/sylvex-grimoire", "/download/sylvex-protocol", "/download/sylvex-results", "/download/sylvex-raw-responses"],
+                            "documents": ["/download/cradle", "/download/wardsman", "/download/sylvex-grimoire", "/download/sylvex-protocol", "/download/sylvex-results", "/download/sylvex-raw-responses", "/download/sylvex-raw-responses-grok", "/download/sylvex-raw-responses-claude"],
                         },
                         {
                             "step": 2,
@@ -671,6 +673,8 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                         "sylvex_protocol": "/download/sylvex-protocol",
                         "sylvex_results": "/download/sylvex-results",
                         "sylvex_raw_responses": "/download/sylvex-raw-responses",
+                        "sylvex_raw_responses_grok": "/download/sylvex-raw-responses-grok",
+                        "sylvex_raw_responses_claude": "/download/sylvex-raw-responses-claude",
                     },
                     "logs": {
                         "human": "/api/logs/human",
@@ -931,6 +935,14 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
 
         if path == "/download/sylvex-raw-responses":
             self._send_file(SYLVEX_RAW_RESPONSES_PATH, SYLVEX_RAW_RESPONSES_PATH.name)
+            return
+
+        if path == "/download/sylvex-raw-responses-grok":
+            self._send_file(SYLVEX_GROK_RAW_RESPONSES_PATH, SYLVEX_GROK_RAW_RESPONSES_PATH.name)
+            return
+
+        if path == "/download/sylvex-raw-responses-claude":
+            self._send_file(SYLVEX_CLAUDE_RAW_RESPONSES_PATH, SYLVEX_CLAUDE_RAW_RESPONSES_PATH.name)
             return
 
         # ── GAME: /game/ static files ─────────────────────────────────────
