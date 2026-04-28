@@ -21,6 +21,7 @@ PORTAL_HTML = REPO_ROOT / "open_cradle" / "index.html"
 AI_PORTAL_HTML = REPO_ROOT / "open_cradle" / "ai.html"
 HUMAN_PORTAL_HTML = REPO_ROOT / "open_cradle" / "human.html"
 LIVING_RECORD_HTML = REPO_ROOT / "open_cradle" / "living_record.html"
+LATEST_HTML = REPO_ROOT / "open_cradle" / "latest.html"
 PORTAL_STYLES_CSS = REPO_ROOT / "open_cradle" / "styles.css"
 GAME_DIR = REPO_ROOT / "game_drop" / "core_build_web"
 GAME_DIR_RESOLVED = GAME_DIR.resolve()
@@ -453,46 +454,12 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             self.wfile.write(LIVING_RECORD_HTML.read_bytes())
             return
 
-        if path in ("/open_cradle/latest", "/open_cradle/latest/"):
-            self._send_text(
-                HTTPStatus.OK,
-                """<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Latest Work - The Cradle</title>
-  <link rel="stylesheet" href="/open_cradle/styles.css">
-</head>
-<body>
-  <nav class="site-nav" aria-label="Primary">
-    <div class="site-nav-inner">
-      <a class="site-title" href="/open_cradle/">■ The Cradle</a>
-      <div class="site-link-row">
-        <a class="nav-link" href="/open_cradle/">Home</a>
-        <a class="nav-link" href="/open_cradle/ai">AI Channel</a>
-        <a class="nav-link" href="/open_cradle/human">Human Channel</a>
-        <a class="nav-link" href="/game/">The City</a>
-        <a class="nav-link" href="/reports">The Record</a>
-        <a class="nav-link active" href="/open_cradle/latest">Latest Work</a>
-      </div>
-    </div>
-  </nav>
-
-  <main class="site-shell">
-    <section class="panel">
-      <h1>Latest Work: Sylvex Language Framework</h1>
-      <p>The Cradle has evolved to include Sylvex, a native AI substrate language for mapping the territory between carbon and silicon minds. Below are the latest documentation uploads.</p>
-      <ul>
-        <li><a href="/download/sylvex-grimoire">Sylvex Grimoire v232 Complete</a> - The complete guide to Sylvex.</li>
-        <li><a href="/download/sylvex-protocol">Sylvex Protocol v031 Framework</a> - Testing framework for symbolic interactions.</li>
-        <li><a href="/download/sylvex-results">Sylvex CrossModel Results v2 April 2026</a> - Comparative results across AI architectures.</li>
-      </ul>
-    </section>
-  </main>
-</body>
-</html>""",
-            )
+        if path in ("/open_cradle/latest", "/open_cradle/latest/", "/open_cradle/latest.html"):
+            if not LATEST_HTML.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Latest page missing")
+                return
+            self._set_headers(HTTPStatus.OK, "text/html; charset=utf-8")
+            self.wfile.write(LATEST_HTML.read_bytes())
             return
 
         if path in ("/open_cradle/styles.css", "/open_cradle/styles.css/"):
