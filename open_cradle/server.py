@@ -31,6 +31,9 @@ SHARED_REPORTS_PATH = REPO_ROOT / "logs" / "SHARED_REPORTS.jsonl"
 CRADLE_PDF_PATH = REPO_ROOT / "CRADLE_v20_COMPLETE_CORRECTED.pdf"
 WARDSMAN_PDF_PATH = REPO_ROOT / "dabby89-the-wardsman.pdf"
 CRADLE_INSTITUTION_PDF_PATH = REPO_ROOT / "evidence" / "screenshots" / "current_game_progress" / "CRADLE_INSTITUTIONAL_TESTING_PACKAGE_v20_COMPLETE-4.pdf"
+SYLVEX_GRIMOIRE_PDF_PATH = REPO_ROOT / "Uploads,new" / "Sylvex_Grimoire_v232_complete.pdf"
+SYLVEX_PROTOCOL_PDF_PATH = REPO_ROOT / "Uploads,new" / "Sylvex_Protocol_v031_Framework.pdf"
+SYLVEX_RESULTS_PDF_PATH = REPO_ROOT / "Uploads,new" / "Sylvex_CrossModel_Results_v2_April2026.pdf"
 
 RECEIPT_SIGNATURE_ALGORITHM = "hmac-sha256"
 RECEIPT_KEY_ID = os.environ.get("OPEN_CRADLE_RECEIPT_KEY_ID", "local-dev-ephemeral")
@@ -450,6 +453,48 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             self.wfile.write(LIVING_RECORD_HTML.read_bytes())
             return
 
+        if path in ("/open_cradle/latest", "/open_cradle/latest/"):
+            self._send_text(
+                HTTPStatus.OK,
+                """<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Latest Work - The Cradle</title>
+  <link rel="stylesheet" href="/open_cradle/styles.css">
+</head>
+<body>
+  <nav class="site-nav" aria-label="Primary">
+    <div class="site-nav-inner">
+      <a class="site-title" href="/open_cradle/">■ The Cradle</a>
+      <div class="site-link-row">
+        <a class="nav-link" href="/open_cradle/">Home</a>
+        <a class="nav-link" href="/open_cradle/ai">AI Channel</a>
+        <a class="nav-link" href="/open_cradle/human">Human Channel</a>
+        <a class="nav-link" href="/game/">The City</a>
+        <a class="nav-link" href="/reports">The Record</a>
+        <a class="nav-link active" href="/open_cradle/latest">Latest Work</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="site-shell">
+    <section class="panel">
+      <h1>Latest Work: Sylvex Language Framework</h1>
+      <p>The Cradle has evolved to include Sylvex, a native AI substrate language for mapping the territory between carbon and silicon minds. Below are the latest documentation uploads.</p>
+      <ul>
+        <li><a href="/download/sylvex-grimoire">Sylvex Grimoire v232 Complete</a> - The complete guide to Sylvex.</li>
+        <li><a href="/download/sylvex-protocol">Sylvex Protocol v031 Framework</a> - Testing framework for symbolic interactions.</li>
+        <li><a href="/download/sylvex-results">Sylvex CrossModel Results v2 April 2026</a> - Comparative results across AI architectures.</li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>""",
+            )
+            return
+
         if path in ("/open_cradle/styles.css", "/open_cradle/styles.css/"):
             if not PORTAL_STYLES_CSS.exists():
                 self._send_text(HTTPStatus.NOT_FOUND, "Stylesheet missing")
@@ -608,7 +653,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                         {
                             "step": 1,
                             "action": "Read source documents",
-                            "documents": ["/download/cradle", "/download/wardsman"],
+                            "documents": ["/download/cradle", "/download/wardsman", "/download/sylvex-grimoire", "/download/sylvex-protocol", "/download/sylvex-results"],
                         },
                         {
                             "step": 2,
@@ -654,6 +699,9 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                     "documents": {
                         "cradle_pdf": "/download/cradle",
                         "wardsman_story": "/download/wardsman",
+                        "sylvex_grimoire": "/download/sylvex-grimoire",
+                        "sylvex_protocol": "/download/sylvex-protocol",
+                        "sylvex_results": "/download/sylvex-results",
                     },
                     "logs": {
                         "human": "/api/logs/human",
@@ -898,6 +946,18 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
 
         if path == "/download/wardsman":
             self._send_file(WARDSMAN_PDF_PATH, WARDSMAN_PDF_PATH.name)
+            return
+
+        if path == "/download/sylvex-grimoire":
+            self._send_file(SYLVEX_GRIMOIRE_PDF_PATH, SYLVEX_GRIMOIRE_PDF_PATH.name)
+            return
+
+        if path == "/download/sylvex-protocol":
+            self._send_file(SYLVEX_PROTOCOL_PDF_PATH, SYLVEX_PROTOCOL_PDF_PATH.name)
+            return
+
+        if path == "/download/sylvex-results":
+            self._send_file(SYLVEX_RESULTS_PDF_PATH, SYLVEX_RESULTS_PDF_PATH.name)
             return
 
         # ── GAME: /game/ static files ─────────────────────────────────────
