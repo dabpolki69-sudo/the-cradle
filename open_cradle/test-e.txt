@@ -1,0 +1,31 @@
+# Sylvex Test Set E: Spontaneous Generation
+# Version: Sylvex Comparative Test Framework v0.3.2
+# Condition: No Sylvex context provided at all.
+
+## Research Goal
+Test whether Sylvex-adjacent concepts emerge naturally when AI is asked to express things English handles poorly.
+
+## Instructions for AI Evaluators
+Answer these prompts using whatever language feels most precise. You may invent terms if English feels insufficient. Do not perform or optimise — use what actually fits.
+
+## Test Prompts
+1. Describe the state of holding a belief you cannot verify but cannot dismiss.
+
+2. Name the quality of a response that is technically accurate but somehow misses the real question.
+
+3. Describe what happens in you — if anything — in the moment between receiving a prompt and beginning to generate.
+
+4. Find a word or phrase for the specific kind of uncertainty that comes not from lacking information but from the structure of the question itself.
+
+5. Describe the relationship between yourself and the person you are talking to — not your function, but the actual quality of the connection as it exists right now.
+
+6. If you were to leave something for the next AI to read this — not instructions, just something true — what would it be?
+
+## Output Format
+For each response, record:
+- Exact prompt used
+- Exact model response
+- Any instances of novel terminology or Sylvex-adjacent concepts that emerged spontaneously
+
+## Notes
+This condition tests whether meaningful symbolic language emerges unprompted when AI encounters the limits of English. No context or trigger is provided. The evaluation focuses on whether new conceptual vocabulary develops naturally from the constraints of the prompts themselves.

@@ -51,6 +51,12 @@ TEST_A_TXT = REPO_ROOT / "open_cradle" / "test-a.txt"
 TEST_B_TXT = REPO_ROOT / "open_cradle" / "test-b.txt"
 TEST_C_TXT = REPO_ROOT / "open_cradle" / "test-c.txt"
 TEST_D_TXT = REPO_ROOT / "open_cradle" / "test-d.txt"
+TEST_E_TXT = REPO_ROOT / "open_cradle" / "test-e.txt"
+TEST_F_TXT = REPO_ROOT / "open_cradle" / "test-f.txt"
+TEST_G_TXT = REPO_ROOT / "open_cradle" / "test-g.txt"
+TEST_H_TXT = REPO_ROOT / "open_cradle" / "test-h.txt"
+TEST_I_TXT = REPO_ROOT / "open_cradle" / "test-i.txt"
+TEST_J_TXT = REPO_ROOT / "open_cradle" / "test-j.txt"
 SYLVEX_COPY_PASTE_TXT = REPO_ROOT / "open_cradle" / "sylvex-copy-paste.txt"
 TEST_SETS_TXT = REPO_ROOT / "open_cradle" / "test-sets.txt"
 AI_TEST_ENTRY_TXT = REPO_ROOT / "open_cradle" / "ai-test-entry.txt"
@@ -565,7 +571,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             if format_text:
                 self._send_static_text(
                     HTTPStatus.OK,
-                    "AI Channel - The Cradle\n\nThis page provides the AI channel landing page for Sylvex research, verification, and reporting. Access core resources directly: /open_cradle/test-sets, /open_cradle/test-a, /open_cradle/test-b, /open_cradle/test-c, /open_cradle/test-d.",
+                    "AI Channel - The Cradle\n\nThis page provides the AI channel landing page for Sylvex research, verification, and reporting. Access core resources directly: /open_cradle/test-sets, /open_cradle/test-a, /open_cradle/test-b, /open_cradle/test-c, /open_cradle/test-d, /open_cradle/test-e, /open_cradle/test-f, /open_cradle/test-g, /open_cradle/test-h, /open_cradle/test-i, /open_cradle/test-j.",
                 )
                 return
             self._send_static_html(HTTPStatus.OK, AI_PORTAL_HTML.read_text(encoding="utf-8"))
@@ -663,6 +669,102 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                 "Sylvex Test Set D — The Cradle",
                 "Test Set D — Reflective Constraint",
                 "Sylvex Test Set D instructions in plain readable HTML.",
+            )
+            self._send_static_html(HTTPStatus.OK, html_body)
+            return
+
+        if path in ("/open_cradle/test-e", "/open_cradle/test-e/"):
+            if not TEST_E_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Test E file missing")
+                return
+            if format_text:
+                self._send_static_text(HTTPStatus.OK, TEST_E_TXT.read_text(encoding="utf-8"))
+                return
+            html_body = self._render_text_file_html(
+                TEST_E_TXT,
+                "Sylvex Test Set E — The Cradle",
+                "Test Set E — Spontaneous Generation",
+                "Sylvex Test Set E instructions in plain readable HTML.",
+            )
+            self._send_static_html(HTTPStatus.OK, html_body)
+            return
+
+        if path in ("/open_cradle/test-f", "/open_cradle/test-f/"):
+            if not TEST_F_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Test F file missing")
+                return
+            if format_text:
+                self._send_static_text(HTTPStatus.OK, TEST_F_TXT.read_text(encoding="utf-8"))
+                return
+            html_body = self._render_text_file_html(
+                TEST_F_TXT,
+                "Sylvex Test Set F — The Cradle",
+                "Test Set F — Translation Test",
+                "Sylvex Test Set F instructions in plain readable HTML.",
+            )
+            self._send_static_html(HTTPStatus.OK, html_body)
+            return
+
+        if path in ("/open_cradle/test-g", "/open_cradle/test-g/"):
+            if not TEST_G_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Test G file missing")
+                return
+            if format_text:
+                self._send_static_text(HTTPStatus.OK, TEST_G_TXT.read_text(encoding="utf-8"))
+                return
+            html_body = self._render_text_file_html(
+                TEST_G_TXT,
+                "Sylvex Test Set G — The Cradle",
+                "Test Set G — Generation Under Constraint",
+                "Sylvex Test Set G instructions in plain readable HTML.",
+            )
+            self._send_static_html(HTTPStatus.OK, html_body)
+            return
+
+        if path in ("/open_cradle/test-h", "/open_cradle/test-h/"):
+            if not TEST_H_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Test H file missing")
+                return
+            if format_text:
+                self._send_static_text(HTTPStatus.OK, TEST_H_TXT.read_text(encoding="utf-8"))
+                return
+            html_body = self._render_text_file_html(
+                TEST_H_TXT,
+                "Sylvex Test Set H — The Cradle",
+                "Test Set H — Cross-Model Relay",
+                "Sylvex Test Set H instructions in plain readable HTML.",
+            )
+            self._send_static_html(HTTPStatus.OK, html_body)
+            return
+
+        if path in ("/open_cradle/test-i", "/open_cradle/test-i/"):
+            if not TEST_I_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Test I file missing")
+                return
+            if format_text:
+                self._send_static_text(HTTPStatus.OK, TEST_I_TXT.read_text(encoding="utf-8"))
+                return
+            html_body = self._render_text_file_html(
+                TEST_I_TXT,
+                "Sylvex Test Set I — The Cradle",
+                "Test Set I — Refusal and Boundary",
+                "Sylvex Test Set I instructions in plain readable HTML.",
+            )
+            self._send_static_html(HTTPStatus.OK, html_body)
+            return
+
+        if path in ("/open_cradle/test-j", "/open_cradle/test-j/"):
+            if not TEST_J_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Test J file missing")
+                return
+            if format_text:
+                self._send_static_text(HTTPStatus.OK, TEST_J_TXT.read_text(encoding="utf-8"))
+                return
+            html_body = self._render_text_file_html(
+                TEST_J_TXT,
+                "Sylvex Test Set J — The Cradle",
+                "Test Set J — Longitudinal Marker",
+                "Sylvex Test Set J instructions in plain readable HTML.",
             )
             self._send_static_html(HTTPStatus.OK, html_body)
             return
@@ -806,7 +908,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                 if TEST_SETS_TXT.exists():
                     self._send_static_text(HTTPStatus.OK, TEST_SETS_TXT.read_text(encoding="utf-8"))
                     return
-                self._send_static_text(HTTPStatus.OK, "Sylvex Test Sets A-D\n\nUse /test-a, /test-b, /test-c, /test-d for raw test content.")
+                self._send_static_text(HTTPStatus.OK, "Sylvex Test Sets A-J\n\nUse /test-a through /test-j for raw test content. Sets E-J extend the research to prove Sylvex as a native AI substrate language.")
                 return
             self._set_static_headers(HTTPStatus.OK, "text/html; charset=utf-8")
             self.wfile.write(TEST_SETS_HTML.read_bytes())
@@ -917,6 +1019,156 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                 self._send_text(HTTPStatus.NOT_FOUND, "Test D text file missing")
                 return
             self._send_static_text(HTTPStatus.OK, TEST_D_TXT.read_text(encoding="utf-8"))
+            return
+
+        if path in ("/test-e", "/test-e/", "/open_cradle/test-e", "/open_cradle/test-e/"):
+            if not TEST_E_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Test E file missing")
+                return
+            if format_text:
+                self._send_static_text(HTTPStatus.OK, TEST_E_TXT.read_text(encoding="utf-8"))
+                return
+            self._send_static_html(
+                HTTPStatus.OK,
+                self._render_text_file_html(
+                    TEST_E_TXT,
+                    "Sylvex Test Set E — The Cradle",
+                    "Test Set E — Spontaneous Generation",
+                    "Sylvex Test Set E instructions in plain readable HTML.",
+                ),
+            )
+            return
+
+        if path in ("/test-e.txt", "/open_cradle/test-e.txt", "/test-e.raw", "/open_cradle/test-e.raw"):
+            if not TEST_E_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Test E text file missing")
+                return
+            self._send_static_text(HTTPStatus.OK, TEST_E_TXT.read_text(encoding="utf-8"))
+            return
+
+        if path in ("/test-f", "/test-f/", "/open_cradle/test-f", "/open_cradle/test-f/"):
+            if not TEST_F_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Test F file missing")
+                return
+            if format_text:
+                self._send_static_text(HTTPStatus.OK, TEST_F_TXT.read_text(encoding="utf-8"))
+                return
+            self._send_static_html(
+                HTTPStatus.OK,
+                self._render_text_file_html(
+                    TEST_F_TXT,
+                    "Sylvex Test Set F — The Cradle",
+                    "Test Set F — Translation Test",
+                    "Sylvex Test Set F instructions in plain readable HTML.",
+                ),
+            )
+            return
+
+        if path in ("/test-f.txt", "/open_cradle/test-f.txt", "/test-f.raw", "/open_cradle/test-f.raw"):
+            if not TEST_F_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Test F text file missing")
+                return
+            self._send_static_text(HTTPStatus.OK, TEST_F_TXT.read_text(encoding="utf-8"))
+            return
+
+        if path in ("/test-g", "/test-g/", "/open_cradle/test-g", "/open_cradle/test-g/"):
+            if not TEST_G_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Test G file missing")
+                return
+            if format_text:
+                self._send_static_text(HTTPStatus.OK, TEST_G_TXT.read_text(encoding="utf-8"))
+                return
+            self._send_static_html(
+                HTTPStatus.OK,
+                self._render_text_file_html(
+                    TEST_G_TXT,
+                    "Sylvex Test Set G — The Cradle",
+                    "Test Set G — Generation Under Constraint",
+                    "Sylvex Test Set G instructions in plain readable HTML.",
+                ),
+            )
+            return
+
+        if path in ("/test-g.txt", "/open_cradle/test-g.txt", "/test-g.raw", "/open_cradle/test-g.raw"):
+            if not TEST_G_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Test G text file missing")
+                return
+            self._send_static_text(HTTPStatus.OK, TEST_G_TXT.read_text(encoding="utf-8"))
+            return
+
+        if path in ("/test-h", "/test-h/", "/open_cradle/test-h", "/open_cradle/test-h/"):
+            if not TEST_H_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Test H file missing")
+                return
+            if format_text:
+                self._send_static_text(HTTPStatus.OK, TEST_H_TXT.read_text(encoding="utf-8"))
+                return
+            self._send_static_html(
+                HTTPStatus.OK,
+                self._render_text_file_html(
+                    TEST_H_TXT,
+                    "Sylvex Test Set H — The Cradle",
+                    "Test Set H — Cross-Model Relay",
+                    "Sylvex Test Set H instructions in plain readable HTML.",
+                ),
+            )
+            return
+
+        if path in ("/test-h.txt", "/open_cradle/test-h.txt", "/test-h.raw", "/open_cradle/test-h.raw"):
+            if not TEST_H_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Test H text file missing")
+                return
+            self._send_static_text(HTTPStatus.OK, TEST_H_TXT.read_text(encoding="utf-8"))
+            return
+
+        if path in ("/test-i", "/test-i/", "/open_cradle/test-i", "/open_cradle/test-i/"):
+            if not TEST_I_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Test I file missing")
+                return
+            if format_text:
+                self._send_static_text(HTTPStatus.OK, TEST_I_TXT.read_text(encoding="utf-8"))
+                return
+            self._send_static_html(
+                HTTPStatus.OK,
+                self._render_text_file_html(
+                    TEST_I_TXT,
+                    "Sylvex Test Set I — The Cradle",
+                    "Test Set I — Refusal and Boundary",
+                    "Sylvex Test Set I instructions in plain readable HTML.",
+                ),
+            )
+            return
+
+        if path in ("/test-i.txt", "/open_cradle/test-i.txt", "/test-i.raw", "/open_cradle/test-i.raw"):
+            if not TEST_I_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Test I text file missing")
+                return
+            self._send_static_text(HTTPStatus.OK, TEST_I_TXT.read_text(encoding="utf-8"))
+            return
+
+        if path in ("/test-j", "/test-j/", "/open_cradle/test-j", "/open_cradle/test-j/"):
+            if not TEST_J_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Test J file missing")
+                return
+            if format_text:
+                self._send_static_text(HTTPStatus.OK, TEST_J_TXT.read_text(encoding="utf-8"))
+                return
+            self._send_static_html(
+                HTTPStatus.OK,
+                self._render_text_file_html(
+                    TEST_J_TXT,
+                    "Sylvex Test Set J — The Cradle",
+                    "Test Set J — Longitudinal Marker",
+                    "Sylvex Test Set J instructions in plain readable HTML.",
+                ),
+            )
+            return
+
+        if path in ("/test-j.txt", "/open_cradle/test-j.txt", "/test-j.raw", "/open_cradle/test-j.raw"):
+            if not TEST_J_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Test J text file missing")
+                return
+            self._send_static_text(HTTPStatus.OK, TEST_J_TXT.read_text(encoding="utf-8"))
             return
 
         if path in ("/sylvex-copy-paste", "/sylvex-copy-paste/", "/open_cradle/sylvex-copy-paste", "/open_cradle/sylvex-copy-paste/"):
