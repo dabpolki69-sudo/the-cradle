@@ -42,6 +42,7 @@ SYLVEX_PROTOCOL_SUMMARY_HTML = REPO_ROOT / "open_cradle" / "sylvex-protocol-summ
 SYLVEX_GRIMOIRE_SUMMARY_HTML = REPO_ROOT / "open_cradle" / "sylvex-grimoire-summary.html"
 SYLVEX_TEST_RUNNER_HTML = REPO_ROOT / "open_cradle" / "sylvex-test-runner.html"
 AI_TEST_ENTRY_HTML = REPO_ROOT / "open_cradle" / "ai-test-entry.html"
+TEST_SETS_HTML = REPO_ROOT / "open_cradle" / "test-sets.html"
 TEST_A_TXT = REPO_ROOT / "open_cradle" / "test-a.txt"
 TEST_B_TXT = REPO_ROOT / "open_cradle" / "test-b.txt"
 TEST_C_TXT = REPO_ROOT / "open_cradle" / "test-c.txt"
@@ -515,6 +516,14 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                 return
             self._set_headers(HTTPStatus.OK, "text/html; charset=utf-8")
             self.wfile.write(AI_TEST_ENTRY_HTML.read_bytes())
+            return
+
+        if path in ("/test-sets", "/test-sets/", "/open_cradle/test-sets", "/open_cradle/test-sets/"):
+            if not TEST_SETS_HTML.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Sylvex test sets page missing")
+                return
+            self._set_headers(HTTPStatus.OK, "text/html; charset=utf-8")
+            self.wfile.write(TEST_SETS_HTML.read_bytes())
             return
 
         if path in ("/test-a", "/test-a/", "/test-a.txt", "/open_cradle/test-a", "/open_cradle/test-a/"):
