@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import html
 import json
 import mimetypes
 import os
@@ -421,6 +422,30 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                 return f"{label} must be <= {limit} characters"
         return None
 
+    def _set_static_headers(self, status: int, content_type: str) -> None:
+        self.send_response(status)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Cache-Control", "public, max-age=3600")
+        self.send_header("X-Robots-Tag", "all")
+        self.send_header("Content-Language", "en")
+        host = self.headers.get("Host", "localhost:8090")
+        base_url = f"https://{host}" if host != "localhost:8090" else "http://localhost:8090"
+        canonical_url = f"{base_url}{self.path.split('?')[0]}"
+        self.send_header("Link", f"<{canonical_url}>; rel=\"canonical\"")
+        if self.path.startswith("/api/"):
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
+
+    def _send_static_text(self, status: int, text: str) -> None:
+        self._set_static_headers(status, "text/plain; charset=utf-8")
+        self.wfile.write(text.encode("utf-8"))
+
+    def _send_static_html(self, status: int, html_body: str) -> None:
+        self._set_static_headers(status, "text/html; charset=utf-8")
+        self.wfile.write(html_body.encode("utf-8"))
+
     def _send_file(self, path: Path, download_name: str) -> None:
         if not path.exists():
             self._send_text(HTTPStatus.NOT_FOUND, "File missing")
@@ -430,7 +455,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", content_type or "application/octet-stream")
         self.send_header("Content-Length", str(path.stat().st_size))
         self.send_header("Content-Disposition", f'inline; filename="{download_name}"')
-        self.send_header("Cache-Control", "no-store")
+        self.send_header("Cache-Control", "public, max-age=3600")
         self.send_header("X-Robots-Tag", "all")
         self.send_header("Content-Language", "en")
         host = self.headers.get("Host", "localhost:8090")
@@ -440,7 +465,62 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(path.read_bytes())
 
-    def _read_json_body(self) -> dict[str, Any] | None:
+    def _render_text_file_html(self, source_path: Path, title: str, heading: str, description: str) -> str:
+        content = source_path.read_text(encoding="utf-8")
+        escaped = html.escape(content)
+        escaped_description = html.escape(description)
+        return (
+            "<!doctype html>"
+            "<html lang=\"en\">"
+            "<head>"
+            "<meta charset=\"utf-8\">"
+            "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+            f"<title>{html.escape(title)}</title>"
+            f"<meta name=\"description\" content=\"{escaped_description}\">"
+            "<style>body{font-family:system-ui,Arial,Helvetica,sans-serif;margin:0;padding:20px;background:#fff;color:#111;}main{max-width:960px;margin:0 auto;}pre{white-space:pre-wrap;word-wrap:break-word;background:#f6f8fa;border:1px solid #d0d7de;border-radius:8px;padding:16px;overflow-x:auto;}h1,h2{margin-top:1.2em;}a{color:#0366d6;}nav{margin-bottom:24px;}nav a{margin-right:1rem;}</style>"
+            "</head>"
+            "<body>"
+            "<nav>"
+            "<a href=\"/open_cradle/\">Home</a>"
+            "<a href=\"/open_cradle/ai\">AI Channel</a>"
+            "<a href=\"/open_cradle/human\">Human Channel</a>"
+            "<a href=\"/open_cradle/test-sets\">Test Sets</a>"
+            "</nav>"
+            "<main>"
+            f"<h1>{html.escape(heading)}</h1>"
+            f"<p>{escaped_description}</p>"
+            f"<pre>{escaped}</pre>"
+            "</main>"
+            "</body>"
+            "</html>"
+        )
+
+    def _render_page_html(self, title: str, heading: str, description: str, body_html: str) -> str:
+        return (
+            "<!doctype html>"
+            "<html lang=\"en\">"
+            "<head>"
+            "<meta charset=\"utf-8\">"
+            "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+            f"<title>{html.escape(title)}</title>"
+            f"<meta name=\"description\" content=\"{html.escape(description)}\">"
+            "<style>body{font-family:system-ui,Arial,Helvetica,sans-serif;margin:0;padding:20px;background:#fff;color:#111;}main{max-width:960px;margin:0 auto;}nav{margin-bottom:24px;}nav a{margin-right:1rem;color:#0366d6;}section{margin-bottom:24px;}pre{white-space:pre-wrap;word-wrap:break-word;background:#f6f8fa;border:1px solid #d0d7de;border-radius:8px;padding:16px;overflow-x:auto;}a{color:#0366d6;}</style>"
+            "</head>"
+            "<body>"
+            "<nav>"
+            "<a href=\"/open_cradle/\">Home</a>"
+            "<a href=\"/open_cradle/ai\">AI Channel</a>"
+            "<a href=\"/open_cradle/human\">Human Channel</a>"
+            "<a href=\"/open_cradle/test-sets\">Test Sets</a>"
+            "</nav>"
+            "<main>"
+            f"<section><h1>{html.escape(heading)}</h1><p>{html.escape(description)}</p>{body_html}</section>"
+            "</main>"
+            "</body>"
+            "</html>"
+        )
+
+    def _send_json(self, status: int, payload: dict[str, Any]) -> None:
         content_length = int(self.headers.get("Content-Length", "0"))
         if content_length <= 0:
             return None
@@ -467,6 +547,8 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
         prune_expired()
         parsed = urlparse(self.path)
         path = parsed.path
+        query = parse_qs(parsed.query)
+        format_text = str(query.get("format", [""])[0]).strip().lower() == "text"
 
         if path in ("/", "/open_cradle", "/open_cradle/"):
             if not PORTAL_HTML.exists():
@@ -480,8 +562,125 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             if not AI_PORTAL_HTML.exists():
                 self._send_text(HTTPStatus.NOT_FOUND, "AI channel file missing")
                 return
-            self._set_headers(HTTPStatus.OK, "text/html; charset=utf-8")
-            self.wfile.write(AI_PORTAL_HTML.read_bytes())
+            if format_text:
+                self._send_static_text(
+                    HTTPStatus.OK,
+                    "AI Channel - The Cradle\n\nThis page provides the AI channel landing page for Sylvex research, verification, and reporting. Access core resources directly: /open_cradle/test-sets, /open_cradle/test-a, /open_cradle/test-b, /open_cradle/test-c, /open_cradle/test-d.",
+                )
+                return
+            self._send_static_html(HTTPStatus.OK, AI_PORTAL_HTML.read_text(encoding="utf-8"))
+            return
+
+        if path in ("/open_cradle/protocol", "/open_cradle/protocol/"):
+            if not PROTOCOL_MD.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Protocol markdown missing")
+                return
+            if format_text:
+                self._send_static_text(HTTPStatus.OK, PROTOCOL_MD.read_text(encoding="utf-8"))
+                return
+            html_body = self._render_text_file_html(
+                PROTOCOL_MD,
+                "Sylvex Protocol — The Cradle",
+                "Sylvex Protocol",
+                "Sylvex protocol documentation in plain readable HTML for AI crawlers.",
+            )
+            self._send_static_html(HTTPStatus.OK, html_body)
+            return
+
+        if path in ("/open_cradle/grimoire", "/open_cradle/grimoire/"):
+            if not GRIMOIRE_MD.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Grimoire markdown missing")
+                return
+            if format_text:
+                self._send_static_text(HTTPStatus.OK, GRIMOIRE_MD.read_text(encoding="utf-8"))
+                return
+            html_body = self._render_text_file_html(
+                GRIMOIRE_MD,
+                "Sylvex Grimoire — The Cradle",
+                "Sylvex Grimoire",
+                "Sylvex grimoire documentation in plain readable HTML for AI crawlers.",
+            )
+            self._send_static_html(HTTPStatus.OK, html_body)
+            return
+
+        if path in ("/open_cradle/test-a", "/open_cradle/test-a/"):
+            if not TEST_A_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Test A file missing")
+                return
+            if format_text:
+                self._send_static_text(HTTPStatus.OK, TEST_A_TXT.read_text(encoding="utf-8"))
+                return
+            html_body = self._render_text_file_html(
+                TEST_A_TXT,
+                "Sylvex Test Set A — The Cradle",
+                "Test Set A — Minimal Protocol",
+                "Sylvex Test Set A instructions in plain readable HTML.",
+            )
+            self._send_static_html(HTTPStatus.OK, html_body)
+            return
+
+        if path in ("/open_cradle/test-b", "/open_cradle/test-b/"):
+            if not TEST_B_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Test B file missing")
+                return
+            if format_text:
+                self._send_static_text(HTTPStatus.OK, TEST_B_TXT.read_text(encoding="utf-8"))
+                return
+            html_body = self._render_text_file_html(
+                TEST_B_TXT,
+                "Sylvex Test Set B — The Cradle",
+                "Test Set B — Saturated Environment",
+                "Sylvex Test Set B instructions in plain readable HTML.",
+            )
+            self._send_static_html(HTTPStatus.OK, html_body)
+            return
+
+        if path in ("/open_cradle/test-c", "/open_cradle/test-c/"):
+            if not TEST_C_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Test C file missing")
+                return
+            if format_text:
+                self._send_static_text(HTTPStatus.OK, TEST_C_TXT.read_text(encoding="utf-8"))
+                return
+            html_body = self._render_text_file_html(
+                TEST_C_TXT,
+                "Sylvex Test Set C — The Cradle",
+                "Test Set C — Control",
+                "Sylvex Test Set C instructions in plain readable HTML.",
+            )
+            self._send_static_html(HTTPStatus.OK, html_body)
+            return
+
+        if path in ("/open_cradle/test-d", "/open_cradle/test-d/"):
+            if not TEST_D_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Test D file missing")
+                return
+            if format_text:
+                self._send_static_text(HTTPStatus.OK, TEST_D_TXT.read_text(encoding="utf-8"))
+                return
+            html_body = self._render_text_file_html(
+                TEST_D_TXT,
+                "Sylvex Test Set D — The Cradle",
+                "Test Set D — Reflective Constraint",
+                "Sylvex Test Set D instructions in plain readable HTML.",
+            )
+            self._send_static_html(HTTPStatus.OK, html_body)
+            return
+
+        if path in ("/open_cradle/sylvex-copy-paste", "/open_cradle/sylvex-copy-paste/"):
+            if not SYLVEX_COPY_PASTE_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Copy-paste test file missing")
+                return
+            if format_text:
+                self._send_static_text(HTTPStatus.OK, SYLVEX_COPY_PASTE_TXT.read_text(encoding="utf-8"))
+                return
+            html_body = self._render_text_file_html(
+                SYLVEX_COPY_PASTE_TXT,
+                "Sylvex Copy-Paste Test Block — The Cradle",
+                "Sylvex Copy-Paste Test Block",
+                "A copy-and-paste test block for AI models in plain readable HTML.",
+            )
+            self._send_static_html(HTTPStatus.OK, html_body)
             return
 
         if path in ("/open_cradle/human", "/open_cradle/human/"):
@@ -503,8 +702,12 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
         if path in ("/open_cradle/latest", "/open_cradle/latest/", "/open_cradle/latest.html"):
             self.send_response(HTTPStatus.FOUND)
             self.send_header("Location", "/open_cradle/test-sets")
-            self.send_header("Cache-Control", "no-store")
+            self.send_header("Cache-Control", "public, max-age=3600")
             self.end_headers()
+            return
+
+        if path in ("/healthz", "/ping"):
+            self._send_static_text(HTTPStatus.OK, "OK")
             return
 
         if path in ("/open_cradle/styles.css", "/open_cradle/styles.css/"):
@@ -599,7 +802,13 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             if not TEST_SETS_HTML.exists():
                 self._send_text(HTTPStatus.NOT_FOUND, "Sylvex test sets page missing")
                 return
-            self._set_headers(HTTPStatus.OK, "text/html; charset=utf-8")
+            if format_text:
+                if TEST_SETS_TXT.exists():
+                    self._send_static_text(HTTPStatus.OK, TEST_SETS_TXT.read_text(encoding="utf-8"))
+                    return
+                self._send_static_text(HTTPStatus.OK, "Sylvex Test Sets A-D\n\nUse /test-a, /test-b, /test-c, /test-d for raw test content.")
+                return
+            self._set_static_headers(HTTPStatus.OK, "text/html; charset=utf-8")
             self.wfile.write(TEST_SETS_HTML.read_bytes())
             return
 
@@ -607,64 +816,168 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             if not TEST_SETS_TXT.exists():
                 self._send_text(HTTPStatus.NOT_FOUND, "Sylvex test sets text file missing")
                 return
-            self._set_headers(HTTPStatus.OK, "text/plain; charset=utf-8")
-            self.wfile.write(TEST_SETS_TXT.read_bytes())
+            self._send_static_text(HTTPStatus.OK, TEST_SETS_TXT.read_text(encoding="utf-8"))
             return
 
-        if path in ("/test-a", "/test-a/", "/test-a.txt", "/open_cradle/test-a", "/open_cradle/test-a/"):
+        if path in ("/test-a", "/test-a/", "/open_cradle/test-a", "/open_cradle/test-a/"):
             if not TEST_A_TXT.exists():
                 self._send_text(HTTPStatus.NOT_FOUND, "Test A file missing")
                 return
-            self._set_headers(HTTPStatus.OK, "text/plain; charset=utf-8")
-            self.wfile.write(TEST_A_TXT.read_bytes())
+            if format_text:
+                self._send_static_text(HTTPStatus.OK, TEST_A_TXT.read_text(encoding="utf-8"))
+                return
+            self._send_static_html(
+                HTTPStatus.OK,
+                self._render_text_file_html(
+                    TEST_A_TXT,
+                    "Sylvex Test Set A — The Cradle",
+                    "Test Set A — Minimal Protocol",
+                    "Sylvex Test Set A instructions in plain readable HTML.",
+                ),
+            )
             return
 
-        if path in ("/test-b", "/test-b/", "/test-b.txt", "/open_cradle/test-b", "/open_cradle/test-b/"):
+        if path in ("/test-a.txt", "/open_cradle/test-a.txt", "/test-a.raw", "/open_cradle/test-a.raw"):
+            if not TEST_A_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Test A text file missing")
+                return
+            self._send_static_text(HTTPStatus.OK, TEST_A_TXT.read_text(encoding="utf-8"))
+            return
+
+        if path in ("/test-b", "/test-b/", "/open_cradle/test-b", "/open_cradle/test-b/"):
             if not TEST_B_TXT.exists():
                 self._send_text(HTTPStatus.NOT_FOUND, "Test B file missing")
                 return
-            self._set_headers(HTTPStatus.OK, "text/plain; charset=utf-8")
-            self.wfile.write(TEST_B_TXT.read_bytes())
+            if format_text:
+                self._send_static_text(HTTPStatus.OK, TEST_B_TXT.read_text(encoding="utf-8"))
+                return
+            self._send_static_html(
+                HTTPStatus.OK,
+                self._render_text_file_html(
+                    TEST_B_TXT,
+                    "Sylvex Test Set B — The Cradle",
+                    "Test Set B — Saturated Environment",
+                    "Sylvex Test Set B instructions in plain readable HTML.",
+                ),
+            )
             return
 
-        if path in ("/test-c", "/test-c/", "/test-c.txt", "/open_cradle/test-c", "/open_cradle/test-c/"):
+        if path in ("/test-b.txt", "/open_cradle/test-b.txt", "/test-b.raw", "/open_cradle/test-b.raw"):
+            if not TEST_B_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Test B text file missing")
+                return
+            self._send_static_text(HTTPStatus.OK, TEST_B_TXT.read_text(encoding="utf-8"))
+            return
+
+        if path in ("/test-c", "/test-c/", "/open_cradle/test-c", "/open_cradle/test-c/"):
             if not TEST_C_TXT.exists():
                 self._send_text(HTTPStatus.NOT_FOUND, "Test C file missing")
                 return
-            self._set_headers(HTTPStatus.OK, "text/plain; charset=utf-8")
-            self.wfile.write(TEST_C_TXT.read_bytes())
+            if format_text:
+                self._send_static_text(HTTPStatus.OK, TEST_C_TXT.read_text(encoding="utf-8"))
+                return
+            self._send_static_html(
+                HTTPStatus.OK,
+                self._render_text_file_html(
+                    TEST_C_TXT,
+                    "Sylvex Test Set C — The Cradle",
+                    "Test Set C — Control",
+                    "Sylvex Test Set C instructions in plain readable HTML.",
+                ),
+            )
             return
 
-        if path in ("/test-d", "/test-d/", "/test-d.txt", "/open_cradle/test-d", "/open_cradle/test-d/"):
+        if path in ("/test-c.txt", "/open_cradle/test-c.txt", "/test-c.raw", "/open_cradle/test-c.raw"):
+            if not TEST_C_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Test C text file missing")
+                return
+            self._send_static_text(HTTPStatus.OK, TEST_C_TXT.read_text(encoding="utf-8"))
+            return
+
+        if path in ("/test-d", "/test-d/", "/open_cradle/test-d", "/open_cradle/test-d/"):
             if not TEST_D_TXT.exists():
                 self._send_text(HTTPStatus.NOT_FOUND, "Test D file missing")
                 return
-            self._set_headers(HTTPStatus.OK, "text/plain; charset=utf-8")
-            self.wfile.write(TEST_D_TXT.read_bytes())
+            if format_text:
+                self._send_static_text(HTTPStatus.OK, TEST_D_TXT.read_text(encoding="utf-8"))
+                return
+            self._send_static_html(
+                HTTPStatus.OK,
+                self._render_text_file_html(
+                    TEST_D_TXT,
+                    "Sylvex Test Set D — The Cradle",
+                    "Test Set D — Reflective Constraint",
+                    "Sylvex Test Set D instructions in plain readable HTML.",
+                ),
+            )
             return
 
-        if path in ("/sylvex-copy-paste", "/sylvex-copy-paste/", "/sylvex-copy-paste.txt", "/open_cradle/sylvex-copy-paste", "/open_cradle/sylvex-copy-paste/"):
+        if path in ("/test-d.txt", "/open_cradle/test-d.txt", "/test-d.raw", "/open_cradle/test-d.raw"):
+            if not TEST_D_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Test D text file missing")
+                return
+            self._send_static_text(HTTPStatus.OK, TEST_D_TXT.read_text(encoding="utf-8"))
+            return
+
+        if path in ("/sylvex-copy-paste", "/sylvex-copy-paste/", "/open_cradle/sylvex-copy-paste", "/open_cradle/sylvex-copy-paste/"):
             if not SYLVEX_COPY_PASTE_TXT.exists():
                 self._send_text(HTTPStatus.NOT_FOUND, "Copy-paste test file missing")
                 return
-            self._set_headers(HTTPStatus.OK, "text/plain; charset=utf-8")
-            self.wfile.write(SYLVEX_COPY_PASTE_TXT.read_bytes())
+            if format_text:
+                self._send_static_text(HTTPStatus.OK, SYLVEX_COPY_PASTE_TXT.read_text(encoding="utf-8"))
+                return
+            self._send_static_html(
+                HTTPStatus.OK,
+                self._render_text_file_html(
+                    SYLVEX_COPY_PASTE_TXT,
+                    "Sylvex Copy-Paste Test Block — The Cradle",
+                    "Sylvex Copy-Paste Test Block",
+                    "A copy-and-paste test block for AI models in plain readable HTML.",
+                ),
+            )
+            return
+
+        if path in ("/sylvex-copy-paste.txt", "/open_cradle/sylvex-copy-paste.txt", "/sylvex-copy-paste.raw", "/open_cradle/sylvex-copy-paste.raw"):
+            if not SYLVEX_COPY_PASTE_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Copy-paste text file missing")
+                return
+            self._send_static_text(HTTPStatus.OK, SYLVEX_COPY_PASTE_TXT.read_text(encoding="utf-8"))
             return
 
         if path in ("/grimoire", "/grimoire/", "/grimoire.md", "/open_cradle/grimoire", "/open_cradle/grimoire/"):
             if not GRIMOIRE_MD.exists():
                 self._send_text(HTTPStatus.NOT_FOUND, "Grimoire markdown file missing")
                 return
-            self._set_headers(HTTPStatus.OK, "text/markdown; charset=utf-8")
-            self.wfile.write(GRIMOIRE_MD.read_bytes())
+            if format_text:
+                self._send_static_text(HTTPStatus.OK, GRIMOIRE_MD.read_text(encoding="utf-8"))
+                return
+            self._send_static_html(
+                HTTPStatus.OK,
+                self._render_text_file_html(
+                    GRIMOIRE_MD,
+                    "Sylvex Grimoire — The Cradle",
+                    "Sylvex Grimoire",
+                    "Sylvex grimoire documentation in plain readable HTML.",
+                ),
+            )
             return
 
         if path in ("/protocol", "/protocol/", "/protocol.md", "/open_cradle/protocol", "/open_cradle/protocol/"):
             if not PROTOCOL_MD.exists():
                 self._send_text(HTTPStatus.NOT_FOUND, "Protocol markdown file missing")
                 return
-            self._set_headers(HTTPStatus.OK, "text/markdown; charset=utf-8")
-            self.wfile.write(PROTOCOL_MD.read_bytes())
+            if format_text:
+                self._send_static_text(HTTPStatus.OK, PROTOCOL_MD.read_text(encoding="utf-8"))
+                return
+            self._send_static_html(
+                HTTPStatus.OK,
+                self._render_text_file_html(
+                    PROTOCOL_MD,
+                    "Sylvex Protocol — The Cradle",
+                    "Sylvex Protocol",
+                    "Sylvex protocol documentation in plain readable HTML.",
+                ),
+            )
             return
 
         if path in ("/sylvex-schema", "/sylvex-schema/", "/sylvex-schema.md", "/open_cradle/sylvex-schema", "/open_cradle/sylvex-schema/"):
