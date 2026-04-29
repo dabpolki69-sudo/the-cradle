@@ -508,7 +508,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             self.wfile.write(SYLVEX_TEST_RUNNER_HTML.read_bytes())
             return
 
-        if path in ("/test-a", "/test-a/", "/test-a.txt"):
+        if path in ("/test-a", "/test-a/", "/test-a.txt", "/open_cradle/test-a", "/open_cradle/test-a/"):
             if not TEST_A_TXT.exists():
                 self._send_text(HTTPStatus.NOT_FOUND, "Test A file missing")
                 return
@@ -516,7 +516,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             self.wfile.write(TEST_A_TXT.read_bytes())
             return
 
-        if path in ("/test-b", "/test-b/", "/test-b.txt"):
+        if path in ("/test-b", "/test-b/", "/test-b.txt", "/open_cradle/test-b", "/open_cradle/test-b/"):
             if not TEST_B_TXT.exists():
                 self._send_text(HTTPStatus.NOT_FOUND, "Test B file missing")
                 return
@@ -524,7 +524,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             self.wfile.write(TEST_B_TXT.read_bytes())
             return
 
-        if path in ("/test-c", "/test-c/", "/test-c.txt"):
+        if path in ("/test-c", "/test-c/", "/test-c.txt", "/open_cradle/test-c", "/open_cradle/test-c/"):
             if not TEST_C_TXT.exists():
                 self._send_text(HTTPStatus.NOT_FOUND, "Test C file missing")
                 return
@@ -532,7 +532,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             self.wfile.write(TEST_C_TXT.read_bytes())
             return
 
-        if path in ("/test-d", "/test-d/", "/test-d.txt"):
+        if path in ("/test-d", "/test-d/", "/test-d.txt", "/open_cradle/test-d", "/open_cradle/test-d/"):
             if not TEST_D_TXT.exists():
                 self._send_text(HTTPStatus.NOT_FOUND, "Test D file missing")
                 return
@@ -540,7 +540,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             self.wfile.write(TEST_D_TXT.read_bytes())
             return
 
-        if path in ("/sylvex-copy-paste", "/sylvex-copy-paste/", "/sylvex-copy-paste.txt"):
+        if path in ("/sylvex-copy-paste", "/sylvex-copy-paste/", "/sylvex-copy-paste.txt", "/open_cradle/sylvex-copy-paste", "/open_cradle/sylvex-copy-paste/"):
             if not SYLVEX_COPY_PASTE_TXT.exists():
                 self._send_text(HTTPStatus.NOT_FOUND, "Copy-paste test file missing")
                 return
@@ -548,7 +548,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             self.wfile.write(SYLVEX_COPY_PASTE_TXT.read_bytes())
             return
 
-        if path in ("/grimoire", "/grimoire/", "/grimoire.md"):
+        if path in ("/grimoire", "/grimoire/", "/grimoire.md", "/open_cradle/grimoire", "/open_cradle/grimoire/"):
             if not GRIMOIRE_MD.exists():
                 self._send_text(HTTPStatus.NOT_FOUND, "Grimoire markdown file missing")
                 return
@@ -556,7 +556,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             self.wfile.write(GRIMOIRE_MD.read_bytes())
             return
 
-        if path in ("/protocol", "/protocol/", "/protocol.md"):
+        if path in ("/protocol", "/protocol/", "/protocol.md", "/open_cradle/protocol", "/open_cradle/protocol/"):
             if not PROTOCOL_MD.exists():
                 self._send_text(HTTPStatus.NOT_FOUND, "Protocol markdown file missing")
                 return
@@ -564,7 +564,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             self.wfile.write(PROTOCOL_MD.read_bytes())
             return
 
-        if path in ("/sylvex-schema", "/sylvex-schema/", "/sylvex-schema.md"):
+        if path in ("/sylvex-schema", "/sylvex-schema/", "/sylvex-schema.md", "/open_cradle/sylvex-schema", "/open_cradle/sylvex-schema/"):
             if not SYLVEX_SCHEMA_MD.exists():
                 self._send_text(HTTPStatus.NOT_FOUND, "Sylvex schema file missing")
                 return
