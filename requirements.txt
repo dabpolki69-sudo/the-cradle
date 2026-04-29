@@ -1,0 +1,4 @@
+# Requirements for The Cradle
+# Install with: pip install -r requirements.txt
+
+the_well  # External physics dataset library for empirical grounding

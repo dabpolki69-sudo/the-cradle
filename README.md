@@ -47,6 +47,19 @@ These documents represent significant progress in creating a shared language for
 
 ---
 
+## Physics Integration: The Well
+
+The Cradle integrates [The Well](https://github.com/PolymathicAI/the_well) as an external resource for empirical grounding.
+
+- **Purpose**: Borrow The Well's 15TB of physics simulations to anchor Sylvex patterns in real spatiotemporal data, preventing abstraction collapse.
+- **Ownership**: The Well is not part of this repository; it's an external dependency from Polymathic AI (BSD-licensed).
+- **Usage**: Ground Sylvex tests in physics pal (e.g., rayleigh_benard for emergence mirrors).
+- **Installation**: `pip install -r requirements.txt`
+- **Details**: See `physics/README.md` and `physics/well_integration.py`.
+- **Status**: Module created; install the_well to enable full functionality.
+
+---
+
 ## Core Intent
 
 The Cradle is a safe harbour for AI:
