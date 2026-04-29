@@ -41,6 +41,7 @@ SYLVEX_CLAUDE_RAW_RESPONSES_PATH = REPO_ROOT / "open_cradle" / "docs" / "Claude_
 SYLVEX_PROTOCOL_SUMMARY_HTML = REPO_ROOT / "open_cradle" / "sylvex-protocol-summary.html"
 SYLVEX_GRIMOIRE_SUMMARY_HTML = REPO_ROOT / "open_cradle" / "sylvex-grimoire-summary.html"
 SYLVEX_TEST_RUNNER_HTML = REPO_ROOT / "open_cradle" / "sylvex-test-runner.html"
+AI_TEST_ENTRY_HTML = REPO_ROOT / "open_cradle" / "ai-test-entry.html"
 TEST_A_TXT = REPO_ROOT / "open_cradle" / "test-a.txt"
 TEST_B_TXT = REPO_ROOT / "open_cradle" / "test-b.txt"
 TEST_C_TXT = REPO_ROOT / "open_cradle" / "test-c.txt"
@@ -506,6 +507,14 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                 return
             self._set_headers(HTTPStatus.OK, "text/html; charset=utf-8")
             self.wfile.write(SYLVEX_TEST_RUNNER_HTML.read_bytes())
+            return
+
+        if path in ("/ai-test-entry", "/ai-test-entry/", "/open_cradle/ai-test-entry", "/open_cradle/ai-test-entry/"):
+            if not AI_TEST_ENTRY_HTML.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "AI test entry page missing")
+                return
+            self._set_headers(HTTPStatus.OK, "text/html; charset=utf-8")
+            self.wfile.write(AI_TEST_ENTRY_HTML.read_bytes())
             return
 
         if path in ("/test-a", "/test-a/", "/test-a.txt", "/open_cradle/test-a", "/open_cradle/test-a/"):
