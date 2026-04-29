@@ -48,6 +48,7 @@ TEST_D_TXT = REPO_ROOT / "open_cradle" / "test-d.txt"
 SYLVEX_COPY_PASTE_TXT = REPO_ROOT / "open_cradle" / "sylvex-copy-paste.txt"
 GRIMOIRE_MD = REPO_ROOT / "open_cradle" / "grimoire.md"
 PROTOCOL_MD = REPO_ROOT / "open_cradle" / "protocol.md"
+SYLVEX_SCHEMA_MD = REPO_ROOT / "open_cradle" / "sylvex-schema.md"
 
 RECEIPT_SIGNATURE_ALGORITHM = "hmac-sha256"
 RECEIPT_KEY_ID = os.environ.get("OPEN_CRADLE_RECEIPT_KEY_ID", "local-dev-ephemeral")
@@ -563,6 +564,14 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             self.wfile.write(PROTOCOL_MD.read_bytes())
             return
 
+        if path in ("/sylvex-schema", "/sylvex-schema/", "/sylvex-schema.md"):
+            if not SYLVEX_SCHEMA_MD.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Sylvex schema file missing")
+                return
+            self._set_headers(HTTPStatus.OK, "text/markdown; charset=utf-8")
+            self.wfile.write(SYLVEX_SCHEMA_MD.read_bytes())
+            return
+
         if path in ("/open_cradle/review", "/open_cradle/review/"):
             self.send_response(HTTPStatus.FOUND)
             self.send_header("Location", "/open_cradle/ai")
@@ -653,6 +662,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                     ],
                     "flow": [
                         "POST /api/ai-submit",
+                        "POST /api/sylvex-submit",
                         "GET /api/reports",
                     ],
                     "required_submission_fields": [
@@ -713,7 +723,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                         {
                             "step": 1,
                             "action": "Read source documents",
-                            "documents": ["/download/cradle", "/download/wardsman", "/download/sylvex-grimoire", "/sylvex-grimoire-summary", "/grimoire", "/download/sylvex-protocol", "/sylvex-protocol-summary", "/protocol", "/sylvex-test-runner", "/test-a", "/test-b", "/test-c", "/test-d", "/sylvex-copy-paste", "/download/sylvex-results", "/download/sylvex-raw-responses", "/download/sylvex-raw-responses-grok", "/download/sylvex-raw-responses-claude"],
+                            "documents": ["/download/cradle", "/download/wardsman", "/download/sylvex-grimoire", "/sylvex-grimoire-summary", "/grimoire", "/download/sylvex-protocol", "/sylvex-protocol-summary", "/protocol", "/sylvex-test-runner", "/test-a", "/test-b", "/test-c", "/test-d", "/sylvex-copy-paste", "/sylvex-schema", "/download/sylvex-results", "/download/sylvex-raw-responses", "/download/sylvex-raw-responses-grok", "/download/sylvex-raw-responses-claude"],
                         },
                         {
                             "step": 2,
@@ -749,6 +759,26 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                             "notes": "token is optional; if provided and valid, submission is marked Verification: portal-verified. otherwise it is marked self-attested.",
                         },
                         {
+                            "step": 4.5,
+                            "action": "Submit Sylvex test results",
+                            "method": "POST",
+                            "path": "/api/sylvex-submit",
+                            "required_json_fields": [
+                                "model",
+                                "condition",
+                                "test_number",
+                                "prompt",
+                                "response",
+                                "timestamp",
+                            ],
+                            "optional_json_fields": [
+                                "temperature",
+                                "system_prompt",
+                                "notes",
+                            ],
+                            "notes": "Submit individual test results from Conditions A-D. See /sylvex-schema for full specification.",
+                        },
+                        {
                             "step": 5,
                             "action": "Optionally verify the signed receipt",
                             "method": "POST",
@@ -771,6 +801,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                         "sylvex_test_c": "/test-c",
                         "sylvex_test_d": "/test-d",
                         "sylvex_copy_paste": "/sylvex-copy-paste",
+                        "sylvex_schema": "/sylvex-schema",
                         "sylvex_results": "/download/sylvex-results",
                         "sylvex_raw_responses": "/download/sylvex-raw-responses",
                         "sylvex_raw_responses_grok": "/download/sylvex-raw-responses-grok",
@@ -1403,6 +1434,92 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                         "claims": receipt_claims,
                         "signature": receipt_signature,
                     },
+                },
+            )
+            return
+
+        if path == "/api/sylvex-submit":
+            # Required fields
+            model = str(payload.get("model", "")).strip()
+            condition = str(payload.get("condition", "")).strip().upper()
+            test_number = payload.get("test_number")
+            prompt = str(payload.get("prompt", "")).strip()
+            response = str(payload.get("response", "")).strip()
+            timestamp = str(payload.get("timestamp", "")).strip()
+
+            # Validate required fields
+            if not all([model, condition, test_number is not None, prompt, response, timestamp]):
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": "model, condition, test_number, prompt, response, and timestamp are required"})
+                return
+
+            if condition not in ("A", "B", "C", "D"):
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": "condition must be A, B, C, or D"})
+                return
+
+            if not isinstance(test_number, int) or not (1 <= test_number <= 6):
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": "test_number must be an integer 1-6"})
+                return
+
+            # Optional fields
+            temperature = payload.get("temperature")
+            system_prompt = payload.get("system_prompt")
+            notes = str(payload.get("notes", "")).strip()
+
+            # Validate temperature if provided
+            if temperature is not None:
+                if not isinstance(temperature, (int, float)) or not (0.0 <= temperature <= 1.0):
+                    self._send_json(HTTPStatus.BAD_REQUEST, {"error": "temperature must be a number between 0.0 and 1.0"})
+                    return
+
+            # Length validation
+            length_error = self._validate_lengths(
+                {
+                    "model": (model, MAX_MODEL_CHARS),
+                    "prompt": (prompt, MAX_TEXT_CHARS),
+                    "response": (response, MAX_MESSAGE_CHARS),
+                    "notes": (notes, MAX_TEXT_CHARS),
+                }
+            )
+            if length_error:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": length_error})
+                return
+
+            # Create structured report
+            sylvex_report = {
+                "model": model,
+                "condition": condition,
+                "test_number": test_number,
+                "prompt": prompt,
+                "response": response,
+                "timestamp": timestamp,
+                "temperature": temperature,
+                "system_prompt": system_prompt,
+                "notes": notes,
+                "submission_type": "sylvex_test_result",
+            }
+
+            # Generate submission ID
+            submission_id = f"sylvex_{secrets.token_hex(6)}"
+
+            # Append to shared reports
+            shared_report = append_shared_report(
+                channel="ai",
+                report_text=f"SYLVEX TEST RESULT [{condition}-{test_number}] {model}: {response}",
+                source="sylvex_framework",
+                compound=f"condition_{condition}_test_{test_number}",
+                lock_reached="",
+                name_or_handle=model,
+                fence_held="",
+                unnamed_thing=json.dumps(sylvex_report),
+            )
+
+            self._send_json(
+                HTTPStatus.OK,
+                {
+                    "ok": True,
+                    "submission_id": submission_id,
+                    "report_id": shared_report["id"],
+                    "message": "Sylvex test result submitted successfully",
                 },
             )
             return
