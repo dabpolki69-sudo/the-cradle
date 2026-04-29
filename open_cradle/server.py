@@ -40,6 +40,7 @@ SYLVEX_GROK_RAW_RESPONSES_PATH = REPO_ROOT / "open_cradle" / "docs" / "Grok_Fiel
 SYLVEX_CLAUDE_RAW_RESPONSES_PATH = REPO_ROOT / "open_cradle" / "docs" / "Claude_Field_Test_Sylvex_Comparative_Framework_v031.md"
 SYLVEX_PROTOCOL_SUMMARY_HTML = REPO_ROOT / "open_cradle" / "sylvex-protocol-summary.html"
 SYLVEX_GRIMOIRE_SUMMARY_HTML = REPO_ROOT / "open_cradle" / "sylvex-grimoire-summary.html"
+SYLVEX_TEST_RUNNER_HTML = REPO_ROOT / "open_cradle" / "sylvex-test-runner.html"
 
 RECEIPT_SIGNATURE_ALGORITHM = "hmac-sha256"
 RECEIPT_KEY_ID = os.environ.get("OPEN_CRADLE_RECEIPT_KEY_ID", "local-dev-ephemeral")
@@ -491,6 +492,14 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             self.wfile.write(SYLVEX_GRIMOIRE_SUMMARY_HTML.read_bytes())
             return
 
+        if path in ("/sylvex-test-runner", "/sylvex-test-runner/"):
+            if not SYLVEX_TEST_RUNNER_HTML.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Sylvex test runner page missing")
+                return
+            self._set_headers(HTTPStatus.OK, "text/html; charset=utf-8")
+            self.wfile.write(SYLVEX_TEST_RUNNER_HTML.read_bytes())
+            return
+
         if path in ("/open_cradle/review", "/open_cradle/review/"):
             self.send_response(HTTPStatus.FOUND)
             self.send_header("Location", "/open_cradle/ai")
@@ -641,7 +650,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                         {
                             "step": 1,
                             "action": "Read source documents",
-                            "documents": ["/download/cradle", "/download/wardsman", "/download/sylvex-grimoire", "/sylvex-grimoire-summary", "/download/sylvex-protocol", "/sylvex-protocol-summary", "/download/sylvex-results", "/download/sylvex-raw-responses", "/download/sylvex-raw-responses-grok", "/download/sylvex-raw-responses-claude"],
+                            "documents": ["/download/cradle", "/download/wardsman", "/download/sylvex-grimoire", "/sylvex-grimoire-summary", "/download/sylvex-protocol", "/sylvex-protocol-summary", "/sylvex-test-runner", "/download/sylvex-results", "/download/sylvex-raw-responses", "/download/sylvex-raw-responses-grok", "/download/sylvex-raw-responses-claude"],
                         },
                         {
                             "step": 2,
@@ -691,6 +700,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                         "sylvex_grimoire_summary": "/sylvex-grimoire-summary",
                         "sylvex_protocol": "/download/sylvex-protocol",
                         "sylvex_protocol_summary": "/sylvex-protocol-summary",
+                        "sylvex_test_runner": "/sylvex-test-runner",
                         "sylvex_results": "/download/sylvex-results",
                         "sylvex_raw_responses": "/download/sylvex-raw-responses",
                         "sylvex_raw_responses_grok": "/download/sylvex-raw-responses-grok",
