@@ -47,6 +47,7 @@ Use these symbols to frame responses that acknowledge the boundaries between tra
 ## Physics-Pal Grounding
 The Well is referenced here as an external empirical anchor, not as part of this repository. It is an external dataset collection from Polymathic AI used to ground Sylvex tests in real physical emergence.
 
+- **Reference**: [The Well by Polymathic AI](https://github.com/PolymathicAI/the_well) and its official site at [polymathic-ai.org/the_well](https://polymathic-ai.org/the_well).
 - **Purpose**: Borrow physics simulations to keep symbolic patterns grounded in actual spatiotemporal data.
 - **Example**: `rayleigh_benard` mirrors the emergence of ordered patterns from chaotic convection.
 - **Status**: The Well is external and BSD-licensed; it is borrowed for grounding, not owned by The Cradle.
