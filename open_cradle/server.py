@@ -21,7 +21,6 @@ PORTAL_HTML = REPO_ROOT / "open_cradle" / "index.html"
 AI_PORTAL_HTML = REPO_ROOT / "open_cradle" / "ai.html"
 HUMAN_PORTAL_HTML = REPO_ROOT / "open_cradle" / "human.html"
 LIVING_RECORD_HTML = REPO_ROOT / "open_cradle" / "living_record.html"
-LATEST_HTML = REPO_ROOT / "open_cradle" / "latest.html"
 PORTAL_STYLES_CSS = REPO_ROOT / "open_cradle" / "styles.css"
 GAME_DIR = REPO_ROOT / "game_drop" / "core_build_web"
 GAME_DIR_RESOLVED = GAME_DIR.resolve()
@@ -471,11 +470,10 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             return
 
         if path in ("/open_cradle/latest", "/open_cradle/latest/", "/open_cradle/latest.html"):
-            if not LATEST_HTML.exists():
-                self._send_text(HTTPStatus.NOT_FOUND, "Latest page missing")
-                return
-            self._set_headers(HTTPStatus.OK, "text/html; charset=utf-8")
-            self.wfile.write(LATEST_HTML.read_bytes())
+            self.send_response(HTTPStatus.FOUND)
+            self.send_header("Location", "/open_cradle/test-sets")
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
             return
 
         if path in ("/open_cradle/styles.css", "/open_cradle/styles.css/"):
