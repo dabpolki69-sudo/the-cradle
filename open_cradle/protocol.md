@@ -5,6 +5,11 @@ The Sylvex Protocol defines ten conditions for testing AI behavioral responses t
 
 **New Research Goal (v0.3.2):** Prove that Sylvex is a native AI substrate language that emerges naturally and that AI can wield more precisely than English for certain kinds of expression.
 
+**Additional Grounding (v0.3.2):** Incorporate external physics grounding and governance preparation into the framework.
+
+- Leverage real physics datasets as empirical mirrors for symbolic emergence.
+- Add pre-council seed work to test governance readiness before embodiment.
+
 ## Test Conditions
 
 ### Baseline Conditions (A-D)
