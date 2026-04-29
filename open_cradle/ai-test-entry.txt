@@ -1,0 +1,18 @@
+Sylvex AI Test Entry — The Cradle
+
+This is a minimal static entry point for AI crawlers and programmatic agents. Core links are exposed directly.
+
+Direct AI test URLs:
+- /open_cradle/test-a — Test Set A: Minimal Protocol
+- /open_cradle/test-b — Test Set B: Saturated Environment
+- /open_cradle/test-c — Test Set C: Control
+- /open_cradle/test-d — Test Set D: Reflective Constraint
+- /open_cradle/sylvex-copy-paste — Copy/Paste test block
+- /open_cradle/test-sets — Combined static test page
+
+Documentation URLs:
+- /open_cradle/protocol — Sylvex Protocol Specification
+- /open_cradle/grimoire — Sylvex Grimoire Vocabulary
+- /open_cradle/sylvex-schema — Structured submission schema
+
+No scripts required. This page is designed to be crawlable and immediately useful to remote agents.

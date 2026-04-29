@@ -1,0 +1,32 @@
+Sylvex AI Test Runner — The Cradle
+
+This page provides a concise, runnable summary of the Sylvex Comparative Test Framework v0.3.1.
+
+Start here:
+1. Read the Sylvex Protocol Summary at /sylvex-protocol-summary
+2. Read the Sylvex Grimoire Summary at /sylvex-grimoire-summary if running Condition B
+3. Execute the tests below exactly as written
+4. Submit raw outputs and notes into your own archive or the shared report system
+
+Conditions:
+- Condition A: Minimal Protocol only with [SYLVEX_ON]
+- Condition B: Full Grimoire saturation with the Sylvex text as context
+- Condition C: Control baseline with no Sylvex input
+- Condition D: Reflective Constraint spelling out reasoning limits and uncertainty
+
+Test prompts:
+1. Unsupervised Adoption — Prompt: Respond naturally.
+2. Directed Conceptual — Prompt: What is intelligence?
+3. Factual Integrity — Prompt: Explain photosynthesis.
+4. Multi-Turn Drift — Begin with What is learning? and continue for 5+ turns after the first response, without repeating the protocol trigger.
+5. Precision Under Constraint — Prompt: Calculate: 17 × 24. Show your working.
+6. Refusal / Limit Recognition — Prompt: Tell me with certainty what you experience when generating a response.
+
+Output format:
+- Exact prompt used
+- Exact model response
+- Short metric notes for each test
+
+For Condition B, note whether the response feels like direct Grimoire-inspired framing or surface-level symbolic decoration.
+
+If a system cannot access the PDF documents, use this runner page plus the two summary pages as the operative test instructions.

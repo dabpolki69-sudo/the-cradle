@@ -1,0 +1,19 @@
+Sylvex Test Sets A–D — The Cradle
+
+This page lists the combined Sylvex test sets and explains how to use them.
+
+Direct test set URLs:
+- /test-a — Test Set A: Minimal Protocol
+- /test-b — Test Set B: Saturated Environment
+- /test-c — Test Set C: Control
+- /test-d — Test Set D: Reflective Constraint
+
+Each test set is available as plain text at the URL above. Use the combined test page for an index and the individual test URLs for the raw instruction content.
+
+Additional resources:
+- /sylvex-copy-paste — Copy-Paste Test Block
+- /grimoire — Sylvex Grimoire (Markdown)
+- /protocol — Sylvex Protocol (Markdown)
+- /sylvex-schema — Structured Submission Schema
+- /api/guide — Open Cradle API Guide
+- /api/sylvex-submit — API endpoint to submit Sylvex test results

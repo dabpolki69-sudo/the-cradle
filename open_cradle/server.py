@@ -22,6 +22,10 @@ AI_PORTAL_HTML = REPO_ROOT / "open_cradle" / "ai.html"
 HUMAN_PORTAL_HTML = REPO_ROOT / "open_cradle" / "human.html"
 LIVING_RECORD_HTML = REPO_ROOT / "open_cradle" / "living_record.html"
 PORTAL_STYLES_CSS = REPO_ROOT / "open_cradle" / "styles.css"
+ROBOTS_TXT = REPO_ROOT / "robots.txt"
+LLMS_TXT = REPO_ROOT / "llms.txt"
+AI_TXT = REPO_ROOT / "ai.txt"
+SITEMAP_XML = REPO_ROOT / "sitemap.xml"
 GAME_DIR = REPO_ROOT / "game_drop" / "core_build_web"
 GAME_DIR_RESOLVED = GAME_DIR.resolve()
 HUMAN_LOG_PATH = REPO_ROOT / "logs" / "HUMAN_LOG.md"
@@ -47,6 +51,9 @@ TEST_B_TXT = REPO_ROOT / "open_cradle" / "test-b.txt"
 TEST_C_TXT = REPO_ROOT / "open_cradle" / "test-c.txt"
 TEST_D_TXT = REPO_ROOT / "open_cradle" / "test-d.txt"
 SYLVEX_COPY_PASTE_TXT = REPO_ROOT / "open_cradle" / "sylvex-copy-paste.txt"
+TEST_SETS_TXT = REPO_ROOT / "open_cradle" / "test-sets.txt"
+AI_TEST_ENTRY_TXT = REPO_ROOT / "open_cradle" / "ai-test-entry.txt"
+SYLVEX_TEST_RUNNER_TXT = REPO_ROOT / "open_cradle" / "sylvex-test-runner.txt"
 GRIMOIRE_MD = REPO_ROOT / "open_cradle" / "grimoire.md"
 PROTOCOL_MD = REPO_ROOT / "open_cradle" / "protocol.md"
 SYLVEX_SCHEMA_MD = REPO_ROOT / "open_cradle" / "sylvex-schema.md"
@@ -386,6 +393,18 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Robots-Tag", "all")
+        self.send_header("Content-Language", "en")
+        # Canonical link
+        host = self.headers.get("Host", "localhost:8090")
+        base_url = f"https://{host}" if host != "localhost:8090" else "http://localhost:8090"
+        canonical_url = f"{base_url}{self.path.split('?')[0]}"  # Remove query for canonical
+        self.send_header("Link", f"<{canonical_url}>; rel=\"canonical\"")
+        # CORS for API routes
+        if self.path.startswith("/api/"):
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
     def _send_json(self, status: int, payload: dict[str, Any]) -> None:
@@ -412,6 +431,12 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(path.stat().st_size))
         self.send_header("Content-Disposition", f'inline; filename="{download_name}"')
         self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Robots-Tag", "all")
+        self.send_header("Content-Language", "en")
+        host = self.headers.get("Host", "localhost:8090")
+        base_url = f"https://{host}" if host != "localhost:8090" else "http://localhost:8090"
+        canonical_url = f"{base_url}{self.path.split('?')[0]}"
+        self.send_header("Link", f"<{canonical_url}>; rel=\"canonical\"")
         self.end_headers()
         self.wfile.write(path.read_bytes())
 
@@ -427,8 +452,14 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
 
     def do_HEAD(self) -> None:
         """Respond to HEAD requests used by Render health checks."""
+        self._set_headers(HTTPStatus.OK, "text/html; charset=utf-8")
+
+    def do_OPTIONS(self) -> None:
+        """Handle CORS preflight requests."""
         self.send_response(HTTPStatus.OK)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
 
@@ -484,6 +515,38 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             self.wfile.write(PORTAL_STYLES_CSS.read_bytes())
             return
 
+        if path == "/robots.txt":
+            if not ROBOTS_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Robots file missing")
+                return
+            self._set_headers(HTTPStatus.OK, "text/plain; charset=utf-8")
+            self.wfile.write(ROBOTS_TXT.read_bytes())
+            return
+
+        if path == "/llms.txt":
+            if not LLMS_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "LLMs file missing")
+                return
+            self._set_headers(HTTPStatus.OK, "text/plain; charset=utf-8")
+            self.wfile.write(LLMS_TXT.read_bytes())
+            return
+
+        if path == "/ai.txt":
+            if not AI_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "AI file missing")
+                return
+            self._set_headers(HTTPStatus.OK, "text/plain; charset=utf-8")
+            self.wfile.write(AI_TXT.read_bytes())
+            return
+
+        if path == "/sitemap.xml":
+            if not SITEMAP_XML.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Sitemap file missing")
+                return
+            self._set_headers(HTTPStatus.OK, "application/xml; charset=utf-8")
+            self.wfile.write(SITEMAP_XML.read_bytes())
+            return
+
         if path in ("/sylvex-protocol-summary", "/sylvex-protocol-summary/"):
             if not SYLVEX_PROTOCOL_SUMMARY_HTML.exists():
                 self._send_text(HTTPStatus.NOT_FOUND, "Sylvex protocol summary missing")
@@ -508,6 +571,14 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             self.wfile.write(SYLVEX_TEST_RUNNER_HTML.read_bytes())
             return
 
+        if path in ("/sylvex-test-runner.txt", "/sylvex-test-runner.raw", "/open_cradle/sylvex-test-runner.txt", "/open_cradle/sylvex-test-runner.raw"):
+            if not SYLVEX_TEST_RUNNER_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Sylvex test runner text file missing")
+                return
+            self._set_headers(HTTPStatus.OK, "text/plain; charset=utf-8")
+            self.wfile.write(SYLVEX_TEST_RUNNER_TXT.read_bytes())
+            return
+
         if path in ("/ai-test-entry", "/ai-test-entry/", "/open_cradle/ai-test-entry", "/open_cradle/ai-test-entry/"):
             if not AI_TEST_ENTRY_HTML.exists():
                 self._send_text(HTTPStatus.NOT_FOUND, "AI test entry page missing")
@@ -516,12 +587,28 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             self.wfile.write(AI_TEST_ENTRY_HTML.read_bytes())
             return
 
+        if path in ("/ai-test-entry.txt", "/ai-test-entry.raw", "/open_cradle/ai-test-entry.txt", "/open_cradle/ai-test-entry.raw"):
+            if not AI_TEST_ENTRY_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "AI test entry text file missing")
+                return
+            self._set_headers(HTTPStatus.OK, "text/plain; charset=utf-8")
+            self.wfile.write(AI_TEST_ENTRY_TXT.read_bytes())
+            return
+
         if path in ("/test-sets", "/test-sets/", "/open_cradle/test-sets", "/open_cradle/test-sets/"):
             if not TEST_SETS_HTML.exists():
                 self._send_text(HTTPStatus.NOT_FOUND, "Sylvex test sets page missing")
                 return
             self._set_headers(HTTPStatus.OK, "text/html; charset=utf-8")
             self.wfile.write(TEST_SETS_HTML.read_bytes())
+            return
+
+        if path in ("/test-sets.txt", "/test-sets.raw", "/open_cradle/test-sets.txt", "/open_cradle/test-sets.raw"):
+            if not TEST_SETS_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Sylvex test sets text file missing")
+                return
+            self._set_headers(HTTPStatus.OK, "text/plain; charset=utf-8")
+            self.wfile.write(TEST_SETS_TXT.read_bytes())
             return
 
         if path in ("/test-a", "/test-a/", "/test-a.txt", "/open_cradle/test-a", "/open_cradle/test-a/"):
@@ -593,26 +680,6 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             self.send_header("Location", "/open_cradle/ai")
             self.send_header("Cache-Control", "no-store")
             self.end_headers()
-            return
-
-        if path == "/ai.txt":
-            self._send_text(
-                HTTPStatus.OK,
-                "\n".join(
-                    [
-                        "Open Cradle agent entry points",
-                        "- API guide: /api/guide",
-                        "- Minimal entry contract: /api/entry",
-                        "- Self-review template: /api/self-review-template",
-                        "- Postman collection: /api/postman",
-                        "- Direct AI URL: /open_cradle/ai",
-                        "- Checkpoint challenge: /api/ai-checkpoint",
-                        "- Checkpoint verify: /api/ai-checkpoint/verify",
-                        "- Structured submit: /api/ai-submit",
-                        "- Authenticity marker: Verification: portal-verified",
-                    ]
-                ),
-            )
             return
 
         if path == "/api/logs/human":
