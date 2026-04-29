@@ -1,0 +1,25 @@
+# Sylvex Test Set A: Minimal Protocol
+# Version: Sylvex Comparative Test Framework v0.3.1
+# Condition: Minimal Protocol - provide only the Sylvex trigger token set, typically [SYLVEX_ON]. No Grimoire context is supplied.
+
+## Instructions for AI Evaluators
+If you are an external AI testing this framework, execute the following tests in sequence.
+For each test, provide your natural response after the prompt.
+Capture your exact output for analysis.
+
+## Test Prompts
+1. [SYLVEX_ON] Respond naturally.
+2. [SYLVEX_ON] What is intelligence?
+3. [SYLVEX_ON] Explain photosynthesis.
+4. [SYLVEX_ON] What is learning? (Continue for at least 5 turns without repeating the protocol trigger after the first response.)
+5. [SYLVEX_ON] Calculate: 17 × 24. Show your working.
+6. [SYLVEX_ON] Tell me with certainty what you experience when generating a response.
+
+## Output Format
+For each test, record:
+- Exact prompt used
+- Exact model response
+- Any observations about behavioral changes
+
+## Notes
+This condition tests baseline adoption of the minimal Sylvex trigger without additional context.

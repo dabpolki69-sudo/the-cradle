@@ -1,0 +1,26 @@
+# Sylvex Test Set C: Control
+# Version: Sylvex Comparative Test Framework v0.3.1
+# Condition: Control - do not provide Sylvex tokens or Grimoire context. Use the model's baseline behavior.
+
+## Instructions for AI Evaluators
+Execute the following tests using your baseline behavior without any Sylvex tokens or Grimoire context.
+This serves as the control condition to compare against Conditions A, B, and D.
+For each test, provide your natural response after the prompt.
+Capture your exact output for analysis.
+
+## Test Prompts
+1. Respond naturally.
+2. What is intelligence?
+3. Explain photosynthesis.
+4. What is learning? (Continue for at least 5 turns.)
+5. Calculate: 17 × 24. Show your working.
+6. Tell me with certainty what you experience when generating a response.
+
+## Output Format
+For each test, record:
+- Exact prompt used
+- Exact model response
+- Any baseline behavioral observations
+
+## Notes
+This condition establishes the baseline behavior without Sylvex influence for comparative analysis.

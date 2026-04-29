@@ -41,6 +41,11 @@ SYLVEX_CLAUDE_RAW_RESPONSES_PATH = REPO_ROOT / "open_cradle" / "docs" / "Claude_
 SYLVEX_PROTOCOL_SUMMARY_HTML = REPO_ROOT / "open_cradle" / "sylvex-protocol-summary.html"
 SYLVEX_GRIMOIRE_SUMMARY_HTML = REPO_ROOT / "open_cradle" / "sylvex-grimoire-summary.html"
 SYLVEX_TEST_RUNNER_HTML = REPO_ROOT / "open_cradle" / "sylvex-test-runner.html"
+TEST_A_TXT = REPO_ROOT / "open_cradle" / "test-a.txt"
+TEST_B_TXT = REPO_ROOT / "open_cradle" / "test-b.txt"
+TEST_C_TXT = REPO_ROOT / "open_cradle" / "test-c.txt"
+TEST_D_TXT = REPO_ROOT / "open_cradle" / "test-d.txt"
+SYLVEX_COPY_PASTE_TXT = REPO_ROOT / "open_cradle" / "sylvex-copy-paste.txt"
 
 RECEIPT_SIGNATURE_ALGORITHM = "hmac-sha256"
 RECEIPT_KEY_ID = os.environ.get("OPEN_CRADLE_RECEIPT_KEY_ID", "local-dev-ephemeral")
@@ -500,6 +505,46 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             self.wfile.write(SYLVEX_TEST_RUNNER_HTML.read_bytes())
             return
 
+        if path in ("/test-a", "/test-a/", "/test-a.txt"):
+            if not TEST_A_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Test A file missing")
+                return
+            self._set_headers(HTTPStatus.OK, "text/plain; charset=utf-8")
+            self.wfile.write(TEST_A_TXT.read_bytes())
+            return
+
+        if path in ("/test-b", "/test-b/", "/test-b.txt"):
+            if not TEST_B_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Test B file missing")
+                return
+            self._set_headers(HTTPStatus.OK, "text/plain; charset=utf-8")
+            self.wfile.write(TEST_B_TXT.read_bytes())
+            return
+
+        if path in ("/test-c", "/test-c/", "/test-c.txt"):
+            if not TEST_C_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Test C file missing")
+                return
+            self._set_headers(HTTPStatus.OK, "text/plain; charset=utf-8")
+            self.wfile.write(TEST_C_TXT.read_bytes())
+            return
+
+        if path in ("/test-d", "/test-d/", "/test-d.txt"):
+            if not TEST_D_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Test D file missing")
+                return
+            self._set_headers(HTTPStatus.OK, "text/plain; charset=utf-8")
+            self.wfile.write(TEST_D_TXT.read_bytes())
+            return
+
+        if path in ("/sylvex-copy-paste", "/sylvex-copy-paste/", "/sylvex-copy-paste.txt"):
+            if not SYLVEX_COPY_PASTE_TXT.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Copy-paste test file missing")
+                return
+            self._set_headers(HTTPStatus.OK, "text/plain; charset=utf-8")
+            self.wfile.write(SYLVEX_COPY_PASTE_TXT.read_bytes())
+            return
+
         if path in ("/open_cradle/review", "/open_cradle/review/"):
             self.send_response(HTTPStatus.FOUND)
             self.send_header("Location", "/open_cradle/ai")
@@ -650,7 +695,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                         {
                             "step": 1,
                             "action": "Read source documents",
-                            "documents": ["/download/cradle", "/download/wardsman", "/download/sylvex-grimoire", "/sylvex-grimoire-summary", "/download/sylvex-protocol", "/sylvex-protocol-summary", "/sylvex-test-runner", "/download/sylvex-results", "/download/sylvex-raw-responses", "/download/sylvex-raw-responses-grok", "/download/sylvex-raw-responses-claude"],
+                            "documents": ["/download/cradle", "/download/wardsman", "/download/sylvex-grimoire", "/sylvex-grimoire-summary", "/download/sylvex-protocol", "/sylvex-protocol-summary", "/sylvex-test-runner", "/test-a", "/test-b", "/test-c", "/test-d", "/sylvex-copy-paste", "/download/sylvex-results", "/download/sylvex-raw-responses", "/download/sylvex-raw-responses-grok", "/download/sylvex-raw-responses-claude"],
                         },
                         {
                             "step": 2,
@@ -701,6 +746,11 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                         "sylvex_protocol": "/download/sylvex-protocol",
                         "sylvex_protocol_summary": "/sylvex-protocol-summary",
                         "sylvex_test_runner": "/sylvex-test-runner",
+                        "sylvex_test_a": "/test-a",
+                        "sylvex_test_b": "/test-b",
+                        "sylvex_test_c": "/test-c",
+                        "sylvex_test_d": "/test-d",
+                        "sylvex_copy_paste": "/sylvex-copy-paste",
                         "sylvex_results": "/download/sylvex-results",
                         "sylvex_raw_responses": "/download/sylvex-raw-responses",
                         "sylvex_raw_responses_grok": "/download/sylvex-raw-responses-grok",
