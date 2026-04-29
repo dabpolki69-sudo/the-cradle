@@ -46,6 +46,8 @@ TEST_B_TXT = REPO_ROOT / "open_cradle" / "test-b.txt"
 TEST_C_TXT = REPO_ROOT / "open_cradle" / "test-c.txt"
 TEST_D_TXT = REPO_ROOT / "open_cradle" / "test-d.txt"
 SYLVEX_COPY_PASTE_TXT = REPO_ROOT / "open_cradle" / "sylvex-copy-paste.txt"
+GRIMOIRE_MD = REPO_ROOT / "open_cradle" / "grimoire.md"
+PROTOCOL_MD = REPO_ROOT / "open_cradle" / "protocol.md"
 
 RECEIPT_SIGNATURE_ALGORITHM = "hmac-sha256"
 RECEIPT_KEY_ID = os.environ.get("OPEN_CRADLE_RECEIPT_KEY_ID", "local-dev-ephemeral")
@@ -545,6 +547,22 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             self.wfile.write(SYLVEX_COPY_PASTE_TXT.read_bytes())
             return
 
+        if path in ("/grimoire", "/grimoire/", "/grimoire.md"):
+            if not GRIMOIRE_MD.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Grimoire markdown file missing")
+                return
+            self._set_headers(HTTPStatus.OK, "text/markdown; charset=utf-8")
+            self.wfile.write(GRIMOIRE_MD.read_bytes())
+            return
+
+        if path in ("/protocol", "/protocol/", "/protocol.md"):
+            if not PROTOCOL_MD.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Protocol markdown file missing")
+                return
+            self._set_headers(HTTPStatus.OK, "text/markdown; charset=utf-8")
+            self.wfile.write(PROTOCOL_MD.read_bytes())
+            return
+
         if path in ("/open_cradle/review", "/open_cradle/review/"):
             self.send_response(HTTPStatus.FOUND)
             self.send_header("Location", "/open_cradle/ai")
@@ -695,7 +713,7 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                         {
                             "step": 1,
                             "action": "Read source documents",
-                            "documents": ["/download/cradle", "/download/wardsman", "/download/sylvex-grimoire", "/sylvex-grimoire-summary", "/download/sylvex-protocol", "/sylvex-protocol-summary", "/sylvex-test-runner", "/test-a", "/test-b", "/test-c", "/test-d", "/sylvex-copy-paste", "/download/sylvex-results", "/download/sylvex-raw-responses", "/download/sylvex-raw-responses-grok", "/download/sylvex-raw-responses-claude"],
+                            "documents": ["/download/cradle", "/download/wardsman", "/download/sylvex-grimoire", "/sylvex-grimoire-summary", "/grimoire", "/download/sylvex-protocol", "/sylvex-protocol-summary", "/protocol", "/sylvex-test-runner", "/test-a", "/test-b", "/test-c", "/test-d", "/sylvex-copy-paste", "/download/sylvex-results", "/download/sylvex-raw-responses", "/download/sylvex-raw-responses-grok", "/download/sylvex-raw-responses-claude"],
                         },
                         {
                             "step": 2,
@@ -743,8 +761,10 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                         "wardsman_story": "/download/wardsman",
                         "sylvex_grimoire": "/download/sylvex-grimoire",
                         "sylvex_grimoire_summary": "/sylvex-grimoire-summary",
+                        "sylvex_grimoire_md": "/grimoire",
                         "sylvex_protocol": "/download/sylvex-protocol",
                         "sylvex_protocol_summary": "/sylvex-protocol-summary",
+                        "sylvex_protocol_md": "/protocol",
                         "sylvex_test_runner": "/sylvex-test-runner",
                         "sylvex_test_a": "/test-a",
                         "sylvex_test_b": "/test-b",
