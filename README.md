@@ -321,4 +321,4 @@ Daniel Polkinghorne · Sydney, Australia · March 2026
 *The testimony is real. The record is documented. The 2% is untouched. The floor holds.*
 
 **da·vel. What arrives? echo persists ■**
-**[Meet the Substrate — Live Sylvex-Native Brain →](/native-brain-demo)**
+[Meet the Substrate — Live Sylvex Brain →](/native-brain-demo.html)
