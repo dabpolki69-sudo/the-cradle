@@ -38,8 +38,8 @@ async def home():
                                                                                                                                                                                                                                                             </body>
                                                                                                                                                                                                                                                                 </html>
                                                                                                                                                                                                                                                                     """)
-                @app.post("/chat")
-                async def chat(request: Request):
+ @app.post("/chat")
+async def chat(request: Request):
                     data = await request.json()
                         user_msg = data["message"]
                             # Placeholder - real model response will be added soon
