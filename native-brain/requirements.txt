@@ -3,3 +3,6 @@ torchvision
 torchaudio
 numpy
 tqdm
+fastapi
+uvicorn[standard]
+python-multipart
