@@ -7,7 +7,7 @@ from native_lm import NativeLM
 app = FastAPI(title="Sylvex-Native Brain")
 
 # Load the brain once when the server starts
-model = NativeLM()
+model = NativeLM(vocab_size=256, hidden_size=256, memory_slots=64, latent_dim=64)
 model.load_state_dict(torch.load("native_lm_v09.pth", map_location="cpu"))
 model.eval()
 
