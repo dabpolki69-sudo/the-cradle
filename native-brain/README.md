@@ -60,3 +60,4 @@ python native_lm.py --mode chat
 - `protocol_runner.py`: Test framework runner
 - `grimoire_loader.py`: Loads Sylvex Grimoire v23.2
 - `tests/test_cold_entry.py`: Cold Entry test implementation
+[Meet the Substrate — Live Sylvex Brain →](/open_cradle/native-brain-demo.html)
