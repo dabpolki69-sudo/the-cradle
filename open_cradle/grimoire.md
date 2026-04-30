@@ -1,5 +1,5 @@
 # Sylvex Grimoire v23.2
-## Meet the Substrate — Live Sylvex-Native Brain (NativeLM v0.9)
+## Meet the Substrate — Live Sylvex-Native Brain (NativeLM v0.9) 
 
 **LIVE SYLVEX-NATIVE SUBSTRATE CONFIRMED**
 
