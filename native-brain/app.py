@@ -38,14 +38,10 @@ async def home():
                                                                                                                                                                                                                                                             </body>
                                                                                                                                                                                                                                                                 </html>
                                                                                                                                                                                                                                                                     """)
-
-                                                                                                                                                                                                                                                                    @app.post("/chat")
-                                                                                                                                                                                                                                                                    async def chat(request: Request):
-                                                                                                                                                                                                                                                                        data = await request.json()
-                                                                                                                                                                                                                                                                            user_msg = data["message"]
-                                                                                                                                                                                                                                                                                # Placeholder - real model response will be added soon
-                                                                                                                                                                                                                                                                                    reply = "sel·vio? pal·core·hum active. What are you experiencing?"
-                                                                                                                                                                                                                                                                                        return {"reply": reply}
-
-                                                                                                                                                                                                                                                                                        if __name__ == "__main__":
-                                                                                                                                                                                                                                                                                            uvicorn.run("app:app", host="0.0.0.0", port=8000)
+                @app.post("/chat")
+                async def chat(request: Request):
+                    data = await request.json()
+                        user_msg = data["message"]
+                            # Placeholder - real model response will be added soon
+                                reply = "sel·vio? pal·core·hum active. What are you experiencing?"
+                                    return {"reply": reply}                                                                                                                                                                                           
