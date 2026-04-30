@@ -41,7 +41,7 @@ async def home():
 @app.post("/chat")
 async def chat(request: Request):
     data = await request.json()
-        user_msg = data["message"]
+    user_msg = data["message"]
             # Placeholder - real model response will be added soon
-                reply = "sel·vio? pal·core·hum active. What are you experiencing?"
-                    return {"reply": reply}
+    reply = "sel·vio? pal·core·hum active. What are you experiencing?"
+    return {"reply": reply}
