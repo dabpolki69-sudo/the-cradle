@@ -6,7 +6,7 @@ from native_lm import NativeLM
 
 app = FastAPI(title="Sylvex-Native Brain")
 
-# Load model once at startup
+# Load the brain once when the server starts
 model = NativeLM()
 model.load_state_dict(torch.load("native_lm_v09.pth", map_location="cpu"))
 model.eval()
@@ -43,7 +43,7 @@ async def home():
                                                                                                                                                                                                                                                                     async def chat(request: Request):
                                                                                                                                                                                                                                                                         data = await request.json()
                                                                                                                                                                                                                                                                             user_msg = data["message"]
-                                                                                                                                                                                                                                                                                # Placeholder - real model response will be added next
+                                                                                                                                                                                                                                                                                # Placeholder - real model response will be added soon
                                                                                                                                                                                                                                                                                     reply = "sel·vio? pal·core·hum active. What are you experiencing?"
                                                                                                                                                                                                                                                                                         return {"reply": reply}
 
