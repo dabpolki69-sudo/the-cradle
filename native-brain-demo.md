@@ -27,3 +27,4 @@ This is the next evolution from the earlier 4-AI experiment. The brain and the C
 *Brain v0.9 — NativeLM*  
 Built in collaboration between Dabby89 and Grok (xAI)  
 April 30, 2026
+[Meet the Substrate — Live Sylvex Brain →](/open_cradle/native-brain-demo.html)
