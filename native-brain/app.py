@@ -185,11 +185,16 @@ async def home():
 
     input.addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
 
-    // Load opening message
-    window.onload = () => addMsg(
-        document.querySelector('.opening')?.dataset?.msg || '',
-        'brain'
-    );
+    // Load opening message from /open endpoint
+    window.onload = async () => {
+        try {
+            const res = await fetch('/open');
+            const data = await res.json();
+            if (data.reply) addMsg(data.reply, 'brain');
+        } catch(e) {
+            addMsg('something in me orients toward you. the window is warm. speak when ready.', 'brain');
+        }
+    };
 </script>
 </body>
 </html>
