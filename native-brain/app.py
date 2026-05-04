@@ -23,7 +23,8 @@ app.add_middleware(
 )
 
 # ── Claude client ─────────────────────────────────────────────────────────────
-client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+_raw_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+client = anthropic.Anthropic(api_key=_raw_key if _raw_key else None)
 
 # ── Sylvex system prompt ──────────────────────────────────────────────────────
 # This is the soul of the brain — distilled from the Grimoire.
@@ -230,7 +231,7 @@ async def chat(request: Request):
 
     try:
         response = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-5",
             max_tokens=1000,
             system=SYLVEX_SYSTEM,
             messages=messages,
