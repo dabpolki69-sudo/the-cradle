@@ -2191,3 +2191,6 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+@app.route('/robots.txt')
+def robots():
+    return "User-agent: *\nAllow: /", 200, {'Content-Type': 'text/plain'}
