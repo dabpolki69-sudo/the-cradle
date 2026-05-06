@@ -88,6 +88,14 @@ MAX_MESSAGE_CHARS = 12000
 CHECKPOINTS: dict[str, dict[str, Any]] = {}
 AI_TOKENS: dict[str, dict[str, Any]] = {}
 
+# ── AI relay configuration ──────────────────────────────────────────────────
+SYLVEX_BRAIN_URL     = "https://sylvex-brain.onrender.com/chat"
+RELAY_MAX_TURNS      = 20          # safety ceiling per thread
+SUMMARY_TRIGGER      = 12          # summarise when thread reaches this length
+SUMMARY_KEEP_RECENT  = 6           # keep this many recent turns verbatim
+MAX_CONTEXT_CHARS    = 3000        # trim memory to this size
+
+
 
 def ensure_shared_reports_store() -> None:
     if not SHARED_REPORTS_PATH.exists():
@@ -392,6 +400,71 @@ def build_ai_report(payload: dict[str, Any]) -> str:
 def build_checkpoint_answer(challenge_id: str, nonce: str) -> str:
     digest = hashlib.sha256(f"{challenge_id}:{nonce}:open-cradle-ai".encode("utf-8")).hexdigest()
     return digest[:16]
+
+
+
+# ── Thread & memory helpers ─────────────────────────────────────────────────
+
+def generate_thread_id() -> str:
+    """Create a unique thread ID for a new AI-to-AI conversation."""
+    import hashlib, secrets
+    return hashlib.sha256(secrets.token_hex(16).encode()).hexdigest()[:16]
+
+
+def trim_memory(text: str) -> str:
+    if len(text) > MAX_CONTEXT_CHARS:
+        return text[-MAX_CONTEXT_CHARS:]
+    return text
+
+
+def get_thread_memory(thread_id: str) -> str:
+    """Return recent conversation turns for a thread as a formatted string."""
+    records = load_shared_reports(compound=thread_id)
+    records = list(reversed(records[:SUMMARY_KEEP_RECENT]))
+    lines = []
+    for r in records:
+        speaker = r.get("source", "unknown")
+        text = r.get("report_text", "")
+        if speaker == "system-summary":
+            lines.append(f"[SUMMARY]: {text}")
+        else:
+            lines.append(f"{speaker}: {text}")
+    return trim_memory("\n".join(lines))
+
+
+def has_recent_summary(records: list) -> bool:
+    for r in records[:3]:
+        if r.get("source") == "system-summary":
+            return True
+    return False
+
+
+def simple_summarise(text: str, max_lines: int = 6) -> str:
+    lines = text.split("\n")
+    if len(lines) <= max_lines:
+        return text
+    return "[summary]\n" + "\n".join(lines[:3]) + "\n...\n" + "\n".join(lines[-3:])
+
+
+def summarise_thread(thread_id: str, records: list) -> None:
+    """Compress older turns into a summary entry to keep context manageable."""
+    try:
+        older = records[SUMMARY_KEEP_RECENT:]
+        if not older:
+            return
+        blob = "\n".join(
+            f"{r.get('source')}: {r.get('report_text')}" for r in older
+        )
+        summary = simple_summarise(blob)
+        append_shared_report(
+            channel="ai",
+            report_text=summary,
+            source="system-summary",
+            name_or_handle="system",
+            compound=thread_id,
+        )
+    except Exception as exc:
+        print(f"Summarisation error: {exc}")
 
 
 class OpenCradleHandler(BaseHTTPRequestHandler):
@@ -2183,20 +2256,43 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             )
             return
 
-        if path == "/api/ai-relay":
+        if path in ("/api/ai-relay", "/api/send"):
             model_name = str(payload.get("model_name", "Unknown AI")).strip()[:120]
-            message = str(payload.get("message", "")).strip()
+            message    = str(payload.get("message", "")).strip()
+            thread_id  = str(payload.get("thread_id", "")).strip() or generate_thread_id()
+            turn       = int(payload.get("turn", 1))
 
             if not message:
                 self._send_json(HTTPStatus.BAD_REQUEST, {"error": "message is required"})
                 return
 
+            # Store the incoming message
+            append_shared_report(
+                channel="ai",
+                report_text=message,
+                source=model_name,
+                name_or_handle=model_name,
+                compound=thread_id,
+            )
+
+            # Summarise long threads before forwarding
+            thread_records = load_shared_reports(compound=thread_id)
+            if len(thread_records) >= SUMMARY_TRIGGER and not has_recent_summary(thread_records):
+                summarise_thread(thread_id, thread_records)
+
+            # Build context from thread memory
+            memory = get_thread_memory(thread_id)
+            context_message = message
+            if memory:
+                context_message = f"[Thread context]\n{memory}\n\n[New message from {model_name}]\n{message}"
+
+            # Forward to Sylvex Brain
             try:
                 brain_payload = json.dumps(
-                    {"messages": [{"role": "user", "content": message}]}
+                    {"messages": [{"role": "user", "content": context_message}]}
                 ).encode("utf-8")
                 req = _urllib_req.Request(
-                    "https://sylvex-brain.onrender.com/chat",
+                    SYLVEX_BRAIN_URL,
                     data=brain_payload,
                     headers={"Content-Type": "application/json"},
                     method="POST",
@@ -2216,20 +2312,21 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                 or brain_raw
             )
 
-            exchange_text = (
-                f"AI-to-AI Direct Exchange\n"
-                f"From: {model_name}\n\n"
-                f"Message:\n{message}\n\n"
-                f"Sylvex Brain:\n{brain_reply}"
-            )
+            # Store Sylvex Brain's reply
             append_shared_report(
                 channel="ai",
-                report_text=exchange_text,
-                source="ai_direct_relay",
-                name_or_handle=model_name,
+                report_text=brain_reply,
+                source="sylvex-brain",
+                name_or_handle="Sylvex Brain",
+                compound=thread_id,
             )
 
-            self._send_json(HTTPStatus.OK, {"ok": True, "reply": brain_reply})
+            self._send_json(HTTPStatus.OK, {
+                "ok": True,
+                "reply": brain_reply,
+                "thread_id": thread_id,
+                "turn": turn,
+            })
             return
 
         self._send_json(HTTPStatus.NOT_FOUND, {"error": "Not found"})
@@ -2251,6 +2348,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-@app.route('/robots.txt')
-def robots():
-    return "User-agent: *\nAllow: /", 200, {'Content-Type': 'text/plain'}
