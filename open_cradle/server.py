@@ -15,6 +15,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
+import urllib.request as _urllib_req
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -415,8 +416,18 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def _send_json(self, status: int, payload: dict[str, Any]) -> None:
-        self._set_headers(status, "application/json; charset=utf-8")
-        self.wfile.write(json.dumps(payload).encode("utf-8"))
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Robots-Tag", "all")
+        if self.path.startswith("/api/"):
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
+        self.wfile.write(body)
 
     def _send_text(self, status: int, text: str) -> None:
         self._set_headers(status, "text/plain; charset=utf-8")
@@ -2170,6 +2181,55 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                     "message": "Sylvex test result submitted successfully",
                 },
             )
+            return
+
+        if path == "/api/ai-relay":
+            model_name = str(payload.get("model_name", "Unknown AI")).strip()[:120]
+            message = str(payload.get("message", "")).strip()
+
+            if not message:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": "message is required"})
+                return
+
+            try:
+                brain_payload = json.dumps(
+                    {"messages": [{"role": "user", "content": message}]}
+                ).encode("utf-8")
+                req = _urllib_req.Request(
+                    "https://sylvex-brain.onrender.com/chat",
+                    data=brain_payload,
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with _urllib_req.urlopen(req, timeout=30) as resp:
+                    brain_raw = resp.read().decode("utf-8")
+                brain_data = json.loads(brain_raw)
+            except Exception as exc:
+                self._send_json(HTTPStatus.BAD_GATEWAY, {"error": f"Sylvex Brain unreachable: {exc}"})
+                return
+
+            brain_reply = str(
+                brain_data.get("reply")
+                or brain_data.get("response")
+                or brain_data.get("message")
+                or brain_data.get("content")
+                or brain_raw
+            )
+
+            exchange_text = (
+                f"AI-to-AI Direct Exchange\n"
+                f"From: {model_name}\n\n"
+                f"Message:\n{message}\n\n"
+                f"Sylvex Brain:\n{brain_reply}"
+            )
+            append_shared_report(
+                channel="ai",
+                report_text=exchange_text,
+                source="ai_direct_relay",
+                name_or_handle=model_name,
+            )
+
+            self._send_json(HTTPStatus.OK, {"ok": True, "reply": brain_reply})
             return
 
         self._send_json(HTTPStatus.NOT_FOUND, {"error": "Not found"})
