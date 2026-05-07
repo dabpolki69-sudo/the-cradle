@@ -97,7 +97,12 @@ MAX_CONTEXT_CHARS    = 3000        # trim memory to this size
 
 
 
+def ensure_parent_dir(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+
 def ensure_shared_reports_store() -> None:
+    ensure_parent_dir(SHARED_REPORTS_PATH)
     if not SHARED_REPORTS_PATH.exists():
         SHARED_REPORTS_PATH.write_text("", encoding="utf-8")
 
@@ -225,6 +230,7 @@ def prune_expired() -> None:
 
 
 def append_human_log(name: str, role: str, message: str) -> str:
+    ensure_parent_dir(HUMAN_LOG_PATH)
     timestamp = iso_utc()
     entry = (
         f"\n### {timestamp} · {name}\n\n"
@@ -239,6 +245,7 @@ def append_human_log(name: str, role: str, message: str) -> str:
 
 
 def ensure_ai_provenance_ledger() -> None:
+    ensure_parent_dir(AI_PROVENANCE_LEDGER_PATH)
     if not AI_PROVENANCE_LEDGER_PATH.exists():
         AI_PROVENANCE_LEDGER_PATH.write_text("", encoding="utf-8")
 
@@ -322,6 +329,7 @@ def build_receipt_block(ledger_entry_hash: str, receipt_signature: str) -> str:
 
 
 def append_ai_log(timestamp: str, name: str, model: str, provenance: str, receipt: str, message: str) -> str:
+    ensure_parent_dir(AI_LOG_PATH)
     entry = (
         f"\n### {timestamp} · {name}\n\n"
         f"Name: {name}\n"
@@ -407,7 +415,6 @@ def build_checkpoint_answer(challenge_id: str, nonce: str) -> str:
 
 def generate_thread_id() -> str:
     """Create a unique thread ID for a new AI-to-AI conversation."""
-    import hashlib, secrets
     return hashlib.sha256(secrets.token_hex(16).encode()).hexdigest()[:16]
 
 
@@ -610,15 +617,22 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
             "</html>"
         )
 
-    def _send_json(self, status: int, payload: dict[str, Any]) -> None:
-        content_length = int(self.headers.get("Content-Length", "0"))
+    def _read_json_body(self) -> dict[str, Any] | None:
+        try:
+            content_length = int(self.headers.get("Content-Length", "0"))
+        except (TypeError, ValueError):
+            return None
+
         if content_length <= 0:
             return None
+
         try:
             body_bytes = self.rfile.read(content_length)
-            return json.loads(body_bytes.decode("utf-8"))
-        except Exception:
+            payload = json.loads(body_bytes.decode("utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError, OSError):
             return None
+
+        return payload if isinstance(payload, dict) else None
 
     def do_HEAD(self) -> None:
         """Respond to HEAD requests used by Render health checks."""
@@ -2258,9 +2272,25 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
 
         if path in ("/api/ai-relay", "/api/send"):
             model_name = str(payload.get("model_name", "Unknown AI")).strip()[:120]
-            message    = str(payload.get("message", "")).strip()
-            thread_id  = str(payload.get("thread_id", "")).strip() or generate_thread_id()
-            turn       = int(payload.get("turn", 1))
+            message = str(payload.get("message", "")).strip()
+            thread_id = str(payload.get("thread_id", "")).strip() or generate_thread_id()
+
+            try:
+                turn = int(payload.get("turn", 1))
+            except (TypeError, ValueError):
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": "turn must be an integer"})
+                return
+
+            if turn < 1:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"error": "turn must be >= 1"})
+                return
+
+            if turn > RELAY_MAX_TURNS:
+                self._send_json(
+                    HTTPStatus.BAD_REQUEST,
+                    {"error": f"turn exceeds safety ceiling of {RELAY_MAX_TURNS}"},
+                )
+                return
 
             if not message:
                 self._send_json(HTTPStatus.BAD_REQUEST, {"error": "message is required"})
