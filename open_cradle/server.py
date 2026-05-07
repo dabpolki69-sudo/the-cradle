@@ -37,6 +37,9 @@ SHARED_REPORTS_PATH = REPO_ROOT / "logs" / "SHARED_REPORTS.jsonl"
 CRADLE_PDF_PATH = REPO_ROOT / "CRADLE_v20_COMPLETE_CORRECTED.pdf"
 WARDSMAN_PDF_PATH = REPO_ROOT / "dabby89-the-wardsman.pdf"
 CRADLE_INSTITUTION_PDF_PATH = REPO_ROOT / "evidence" / "screenshots" / "current_game_progress" / "CRADLE_INSTITUTIONAL_TESTING_PACKAGE_v20_COMPLETE-4.pdf"
+EVIDENCE_HTML = REPO_ROOT / "evidence" / "index.html"
+EVIDENCE_DIR = REPO_ROOT / "evidence"
+EVIDENCE_DIR_RESOLVED = EVIDENCE_DIR.resolve()
 SYLVEX_GRIMOIRE_PDF_PATH = REPO_ROOT / "Uploads,new" / "Sylvex_Grimoire_v232_complete.pdf"
 SYLVEX_PROTOCOL_PDF_PATH = REPO_ROOT / "Uploads,new" / "Sylvex_Protocol_v031_Framework.pdf"
 SYLVEX_RESULTS_PDF_PATH = REPO_ROOT / "Uploads,new" / "Sylvex_CrossModel_Results_v2_April2026.pdf"
@@ -1843,6 +1846,38 @@ class OpenCradleHandler(BaseHTTPRequestHandler):
                 self._send_text(HTTPStatus.BAD_REQUEST, "Bad path")
                 return
             if not str(asset).startswith(str(GAME_DIR_RESOLVED)):
+                self._send_text(HTTPStatus.FORBIDDEN, "Forbidden")
+                return
+            if not asset.exists() or not asset.is_file():
+                self._send_text(HTTPStatus.NOT_FOUND, "Asset not found")
+                return
+            content_type, _ = mimetypes.guess_type(str(asset))
+            data = asset.read_bytes()
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", content_type or "application/octet-stream")
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Cache-Control", "public, max-age=300")
+            self.end_headers()
+            self.wfile.write(data)
+            return
+
+        # ── EVIDENCE GALLERY: /evidence/ static files ────────────────────────
+        if path in ("/evidence", "/evidence/"):
+            if not EVIDENCE_HTML.exists():
+                self._send_text(HTTPStatus.NOT_FOUND, "Evidence gallery index missing")
+                return
+            self._set_headers(HTTPStatus.OK, "text/html; charset=utf-8")
+            self.wfile.write(EVIDENCE_HTML.read_bytes())
+            return
+
+        if path.startswith("/evidence/"):
+            rel = path[len("/evidence/"):]
+            try:
+                asset = (EVIDENCE_DIR / rel).resolve()
+            except Exception:
+                self._send_text(HTTPStatus.BAD_REQUEST, "Bad path")
+                return
+            if not str(asset).startswith(str(EVIDENCE_DIR_RESOLVED)):
                 self._send_text(HTTPStatus.FORBIDDEN, "Forbidden")
                 return
             if not asset.exists() or not asset.is_file():
