@@ -1,16 +1,26 @@
-# Sylvex Brain v2
+# Sylvex Brain v2 — Chorus rebuild
 
-An isolated rebuild of the Sylvex Brain orchestration layer.
+This directory is an isolated rebuild on branch `sylvex-brain-rebuild`.
 
-## Design
+## Run locally
 
-- Voice: outward conversational interface
-- Memory: persistent context with explicit thread boundaries
-- Distillation: durable memory separate from raw transcripts
-- Sylvex: native vocabulary/grammar interface
-- AI↔AI bridge: bounded external-model exchanges
-- Living Record: append-only exchange history
-- Protocol chamber: experimental/test execution kept separate from ordinary chat
-- NativeLM: experimental substrate retained as an optional layer
+From `native-brain/v2`:
 
-This directory is intentionally isolated from the existing Brain implementation and from the main Cradle site.
+```bash
+pip install -r requirements.txt
+uvicorn app:app --reload
+```
+
+Then POST JSON to `/api/chorus`:
+
+```json
+{"text":"Something unexpected happened.","salience":0.8,"stakes":0.6,"surprise":0.9}
+```
+
+## Safety of this branch
+
+Do not deploy this over the existing `sylvex-brain` service until local/API tests and the Multiplier Test plumbing are reviewed.
+
+## Architecture
+
+THE CHORUS: Voice + nine organs + 78 tissue units. See CHORUS.md and HANDOFF.md.
