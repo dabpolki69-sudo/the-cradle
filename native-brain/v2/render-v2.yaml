@@ -2,6 +2,6 @@ services:
   - type: web
     name: sylvex-brain-v2-rebuild
     runtime: python
-    rootDir: native-brain/v2
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
+    rootDir: native-brain
+    buildCommand: pip install -r v2/requirements.txt
+    startCommand: uvicorn v2.app:app --host 0.0.0.0 --port $PORT
