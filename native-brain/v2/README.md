@@ -1,29 +1,35 @@
 # Sylvex Brain v2 — THE CHORUS
 
-This directory contains the isolated experimental Chorus implementation. It is not the production Brain.
+This directory contains an isolated experimental implementation. It is not the production Brain.
 
-## Current execution path
+## Execution path
 
-`POST /api/chorus` → `Voice.receive` → 78 deterministic tissue placeholders → one aggregated position per organ → Chorus routing/weighting/dissent check → response.
+`POST /api/chorus` → `Voice.receive` → 78 tissue units → nine organ positions → Chorus routing/weighting/dissent checks → response.
 
-The tissue units currently return deterministic placeholder signals. They are **not independent language models**, and this baseline must not be described as nine real reasoning agents. Each response includes a `tissue_results` trace so their unit IDs, organ assignments, values, confidence values, costs and placeholder mode can be inspected.
+By default all units are deterministic placeholders. They are not independent language models.
 
-If positions are supplied directly to `Voice.receive`, tissue execution is bypassed and no reflex units are charged. The default API currently exercises the deterministic 78-unit path.
+## Optional model-backed Verbalizer
 
-## Run locally
+One tissue, `Verbalizer`, can be connected to an OpenAI-compatible `/chat/completions` endpoint. It is disabled unless all required configuration is supplied:
 
-From the repository root, install `native-brain/v2/requirements.txt`, then run:
+- `SYLVEX_MODEL_BASE_URL`: API base URL, usually ending in `/v1`
+- `SYLVEX_MODEL_NAME`: model identifier
+- `SYLVEX_MODEL_API_KEY`: optional for local endpoints; required by most hosted providers
+
+Set these as runtime environment variables, never in source code or committed files. No provider request is made in deterministic-only mode.
+
+The adapter bounds input to 8,000 characters, uses a 20-second timeout, requests a compact JSON assessment, validates its value/confidence, and records provider errors explicitly. It does not silently pretend a failed provider call succeeded. The budget reserves one additional call and an input-size-based token allowance before processing.
+
+For the deliberator organ, a successful provider-backed Verbalizer output is selected as the organ's position instead of being outvoted by eight placeholder outputs. All per-unit outputs remain in the trace. This is an explicit experimental policy, not a claim that the model is correct; evaluate it against baselines.
+
+## Run and test
+
+From the repository root:
 
 ```bash
+pip install -r native-brain/v2/requirements.txt
 uvicorn v2.app:app --app-dir native-brain --host 127.0.0.1 --port 8000
-```
-
-Run tests from the repository root:
-
-```bash
 python -m pytest native-brain/v2/test_chorus.py
 ```
 
-## Status
-
-Experimental and not production-ready. The next engineering steps are to validate API startup and request/response contracts, then replace selected deterministic tissue units with measured provider-backed adapters while retaining the deterministic baseline for comparison.
+Check `GET /health` for provider mode and `POST /api/chorus` for a traced response. This rebuild remains experimental and is not production-ready.

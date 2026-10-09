@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from .chorus import Chorus, Signal, Position, ORGANS
 from .economy import Budget
 from .ledger import DissentLedger
-from .tissue import build_tissue
+from .tissue import build_tissue, ModelTissue
 
 
 @dataclass
@@ -27,35 +27,42 @@ class Voice:
         self.tissues = tissues if tissues is not None else build_tissue()
 
     def _run_tissues(self, text):
-        """Run every deterministic tissue unit and aggregate its output per organ.
+        """Run every unit and aggregate its output per organ.
 
-        These are explicit baseline stubs, not independent language models. The
-        per-unit trace is returned so future learned/provider-backed tissues can
-        be evaluated against this reproducible baseline.
+        A provider-backed output is selected as that organ's explicit position
+        rather than being outvoted by eight placeholder stubs. The trace retains
+        all outputs so this policy can be evaluated and changed empirically.
         """
         grouped = defaultdict(list)
         trace = []
         for unit, tissue in self.tissues.items():
             result = tissue.predict(text)
             grouped[result.organ].append(result)
-            trace.append({
+            item = {
                 "unit": result.unit,
                 "organ": result.organ,
                 "value": result.value,
                 "confidence": result.confidence,
                 "cost": result.cost,
-                "mode": "deterministic_placeholder",
-            })
+                "mode": result.mode,
+            }
+            if result.error:
+                item["error"] = result.error
+            trace.append(item)
 
         positions = []
         for organ in ORGANS:
             results = grouped.get(organ, [])
             if not results:
                 continue
-            counts = Counter(item.value for item in results)
-            # Counter preserves first-seen order, making ties deterministic.
-            value = counts.most_common(1)[0][0]
-            confidence = sum(item.confidence for item in results) / len(results)
+            model_results = [r for r in results if r.mode == "model_provider"]
+            if model_results:
+                selected = model_results[0]
+                value, confidence = selected.value, selected.confidence
+            else:
+                counts = Counter(item.value for item in results)
+                value = counts.most_common(1)[0][0]
+                confidence = sum(item.confidence for item in results) / len(results)
             positions.append(Position(organ, value, confidence))
         return positions, trace
 
@@ -68,10 +75,29 @@ class Voice:
         stakes=0.5,
         surprise=0.5,
     ):
-        # Supplied positions bypass tissue execution; otherwise reserve the
-        # complete 78-unit deterministic baseline before doing any work.
+        provider_units = [
+            unit for unit in self.tissues.values() if isinstance(unit, ModelTissue)
+        ] if positions is None else []
+        # Provider input is bounded before any budget is reserved or work starts.
+        if provider_units and len(text) > provider_units[0].provider.config.max_input_chars:
+            return {
+                "speech": "Input exceeds the configured model-tissue character limit.",
+                "routing": {},
+                "positions": [],
+                "dissent": [],
+                "currencies": {},
+                "budget": self.budget.remaining,
+                "budget_exhausted": True,
+                "tissue_results": [],
+            }
         reflex_cost = 78 if positions is None else 0
-        if not self.budget.spend(calls=1, reflex=reflex_cost):
+        provider_calls = len(provider_units)
+        token_reserve = (len(text) * 2 + 512) if provider_calls else 0
+        if not self.budget.spend(
+            tokens=token_reserve,
+            calls=1 + provider_calls,
+            reflex=reflex_cost,
+        ):
             return {
                 "speech": "I can't process this request because the configured budget is exhausted.",
                 "routing": {},
