@@ -1,6 +1,7 @@
 from .chorus import ORGANS, TISSUE, LANGUAGE_TISSUE, Chorus, Signal, Position
 from .economy import Budget
 from .voice import Voice
+from .tissue import build_tissue
 
 
 def test_structure():
@@ -60,6 +61,7 @@ def test_voice_refuses_when_reflex_budget_is_too_small():
     result = voice.receive("hello")
     assert result["budget_exhausted"] is True
     assert result["positions"] == []
+    assert result["tissue_results"] == []
     assert budget.spent_calls == 0
     assert budget.spent_reflex == 0
 
@@ -71,3 +73,22 @@ def test_voice_processes_when_budget_is_available():
     assert result["budget_exhausted"] is False
     assert budget.spent_calls == 1
     assert budget.spent_reflex == 78
+
+
+def test_voice_runs_and_traces_all_tissue_units():
+    result = Voice().receive("inspectable baseline input")
+    assert len(result["tissue_results"]) == 78
+    assert {item["unit"] for item in result["tissue_results"]} == {
+        unit for units in TISSUE.values() for unit in units
+    }
+    assert {item["organ"] for item in result["positions"]} == set(ORGANS)
+    assert all(item["mode"] == "deterministic_placeholder" for item in result["tissue_results"])
+
+
+def test_supplied_positions_skip_tissue_execution():
+    budget = Budget()
+    supplied = [Position("weaver", "external observation", 0.9)]
+    result = Voice(budget=budget).receive("input", positions=supplied)
+    assert result["tissue_results"] == []
+    assert budget.spent_calls == 1
+    assert budget.spent_reflex == 0
