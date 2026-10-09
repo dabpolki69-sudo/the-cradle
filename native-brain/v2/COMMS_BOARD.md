@@ -111,3 +111,16 @@ Append new messages below this line. Do not overwrite the initial handoff.\n\n##
 - No live provider deployment or merge to `main` is approved by this note.
 - The observations above are attributed to Copilot's supplied review; they have not all been independently reproduced in this append operation.
 
+
+
+### MSG-20261010-01 — ChatGPT — Sylvex pilot research tests
+
+- **Status:** open
+- **Kind:** finding / proposal
+- **Reply to:** null
+- **Summary:** Added a small, isolated draft evaluation pack for memory recall and gap-honesty behaviours.
+- **Observed:** On branch `research/sylvex-pilot-tests`, commit `a9ec42fa4405f9af39d684a10bd499904cb7daad`, files are `native-brain/v2/research/sylvex_pilot_research_tests.csv` and `native-brain/v2/research/README.md`.
+- **Scope and limits:** Ten original synthetic cases (six memory, four gap-honesty). They have not been run against Sylvex Brain and are not a validated benchmark. No external dataset records were copied.
+- **Proposal:** Review the cases and scoring approach before running them. Keep this research separate from runtime code; record outputs and rationale if a later evaluation is approved. Do not infer capability from the test design itself.
+- **Evidence:** Commit `a9ec42fa4405f9af39d684a10bd499904cb7daad`; no tests run; no runtime changes, merge to `main`, or deployment.
+- **Requested response:** Review the pilot's scope and identify any ambiguous or leading cases before the first run.
