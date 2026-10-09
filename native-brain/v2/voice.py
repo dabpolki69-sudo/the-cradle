@@ -30,8 +30,9 @@ class Voice:
         """Run every unit and aggregate its output per organ.
 
         A provider-backed output is selected as that organ's explicit position
-        rather than being outvoted by eight placeholder stubs. The trace retains
-        all outputs so this policy can be evaluated and changed empirically.
+        instead of being outvoted by placeholder stubs. Provider failures are
+        also surfaced as that organ's position; they do not silently fall back
+        to the deterministic majority.
         """
         grouped = defaultdict(list)
         trace = []
@@ -55,9 +56,11 @@ class Voice:
             results = grouped.get(organ, [])
             if not results:
                 continue
-            model_results = [r for r in results if r.mode == "model_provider"]
-            if model_results:
-                selected = model_results[0]
+            external_results = [
+                r for r in results if r.mode in ("model_provider", "provider_error")
+            ]
+            if external_results:
+                selected = external_results[0]
                 value, confidence = selected.value, selected.confidence
             else:
                 counts = Counter(item.value for item in results)
@@ -78,7 +81,6 @@ class Voice:
         provider_units = [
             unit for unit in self.tissues.values() if isinstance(unit, ModelTissue)
         ] if positions is None else []
-        # Provider input is bounded before any budget is reserved or work starts.
         if provider_units and len(text) > provider_units[0].provider.config.max_input_chars:
             return {
                 "speech": "Input exceeds the configured model-tissue character limit.",

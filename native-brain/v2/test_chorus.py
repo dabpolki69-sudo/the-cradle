@@ -174,3 +174,17 @@ def test_provider_backed_position_is_not_outvoted_by_placeholders():
     assert any(t["mode"] == "model_provider" for t in result["tissue_results"])
     assert result["budget"]["calls"] == 38
     assert result["budget"]["tokens"] == 79_478
+
+
+def test_provider_failure_is_not_hidden_by_placeholder_majority():
+    class Provider:
+        class Config:
+            max_input_chars = 8000
+        config = Config()
+        def assess(self, *args):
+            raise ProviderError("simulated outage")
+    result = Voice(tissues=build_tissue(provider=Provider())).receive("input")
+    deliberator = next(p for p in result["positions"] if p.organ == "deliberator")
+    assert deliberator.position == "provider_error"
+    assert deliberator.confidence == 0
+    assert any(t["mode"] == "provider_error" for t in result["tissue_results"])
