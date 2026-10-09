@@ -1,7 +1,6 @@
 from .chorus import ORGANS, TISSUE, LANGUAGE_TISSUE, Chorus, Signal, Position
 from .economy import Budget
 from .voice import Voice
-from .tissue import build_tissue
 
 
 def test_structure():
@@ -57,8 +56,7 @@ def test_budget_rejects_negative_limits():
 
 def test_voice_refuses_when_reflex_budget_is_too_small():
     budget = Budget(calls=2, reflex_units=77)
-    voice = Voice(budget=budget)
-    result = voice.receive("hello")
+    result = Voice(budget=budget).receive("hello")
     assert result["budget_exhausted"] is True
     assert result["positions"] == []
     assert result["tissue_results"] == []
@@ -81,7 +79,7 @@ def test_voice_runs_and_traces_all_tissue_units():
     assert {item["unit"] for item in result["tissue_results"]} == {
         unit for units in TISSUE.values() for unit in units
     }
-    assert {item["organ"] for item in result["positions"]} == set(ORGANS)
+    assert {position.organ for position in result["positions"]} == set(ORGANS)
     assert all(item["mode"] == "deterministic_placeholder" for item in result["tissue_results"])
 
 
