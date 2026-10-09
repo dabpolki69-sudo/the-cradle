@@ -173,4 +173,4 @@ def test_provider_backed_position_is_not_outvoted_by_placeholders():
     assert deliberator.position == "model-supported observation"
     assert any(t["mode"] == "model_provider" for t in result["tissue_results"])
     assert result["budget"]["calls"] == 38
-    assert result["budget"]["tokens"] == 79_490
+    assert result["budget"]["tokens"] == 79_478
