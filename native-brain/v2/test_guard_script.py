@@ -174,3 +174,12 @@ def test_state_store_preserves_first_stop_event(tmp_path):
     guard.trip("FIRST", "first reason")
     guard.trip("SECOND", "must not replace first")
     assert guard.as_dict()["event"]["code"] == "FIRST"
+
+
+
+def test_shared_ledger_refreshes_entries_written_by_another_instance(tmp_path):
+    store = StateStore(tmp_path / "sylvex.sqlite3")
+    first = DissentLedger(store)
+    second = DissentLedger(StateStore(tmp_path / "sylvex.sqlite3"))
+    first.record_murmur("cross-instance concern", line=12)
+    assert [entry.text for entry in second.unresolved()] == ["cross-instance concern"]
