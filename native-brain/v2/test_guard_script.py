@@ -110,3 +110,27 @@ def test_compile_script_emits_stable_side_effect_free_ir():
         {"index": 0, "line": 2, "op": "OBSERVE", "arg": "hello"},
         {"index": 1, "line": 3, "op": "MURMUR", "arg": "check source"},
     ]
+
+
+
+def test_hard_stop_persists_across_script_requests_until_authorised_reset():
+    engine = ScriptEngine()
+    first = engine.run("SYLVEX/1\nSTOP review required")
+    second = engine.run(
+        "SYLVEX/1\nOBSERVE safe input\nINTEGRATE\nVERIFY\nRESPOND should not run"
+    )
+    assert first["status"] == "stopped"
+    assert second["status"] == "stopped"
+    assert second["output"] == ""
+    try:
+        engine.guard.reset()
+    except PermissionError:
+        pass
+    else:
+        raise AssertionError("engine stop must not be clearable without authorisation")
+    engine.guard.reset(authorised=True)
+    third = engine.run(
+        "SYLVEX/1\nOBSERVE safe input\nINTEGRATE\nVERIFY\nRESPOND released"
+    )
+    assert third["status"] == "completed"
+    assert third["output"] == "released"
