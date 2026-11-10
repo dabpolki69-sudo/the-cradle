@@ -45,6 +45,15 @@ def health():
     }
 
 
+@app.get("/api/ledger/unresolved")
+def unresolved_ledger():
+    """Inspect unresolved Chorus dissent and Sylvex MURMUR entries."""
+    return {
+        "count": len(voice.ledger.unresolved()),
+        "entries": [voice.ledger.as_dict(entry) for entry in voice.ledger.unresolved()],
+    }
+
+
 @app.post("/api/chorus")
 def chorus(payload: ChorusIn):
     try:
