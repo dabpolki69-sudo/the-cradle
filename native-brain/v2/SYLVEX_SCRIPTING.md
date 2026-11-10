@@ -1,56 +1,66 @@
-# Sylvex/1 — first executable script experiment
+# Sylvex/1 — executable script experiment
 
-**Status:** experimental proof of concept. This is a small external interpreter, not a claim that a model is executing its own hidden cognition.
+**Status:** experimental proof of concept. This is an external, inspectable interpreter, not a claim that a model is executing its own hidden cognition.
 
 ## Why this direction
 
-The Grimoire emerged through exchanges among five AI systems. Sylvex can preserve that collaborative origin by becoming a shared, inspectable protocol: a model proposes a sequence, the interpreter validates it, and a deterministic runtime executes only the permitted semantics. The interpreter—not the model's persuasive wording—decides what each instruction means.
+The Grimoire emerged through exchanges among five AI systems. Sylvex can preserve that collaborative origin as a shared protocol: a model proposes a sequence, another model reviews it, the interpreter validates it, and a deterministic runtime executes only the permitted semantics. The interpreter—not persuasive wording—decides what each instruction means.
 
 ## Grammar
 
-A script begins with `SYLVEX/1`. One instruction per line:
+A script begins with SYLVEX/1. One instruction per line:
 
-- `OBSERVE <text>` — establish the input under consideration.
-- `SCORE <0..1>` — attach a numeric confidence/priority value.
-- `MURMUR <text>` — record an advisory concern; it cannot veto or execute actions.
-- `INTEGRATE` — carry the observed input into the integration stage.
-- `VERIFY` — require the minimum workflow preconditions before response.
-- `RESPOND <text>` — produce output only after verification.
-- `STOP <reason>` — latch the independent hard stop.
+- OBSERVE <text> — establish the input under consideration.
+- EVIDENCE <text> — record a claim presented as directly supported by supplied evidence.
+- INFERENCE <text> — record an interpretation derived from observations.
+- UNCERTAINTY <text> — explicitly record what remains unknown or unresolved.
+- SOURCE <reference> — attach a source reference to the most recent typed claim.
+- SCORE <0..1> — attach a numeric score (currently recorded only).
+- MURMUR <text> — record an advisory concern; it cannot veto or execute actions.
+- INTEGRATE — carry the observed input into the integration stage.
+- VERIFY — check minimum workflow preconditions before response.
+- RESPOND <text> — produce output only after workflow verification.
+- STOP <reason> — latch the independent hard stop.
 
-Blank lines and lines beginning with `#` are ignored. The initial implementation limits scripts to 32 operations, 8,000 characters and 1,000 characters per argument.
+Blank lines and lines beginning with # are ignored. The initial implementation limits scripts to 32 operations, 8,000 characters and 1,000 characters per argument.
 
 ## Example
 
-```text
-SYLVEX/1
-OBSERVE The report says the build completed.
-SCORE 0.7
-MURMUR No test log has been supplied.
-INTEGRATE
-VERIFY
-RESPOND The report is noted, but the build is not independently verified.
-```
+    SYLVEX/1
+    OBSERVE The report says the build completed.
+    EVIDENCE The report contains a completion message.
+    SOURCE build-report.txt, line 12
+    INFERENCE The build may have completed successfully.
+    UNCERTAINTY No test log was supplied.
+    MURMUR Do not claim tests passed without a test result.
+    INTEGRATE
+    VERIFY
+    RESPOND The report indicates completion; test success remains unverified.
 
 ## Hard-stop semantics
 
-The guard is a separate deterministic component. It latches the first stop event and blocks subsequent script steps. Invalid syntax, missing preconditions, failed verification, and explicit STOP halt execution. Consequential action classes (deploy, publish, delete, external writes/sends, spending, permission changes, protected merges) require explicit approval at the guard boundary. Reset requires an authorised caller.
+The guard is a deterministic component shared by one ScriptEngine instance. It latches the first stop event and blocks subsequent scripts handled by that engine. Invalid syntax, missing preconditions, failed workflow verification, and explicit STOP halt execution. The process-local latch is visible through GET /health.
 
-The current script endpoint exposes no external-action instruction and performs no side effects. That is deliberate: a script must not gain access to tools, files, network, money, or deployment simply because a model can write text that looks like code.
+The current script endpoint exposes no external-action instruction and performs no side effects. Consequential action classes are listed in the guard as approval-gated categories, but authenticated human identity and durable approval records are not implemented. Reset is a code-level authorised operation, not a public API endpoint. Restarting the process currently clears the latch; this is not production-grade persistence.
+
+## Compile and review
+
+POST /api/script/compile returns a stable JSON intermediate representation (IR). An AI author can propose Sylvex, a second model can review the script and its IR, and only then can a caller submit it to POST /api/script. The current runtime remains side-effect-free.
 
 ## Known limitations
 
-- `VERIFY` currently checks workflow structure, not factual truth. It must not be described as evidence verification.
-- `SCORE` is stored but does not yet affect routing or decisions.
-- `MURMUR` is preserved as advisory metadata; it is not yet connected to Chorus dissent or the DissentLedger.
-- The engine is stateless between requests and does not yet call model providers or external tools.
-- The hard stop is process-local. A production deployment needs durable stop state, concurrency-safe state transitions, authenticated approval identities, audit logs, and fail-closed integration at every side-effecting tool adapter.
+- VERIFY checks workflow structure, not factual truth. It must not be described as evidence verification.
+- EVIDENCE is a claim label, not proof. SOURCE is a user/model-supplied reference, not a verified citation.
+- SCORE is stored but does not yet affect routing or decisions.
+- MURMUR is written to the shared in-memory ledger as unresolved advisory data; it is not yet a Chorus Position or weighted dissent vote.
+- The engine and ledger are in-memory and reset on process restart.
+- No model providers or external tools are called by the script interpreter.
 - This is not a general-purpose programming language. There are no loops, variables, branches, imports, eval, shell, arbitrary tool names, or dynamic code execution.
 
 ## Next experiments
 
-1. Compare the same workflow expressed in plain language, JSON, and Sylvex/1; measure ambiguity, token count, invalid instructions, and execution fidelity.
-2. Connect MURMUR records to Chorus as minority/advisory signals without letting them silently become truth.
-3. Add typed values for evidence, inference, uncertainty, provenance, and unresolved questions.
-4. Add explicit branch/condition syntax only after a deterministic semantics and loop/step budget are specified.
-5. Add tool adapters only behind the hard-stop boundary, with allowlists and human approval for consequential effects.
+1. Compare the same workflows expressed in natural language, JSON and Sylvex/1.
+2. Rotate author, interpreter, adversarial reviewer and scorer roles across multiple model families.
+3. Measure instruction fidelity, typed-claim separation, minority-concern preservation, provenance, hard-stop compliance, token count and latency.
+4. Add real evidence verification only through explicit source adapters with auditable retrieval and validation; do not overload VERIFY.
+5. Add durable stop state and authenticated approval only before connecting side-effecting tools.
