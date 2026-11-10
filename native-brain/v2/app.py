@@ -4,9 +4,10 @@ from .voice import Voice
 from .tissue import ModelTissue
 from .script import ScriptEngine
 
-app = FastAPI(title="Sylvex Brain v2 Chorus", version="0.4.0")
+app = FastAPI(title="Sylvex Brain v2 Chorus", version="0.5.0")
 voice = Voice()
-script_engine = ScriptEngine()
+# Share the same in-memory ledger so script murmurs and Chorus dissent are visible together.
+script_engine = ScriptEngine(ledger=voice.ledger)
 
 
 class ChorusIn(BaseModel):
@@ -39,6 +40,7 @@ def health():
         "provider_mode": "configured" if model_units else "deterministic_baseline",
         "script_engine": "SYLVEX/1",
         "script_side_effects": False,
+        "unresolved_ledger_entries": len(voice.ledger.unresolved()),
     }
 
 
@@ -58,7 +60,7 @@ def chorus(payload: ChorusIn):
 
 @app.post("/api/script")
 def run_script(payload: ScriptIn):
-    """Run a bounded, side-effect-free Sylvex/1 workflow."""
+    """Run a bounded workflow; script murmurs enter the shared dissent ledger."""
     try:
         return script_engine.run(payload.script, input_text=payload.input_text)
     except Exception as exc:
