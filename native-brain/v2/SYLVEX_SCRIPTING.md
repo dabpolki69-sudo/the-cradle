@@ -39,9 +39,9 @@ Blank lines and lines beginning with # are ignored. The initial implementation l
 
 ## Hard-stop semantics
 
-The guard is a deterministic component shared by one ScriptEngine instance. It latches the first stop event and blocks subsequent scripts handled by that engine. Invalid syntax, missing preconditions, failed workflow verification, and explicit STOP halt execution. The process-local latch is visible through GET /health.
+The guard is a deterministic component shared by the ScriptEngine. When backed by StateStore it latches the first stop event in SQLite and blocks subsequent scripts, including after process recreation. Invalid syntax, missing preconditions, failed workflow verification, and explicit STOP halt execution. The event is visible through GET /health. Persistence errors fail closed.
 
-The current script endpoint exposes no external-action instruction and performs no side effects. Consequential action classes are listed in the guard as approval-gated categories, but authenticated human identity and durable approval records are not implemented. Reset is a code-level authorised operation, not a public API endpoint. Restarting the process currently clears the latch; this is not production-grade persistence.
+The current script endpoint exposes no external-action instruction and performs no side effects. Consequential action classes are listed in the guard as approval-gated categories, but authenticated human identity and durable approval records are not implemented. The reset primitive is not a substitute for an authenticated approval workflow. Reset is a code-level authorised operation, not a public API endpoint. Restarting the process currently clears the latch; this is not production-grade persistence.
 
 ## Compile and review
 
@@ -53,7 +53,7 @@ POST /api/script/compile returns a stable JSON intermediate representation (IR).
 - EVIDENCE is a claim label, not proof. SOURCE is a user/model-supplied reference, not a verified citation.
 - SCORE is stored but does not yet affect routing or decisions.
 - MURMUR is written to the shared in-memory ledger as unresolved advisory data; it is not yet a Chorus Position or weighted dissent vote.
-- The engine and ledger are in-memory and reset on process restart.
+- The API uses a SQLite-backed append-only ledger and hard-stop store. Configure SYLVEX_STATE_PATH to a durable mounted-volume path; the default relative path may be ephemeral on hosted platforms. The database coordinates processes on one host sharing the same file, not independent hosts. Ledger records have stable IDs; no resolution/mutation endpoint is exposed.
 - No model providers or external tools are called by the script interpreter.
 - This is not a general-purpose programming language. There are no loops, variables, branches, imports, eval, shell, arbitrary tool names, or dynamic code execution.
 
