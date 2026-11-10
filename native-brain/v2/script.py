@@ -1,16 +1,18 @@
-"""Small, declarative Sylvex workflow language.
+"""Bounded, declarative Sylvex workflow interpreter (SYLVEX/1).
 
-SYLVEX/1 is intentionally not Python: no eval, imports, shell, network, file
-writes, dynamic dispatch, loops, or arbitrary tool execution. It produces an
-inspectable trace and can only run the fixed operations below.
+No eval, imports, shell, network, file writes, dynamic dispatch, loops, or
+arbitrary tool execution. VERIFY checks workflow preconditions only; it does
+not certify that claims are factually true.
 """
 from dataclasses import dataclass, field
-import shlex
 
 from .guard import HardStop
 
 
-OPERATIONS = frozenset({"OBSERVE", "SCORE", "MURMUR", "INTEGRATE", "VERIFY", "RESPOND", "STOP"})
+OPERATIONS = frozenset({
+    "OBSERVE", "EVIDENCE", "INFERENCE", "UNCERTAINTY", "SOURCE",
+    "SCORE", "MURMUR", "INTEGRATE", "VERIFY", "RESPOND", "STOP",
+})
 
 
 @dataclass
@@ -26,7 +28,9 @@ class ScriptResult:
     output: str
     trace: list = field(default_factory=list)
     murmurs: list = field(default_factory=list)
+    claims: list = field(default_factory=list)
     hard_stop: dict = field(default_factory=dict)
+    verification_scope: str = "workflow_preconditions_only"
 
 
 class ScriptSyntaxError(ValueError):
@@ -59,20 +63,27 @@ def parse_script(source, *, max_steps=32, max_chars=8000):
 
 
 class ScriptEngine:
-    """Execute a bounded workflow against supplied text; no external side effects."""
+    """Execute a bounded workflow; all side effects are deliberately disabled."""
 
-    def __init__(self, *, max_steps=32):
+    def __init__(self, *, max_steps=32, ledger=None):
         self.max_steps = max_steps
+        self.ledger = ledger
 
     def run(self, source, *, input_text=""):
         guard = HardStop()
-        state = {"observed": "", "score": None, "integrated": "", "verified": False}
-        trace, murmurs, output = [], [], ""
+        state = {
+            "observed": "",
+            "score": None,
+            "integrated": "",
+            "workflow_verified": False,
+            "last_claim": None,
+        }
+        trace, murmurs, claims, output = [], [], [], ""
         try:
             steps = parse_script(source, max_steps=self.max_steps)
         except ScriptSyntaxError as exc:
             guard.trip("SCRIPT_INVALID", str(exc))
-            return ScriptResult("stopped", "", [], [], guard.as_dict()).__dict__
+            return ScriptResult("stopped", "", [], [], [], guard.as_dict()).__dict__
 
         for step in steps:
             if guard.stopped:
@@ -83,6 +94,18 @@ class ScriptEngine:
                 state["observed"] = arg or input_text
                 if not state["observed"]:
                     guard.trip("OBSERVATION_MISSING", "OBSERVE requires an argument or input_text")
+            elif step.operation in {"EVIDENCE", "INFERENCE", "UNCERTAINTY"}:
+                if not arg:
+                    guard.trip("CLAIM_EMPTY", f"{step.operation} requires a non-empty statement")
+                else:
+                    claim = {"type": step.operation.lower(), "text": arg, "source": None, "line": step.line}
+                    claims.append(claim)
+                    state["last_claim"] = claim
+            elif step.operation == "SOURCE":
+                if not arg or state["last_claim"] is None:
+                    guard.trip("SOURCE_WITHOUT_CLAIM", "SOURCE requires a preceding EVIDENCE, INFERENCE or UNCERTAINTY")
+                else:
+                    state["last_claim"]["source"] = arg
             elif step.operation == "SCORE":
                 try:
                     score = float(arg)
@@ -95,19 +118,22 @@ class ScriptEngine:
                 if not arg:
                     guard.trip("MURMUR_EMPTY", "MURMUR requires an advisory message")
                 else:
-                    murmurs.append({"message": arg, "advisory": True})
+                    item = {"message": arg, "advisory": True, "status": "unresolved", "line": step.line}
+                    murmurs.append(item)
+                    if self.ledger is not None:
+                        self.ledger.record_murmur(arg, line=step.line)
             elif step.operation == "INTEGRATE":
                 if not state["observed"]:
                     guard.trip("INTEGRATION_WITHOUT_INPUT", "INTEGRATE requires a prior OBSERVE")
                 else:
                     state["integrated"] = state["observed"]
             elif step.operation == "VERIFY":
-                state["verified"] = bool(state["integrated"])
-                if not state["verified"]:
+                state["workflow_verified"] = bool(state["integrated"])
+                if not state["workflow_verified"]:
                     guard.trip("VERIFICATION_FAILED", "VERIFY requires a successful observation and integration")
             elif step.operation == "RESPOND":
-                if not state["verified"]:
-                    guard.trip("UNVERIFIED_RESPONSE", "RESPOND is blocked until VERIFY succeeds")
+                if not state["workflow_verified"]:
+                    guard.trip("UNVERIFIED_RESPONSE", "RESPOND is blocked until workflow VERIFY succeeds")
                 else:
                     output = arg or state["integrated"]
             elif step.operation == "STOP":
@@ -116,4 +142,4 @@ class ScriptEngine:
             trace.append(record)
 
         status = "stopped" if guard.stopped else ("completed" if output else "incomplete")
-        return ScriptResult(status, output, trace, murmurs, guard.as_dict()).__dict__
+        return ScriptResult(status, output, trace, murmurs, claims, guard.as_dict()).__dict__
