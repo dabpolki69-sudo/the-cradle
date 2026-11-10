@@ -24,7 +24,7 @@ Important limitations:
 - SCORE is recorded but does not yet affect Chorus routing or decisions.
 - MURMUR is advisory and unresolved; it is not a fact or an automatic veto.
 - The hard stop and ledger now use SQLite transactions. Set SYLVEX_STATE_PATH to a durable mounted-volume path (for example /var/data/sylvex-state.sqlite3 on a service with a persistent disk); the default ./data path may be ephemeral on hosted platforms. SQLite coordinates processes sharing the same local database file, not separate hosts or regions. Authenticated human approval is still not implemented; the reset method is an internal code-level gate, not an API approval system.
-- No multi-model interoperability runs have been performed. The experiment protocol and synthetic fixtures are in experiments/sylvex_interop/.
+- No multi-model interoperability runs have been performed. Eight executable synthetic benchmark fixtures and the multi-model experiment protocol are in experiments/sylvex_interop/. Run the deterministic suite with `PYTHONPATH=native-brain python -m v2.benchmark`; it checks interpreter workflow regressions, not factual truth or model intelligence.
 
 See SYLVEX_SCRIPTING.md for grammar and safety limits.
 
