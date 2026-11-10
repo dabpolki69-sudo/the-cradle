@@ -6,6 +6,7 @@ used only for small coordination records, not model payloads or generated files.
 import json
 import sqlite3
 import threading
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -16,7 +17,7 @@ class StateStore:
         self._lock = threading.RLock()
         if self.path != ":memory:":
             Path(self.path).expanduser().resolve().parent.mkdir(parents=True, exist_ok=True)
-        with self._connect() as db:
+        with self._db() as db:
             db.executescript("""
                 CREATE TABLE IF NOT EXISTS control_state (
                     id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -35,17 +36,30 @@ class StateStore:
                 );
             """)
 
+    @contextmanager
+    def _db(self):
+        db = self._connect()
+        try:
+            yield db
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
     def _connect(self):
         db = sqlite3.connect(self.path, timeout=10, isolation_level="DEFERRED")
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA foreign_keys=ON")
+        db.execute("PRAGMA busy_timeout=10000")
         if self.path != ":memory:":
             db.execute("PRAGMA journal_mode=WAL")
             db.execute("PRAGMA synchronous=FULL")
         return db
 
     def get_stop(self):
-        with self._lock, self._connect() as db:
+        with self._lock, self._db() as db:
             row = db.execute("SELECT stopped, event_json FROM control_state WHERE id=1").fetchone()
             if row is None:
                 raise RuntimeError("Sylvex control state is missing")
