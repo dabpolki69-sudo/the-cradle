@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from .voice import Voice
 from .tissue import ModelTissue
-from .script import ScriptEngine
+from .script import ScriptEngine, compile_script, ScriptSyntaxError
 
 app = FastAPI(title="Sylvex Brain v2 Chorus", version="0.5.0")
 voice = Voice()
@@ -56,6 +56,15 @@ def chorus(payload: ChorusIn):
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Chorus processing failed") from exc
+
+
+@app.post("/api/script/compile")
+def compile_sylvex(payload: ScriptIn):
+    """Validate and compile SYLVEX/1 to a reviewable JSON intermediate form."""
+    try:
+        return compile_script(payload.script)
+    except ScriptSyntaxError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @app.post("/api/script")
