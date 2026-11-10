@@ -22,6 +22,6 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install pytest fastapi pydantic
       - name: Run deterministic Sylvex benchmark
-        run: python -m native-brain.v2.benchmark
+        run: PYTHONPATH=native-brain python -m v2.benchmark
       - name: Run Chorus and Sylvex tests
         run: python -m pytest native-brain/v2/test_chorus.py native-brain/v2/test_guard_script.py -q
