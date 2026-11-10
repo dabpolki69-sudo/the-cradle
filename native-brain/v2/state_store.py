@@ -91,19 +91,20 @@ class StateStore:
     def append_entry(self, kind, text, data, at):
         encoded = json.dumps(data, sort_keys=True, ensure_ascii=False)
         with self._lock, self._connect() as db:
-            db.execute(
+            cursor = db.execute(
                 "INSERT INTO audit_log(kind,text,data_json,at) VALUES(?,?,?,?)",
                 (kind, text, encoded, at),
             )
+            return cursor.lastrowid
 
     def entries(self):
         with self._lock, self._connect() as db:
             rows = db.execute(
-                "SELECT kind,text,data_json,at FROM audit_log "
+                "SELECT id,kind,text,data_json,at FROM audit_log "
                 "WHERE kind IN ('dissent','murmur') ORDER BY id"
             ).fetchall()
         return [
-            {"kind": row["kind"], "text": row["text"],
+            {"id": row["id"], "kind": row["kind"], "text": row["text"],
              "data": json.loads(row["data_json"]), "at": row["at"]}
             for row in rows
         ]
