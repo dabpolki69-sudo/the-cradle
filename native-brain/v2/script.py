@@ -79,12 +79,18 @@ def compile_script(source, *, max_steps=32, max_chars=8000):
 class ScriptEngine:
     """Execute a bounded workflow; all side effects are deliberately disabled."""
 
-    def __init__(self, *, max_steps=32, ledger=None):
+    def __init__(self, *, max_steps=32, ledger=None, guard=None):
         self.max_steps = max_steps
         self.ledger = ledger
+        # One latched guard per engine instance, shared across script requests.
+        self.guard = guard or HardStop()
 
     def run(self, source, *, input_text=""):
-        guard = HardStop()
+        guard = self.guard
+        if guard.stopped:
+            return ScriptResult(
+                "stopped", "", [], [], [], guard.as_dict()
+            ).__dict__
         state = {
             "observed": "",
             "score": None,
