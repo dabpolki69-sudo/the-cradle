@@ -1,0 +1,25 @@
+name: Sylvex tests
+on:
+  push:
+    branches:
+      - feature/sylvex-hard-stop-scripting
+  pull_request:
+    branches:
+      - main
+      - research/sylvex-pilot-tests
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest fastapi pydantic
+      - name: Run Chorus and Sylvex tests
+        run: python -m pytest native-brain/v2/test_chorus.py native-brain/v2/test_guard_script.py -q
