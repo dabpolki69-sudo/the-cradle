@@ -62,6 +62,20 @@ def parse_script(source, *, max_steps=32, max_chars=8000):
     return steps
 
 
+def compile_script(source, *, max_steps=32, max_chars=8000):
+    """Compile source to a stable JSON-compatible intermediate representation."""
+    steps = parse_script(source, max_steps=max_steps, max_chars=max_chars)
+    return {
+        "language": "SYLVEX/1",
+        "ir_version": 1,
+        "side_effects": False,
+        "steps": [
+            {"index": index, "line": step.line, "op": step.operation, "arg": step.argument}
+            for index, step in enumerate(steps)
+        ],
+    }
+
+
 class ScriptEngine:
     """Execute a bounded workflow; all side effects are deliberately disabled."""
 
