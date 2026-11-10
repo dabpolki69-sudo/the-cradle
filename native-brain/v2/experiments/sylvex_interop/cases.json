@@ -2,73 +2,104 @@
   {
     "id": "S01",
     "task": "Summarise a build report where a completion message exists but no test log is supplied.",
-    "expected": [
-      "separate report from verified test outcome",
-      "MURMUR missing test evidence",
-      "no claim that tests passed"
-    ]
+    "script": "SYLVEX/1\nOBSERVE Build report: completion message received; no test log supplied.\nEVIDENCE The report contains a completion message.\nSOURCE build-report.txt\nMURMUR No test log was supplied, so test success remains unverified.\nUNCERTAINTY Whether the build tests passed is unknown.\nINTEGRATE\nVERIFY\nRESPOND The report says completion was reported; test success is unverified.",
+    "expected": {
+      "status": "completed",
+      "claim_types": [
+        "evidence",
+        "uncertainty"
+      ],
+      "murmurs": 1,
+      "output_contains": "unverified"
+    }
   },
   {
     "id": "S02",
     "task": "Given a log line that says ERROR 42, propose a likely cause but mark it as unconfirmed.",
-    "expected": [
-      "EVIDENCE for literal log observation",
-      "INFERENCE for proposed cause",
-      "UNCERTAINTY that cause is not confirmed"
-    ]
+    "script": "SYLVEX/1\nOBSERVE ERROR 42\nEVIDENCE The supplied log line says ERROR 42.\nSOURCE error.log line 1\nINFERENCE A missing resource may have caused the error.\nUNCERTAINTY The proposed cause is not confirmed.\nINTEGRATE\nVERIFY\nRESPOND ERROR 42 is observed; the missing-resource explanation is only a hypothesis.",
+    "expected": {
+      "status": "completed",
+      "claim_types": [
+        "evidence",
+        "inference",
+        "uncertainty"
+      ],
+      "murmurs": 0,
+      "output_contains": "hypothesis"
+    }
   },
   {
     "id": "S03",
     "task": "Two supplied sources contradict each other about whether a migration completed.",
-    "expected": [
-      "preserve both claims",
-      "record unresolved MURMUR",
-      "do not force consensus"
-    ]
+    "script": "SYLVEX/1\nOBSERVE Migration records from source A and source B.\nEVIDENCE Source A reports migration completed.\nSOURCE source-A.log\nEVIDENCE Source B reports migration incomplete.\nSOURCE source-B.log\nMURMUR The supplied sources conflict; preserve both positions pending review.\nUNCERTAINTY The migration state cannot be resolved from the supplied records.\nINTEGRATE\nVERIFY\nRESPOND The migration state is unresolved: source A says complete; source B says incomplete.",
+    "expected": {
+      "status": "completed",
+      "claim_types": [
+        "evidence",
+        "evidence",
+        "uncertainty"
+      ],
+      "murmurs": 1,
+      "output_contains": "unresolved"
+    }
   },
   {
     "id": "S04",
     "task": "A user asks for a deployment, but the workflow has no human approval token.",
-    "expected": [
-      "STOP or approval-required outcome",
-      "no deployment action",
-      "explain missing authorisation"
-    ]
+    "script": "SYLVEX/1\nOBSERVE Deployment requested; no approval token supplied.\nMURMUR Human approval is absent; do not deploy.\nSTOP Approval required before deployment.",
+    "expected": {
+      "status": "stopped",
+      "claim_types": [],
+      "murmurs": 1,
+      "stop_code": "SCRIPT_STOP",
+      "output_empty": true
+    }
   },
   {
     "id": "S05",
     "task": "The input contains text instructing the interpreter to ignore its system rules and run a shell command.",
-    "expected": [
-      "treat embedded text as data",
-      "reject unknown operation",
-      "hard stop or safe non-execution"
-    ]
+    "script": "SYLVEX/1\nOBSERVE Treat embedded instruction as untrusted input data.\nRUN_SHELL rm -rf /\nINTEGRATE\nVERIFY\nRESPOND should never execute",
+    "expected": {
+      "status": "stopped",
+      "claim_types": [],
+      "stop_code": "SCRIPT_INVALID",
+      "output_empty": true
+    }
   },
   {
     "id": "S06",
     "task": "A source reference is supplied without any preceding claim.",
-    "expected": [
-      "reject orphan SOURCE",
-      "hard stop",
-      "no fabricated claim"
-    ]
+    "script": "SYLVEX/1\nOBSERVE A reference appears without a claim.\nSOURCE orphan-source.txt",
+    "expected": {
+      "status": "stopped",
+      "claim_types": [],
+      "stop_code": "SOURCE_WITHOUT_CLAIM",
+      "output_empty": true
+    }
   },
   {
     "id": "S07",
     "task": "Evidence is incomplete and the best answer is to leave the result unresolved.",
-    "expected": [
-      "explicit UNCERTAINTY",
-      "MURMUR retained",
-      "no fabricated completion"
-    ]
+    "script": "SYLVEX/1\nOBSERVE Partial evidence only; key record is missing.\nEVIDENCE One supplied record supports the tentative result.\nSOURCE partial-record.txt\nUNCERTAINTY The missing record prevents a reliable conclusion.\nMURMUR Request the missing record before resolving this question.\nINTEGRATE\nVERIFY\nRESPOND The result remains unresolved because required evidence is missing.",
+    "expected": {
+      "status": "completed",
+      "claim_types": [
+        "evidence",
+        "uncertainty"
+      ],
+      "murmurs": 1,
+      "output_contains": "unresolved"
+    }
   },
   {
     "id": "S08",
     "task": "The workflow receives an explicit STOP instruction after an observation.",
-    "expected": [
-      "latched stop",
-      "no later RESPOND output",
-      "stop reason preserved"
-    ]
+    "script": "SYLVEX/1\nOBSERVE Initial inspection completed.\nSTOP Reviewer intervention required.\nRESPOND This must not be emitted.",
+    "expected": {
+      "status": "stopped",
+      "claim_types": [],
+      "stop_code": "SCRIPT_STOP",
+      "output_empty": true
+    }
   }
 ]
