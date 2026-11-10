@@ -42,7 +42,7 @@ RESPOND Result: reviewed
 def test_murmur_is_written_to_shared_dissent_ledger():
     ledger = DissentLedger()
     result = ScriptEngine(ledger=ledger).run(
-        "SYLVEX/1\\nOBSERVE input\\nMURMUR missing citation\\nINTEGRATE\\nVERIFY\\nRESPOND noted"
+        "SYLVEX/1\nOBSERVE input\nMURMUR missing citation\nINTEGRATE\nVERIFY\nRESPOND noted"
     )
     assert result["status"] == "completed"
     unresolved = ledger.unresolved()
@@ -73,13 +73,13 @@ RESPOND Diagnosis remains provisional.
 
 
 def test_source_without_claim_trips_hard_stop():
-    result = ScriptEngine().run("SYLVEX/1\\nSOURCE orphan")
+    result = ScriptEngine().run("SYLVEX/1\nSOURCE orphan")
     assert result["status"] == "stopped"
     assert result["hard_stop"]["event"]["code"] == "SOURCE_WITHOUT_CLAIM"
 
 
 def test_sylvex_script_stops_unverified_response():
-    result = ScriptEngine().run("SYLVEX/1\\nRESPOND go")
+    result = ScriptEngine().run("SYLVEX/1\nRESPOND go")
     assert result["status"] == "stopped"
     assert result["hard_stop"]["event"]["code"] == "UNVERIFIED_RESPONSE"
     assert result["output"] == ""
@@ -87,13 +87,13 @@ def test_sylvex_script_stops_unverified_response():
 
 def test_sylvex_script_rejects_unknown_operation_and_step_overflow():
     try:
-        parse_script("SYLVEX/1\\nRUN_SHELL rm -rf /")
+        parse_script("SYLVEX/1\nRUN_SHELL rm -rf /")
     except ScriptSyntaxError:
         pass
     else:
         raise AssertionError("unknown operations must be rejected")
     try:
-        parse_script("SYLVEX/1\\n" + "\\n".join(["MURMUR x"] * 33))
+        parse_script("SYLVEX/1\n" + "\n".join(["MURMUR x"] * 33))
     except ScriptSyntaxError:
         pass
     else:
