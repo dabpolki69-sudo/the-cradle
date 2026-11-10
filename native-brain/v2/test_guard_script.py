@@ -1,6 +1,7 @@
 from .guard import HardStop
 from .ledger import DissentLedger
 from .script import ScriptEngine, ScriptSyntaxError, compile_script, parse_script
+from .state_store import StateStore
 
 
 def test_hard_stop_latches_until_authorised_reset():
@@ -134,3 +135,42 @@ def test_hard_stop_persists_across_script_requests_until_authorised_reset():
     )
     assert third["status"] == "completed"
     assert third["output"] == "released"
+
+
+
+def test_hard_stop_survives_guard_recreation(tmp_path):
+    path = tmp_path / "sylvex.sqlite3"
+    first = HardStop(StateStore(path))
+    first.trip("TEST_RESTART", "must remain stopped")
+    second = HardStop(StateStore(path))
+    assert second.stopped
+    assert second.as_dict()["event"]["code"] == "TEST_RESTART"
+    try:
+        second.reset()
+    except PermissionError:
+        pass
+    else:
+        raise AssertionError("reset must require authorisation")
+    second.reset(authorised=True)
+    assert not HardStop(StateStore(path)).stopped
+
+
+def test_ledger_survives_recreation_and_keeps_stable_ids(tmp_path):
+    path = tmp_path / "sylvex.sqlite3"
+    first = DissentLedger(StateStore(path))
+    first.record_murmur("retain this concern", line=9)
+    first_id = first.entries[-1].id
+    second = DissentLedger(StateStore(path))
+    assert len(second.unresolved()) == 1
+    assert second.unresolved()[0].id == first_id
+    second.record_murmur("second concern", line=10)
+    third = DissentLedger(StateStore(path))
+    assert [item.id for item in third.unresolved()] == [first_id, first_id + 1]
+
+
+def test_state_store_preserves_first_stop_event(tmp_path):
+    store = StateStore(tmp_path / "sylvex.sqlite3")
+    guard = HardStop(store)
+    guard.trip("FIRST", "first reason")
+    guard.trip("SECOND", "must not replace first")
+    assert guard.as_dict()["event"]["code"] == "FIRST"
