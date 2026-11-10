@@ -46,8 +46,17 @@ class DissentLedger:
             "source": source, "line": line,
         })
 
-    def unresolved(self):
-        return [entry for entry in self.entries if entry.data.get("status") == "unresolved"]
+    def refresh(self):
+        if self.state_store is not None:
+            self.entries = [
+                LedgerEntry(item["kind"], item["text"], item["data"], item["at"], item["id"])
+                for item in self.state_store.entries()
+            ]
+        return self.entries
+
+    def unresolved(self, limit=200):
+        entries = [entry for entry in self.refresh() if entry.data.get("status") == "unresolved"]
+        return entries[-max(1, int(limit)):]
 
     def as_dict(self, entry):
         return {"id": entry.id, "kind": entry.kind, "text": entry.text,
