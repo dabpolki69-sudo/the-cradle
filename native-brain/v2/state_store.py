@@ -67,7 +67,7 @@ class StateStore:
 
     def trip_stop(self, event):
         payload = json.dumps(event, sort_keys=True)
-        with self._lock, self._connect() as db:
+        with self._lock, self._db() as db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute("SELECT stopped, event_json FROM control_state WHERE id=1").fetchone()
             if row is None:
@@ -85,7 +85,7 @@ class StateStore:
         return event
 
     def reset_stop(self):
-        with self._lock, self._connect() as db:
+        with self._lock, self._db() as db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute("SELECT stopped, event_json FROM control_state WHERE id=1").fetchone()
             if row is None:
@@ -104,7 +104,7 @@ class StateStore:
 
     def append_entry(self, kind, text, data, at):
         encoded = json.dumps(data, sort_keys=True, ensure_ascii=False)
-        with self._lock, self._connect() as db:
+        with self._lock, self._db() as db:
             cursor = db.execute(
                 "INSERT INTO audit_log(kind,text,data_json,at) VALUES(?,?,?,?)",
                 (kind, text, encoded, at),
@@ -112,7 +112,7 @@ class StateStore:
             return cursor.lastrowid
 
     def entries(self):
-        with self._lock, self._connect() as db:
+        with self._lock, self._db() as db:
             rows = db.execute(
                 "SELECT id,kind,text,data_json,at FROM audit_log "
                 "WHERE kind IN ('dissent','murmur') ORDER BY id"
