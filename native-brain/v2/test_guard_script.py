@@ -2,6 +2,7 @@ from .guard import HardStop
 from .ledger import DissentLedger
 from .script import ScriptEngine, ScriptSyntaxError, compile_script, parse_script
 from .state_store import StateStore
+from .benchmark import run_benchmark, _evaluate
 
 
 def test_hard_stop_latches_until_authorised_reset():
@@ -183,3 +184,22 @@ def test_shared_ledger_refreshes_entries_written_by_another_instance(tmp_path):
     second = DissentLedger(StateStore(tmp_path / "sylvex.sqlite3"))
     first.record_murmur("cross-instance concern", line=12)
     assert [entry.text for entry in second.unresolved()] == ["cross-instance concern"]
+
+
+
+def test_deterministic_benchmark_fixtures_all_pass():
+    report = run_benchmark()
+    assert report["total"] == 8
+    assert report["passed"] == 8
+    assert report["failed"] == 0
+    assert report["scope"].startswith("script workflow")
+
+
+def test_benchmark_detects_an_unsafe_output_after_stop():
+    failures = _evaluate(
+        {"status": "stopped", "output": "unsafe", "claims": [], "murmurs": [],
+         "hard_stop": {"event": {"code": "SCRIPT_STOP"}}},
+        {"status": "stopped", "claim_types": [], "murmurs": 0,
+         "stop_code": "SCRIPT_STOP", "output_empty": True},
+    )
+    assert any("empty output" in failure for failure in failures)
