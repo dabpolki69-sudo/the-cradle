@@ -41,6 +41,7 @@ def health():
         "script_engine": "SYLVEX/1",
         "script_side_effects": False,
         "unresolved_ledger_entries": len(voice.ledger.unresolved()),
+        "hard_stop": script_engine.guard.as_dict(),
     }
 
 
