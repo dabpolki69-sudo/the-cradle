@@ -2,9 +2,11 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from .voice import Voice
 from .tissue import ModelTissue
+from .script import ScriptEngine
 
-app = FastAPI(title="Sylvex Brain v2 Chorus", version="0.3.0")
+app = FastAPI(title="Sylvex Brain v2 Chorus", version="0.4.0")
 voice = Voice()
+script_engine = ScriptEngine()
 
 
 class ChorusIn(BaseModel):
@@ -13,6 +15,11 @@ class ChorusIn(BaseModel):
     salience: float = Field(default=0.5, ge=0, le=1)
     stakes: float = Field(default=0.5, ge=0, le=1)
     surprise: float = Field(default=0.5, ge=0, le=1)
+
+
+class ScriptIn(BaseModel):
+    script: str = Field(min_length=1, max_length=8_000)
+    input_text: str = Field(default="", max_length=100_000)
 
 
 @app.get("/")
@@ -30,6 +37,8 @@ def health():
         "tissue_units": len(voice.tissues),
         "model_backed_tissues": model_units,
         "provider_mode": "configured" if model_units else "deterministic_baseline",
+        "script_engine": "SYLVEX/1",
+        "script_side_effects": False,
     }
 
 
@@ -44,5 +53,13 @@ def chorus(payload: ChorusIn):
             surprise=payload.surprise,
         )
     except Exception as exc:
-        # Keep internal exception details out of public API responses.
         raise HTTPException(status_code=500, detail="Chorus processing failed") from exc
+
+
+@app.post("/api/script")
+def run_script(payload: ScriptIn):
+    """Run a bounded, side-effect-free Sylvex/1 workflow."""
+    try:
+        return script_engine.run(payload.script, input_text=payload.input_text)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Script processing failed") from exc
