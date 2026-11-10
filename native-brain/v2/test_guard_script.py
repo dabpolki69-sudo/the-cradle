@@ -1,6 +1,6 @@
 from .guard import HardStop
 from .ledger import DissentLedger
-from .script import ScriptEngine, ScriptSyntaxError, parse_script
+from .script import ScriptEngine, ScriptSyntaxError, compile_script, parse_script
 
 
 def test_hard_stop_latches_until_authorised_reset():
@@ -98,3 +98,15 @@ def test_sylvex_script_rejects_unknown_operation_and_step_overflow():
         pass
     else:
         raise AssertionError("step overflow must be rejected")
+
+
+
+def test_compile_script_emits_stable_side_effect_free_ir():
+    compiled = compile_script("SYLVEX/1\nOBSERVE hello\nMURMUR check source")
+    assert compiled["language"] == "SYLVEX/1"
+    assert compiled["ir_version"] == 1
+    assert compiled["side_effects"] is False
+    assert compiled["steps"] == [
+        {"index": 0, "line": 2, "op": "OBSERVE", "arg": "hello"},
+        {"index": 1, "line": 3, "op": "MURMUR", "arg": "check source"},
+    ]
