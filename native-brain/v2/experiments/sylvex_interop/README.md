@@ -1,6 +1,6 @@
 # Sylvex interoperability pilot — protocol v0.1
 
-**Status:** protocol and fixtures prepared; no multi-model runs have been performed yet.
+**Status:** eight executable single-engine fixtures and a deterministic local benchmark are available; no multi-model runs have been performed yet.
 
 ## Question
 
